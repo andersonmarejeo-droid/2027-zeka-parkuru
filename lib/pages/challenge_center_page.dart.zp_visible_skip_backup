@@ -1,0 +1,1699 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../games/reflex/reflex_game_page.dart';
+import '../services/challenge_run_progress_service.dart';
+import '../services/daily_course_service.dart';
+import 'challenge_game_catalog.dart';
+import '../services/online_leaderboard_service.dart';
+import '../services/player_progress_service.dart';
+import '../services/social_challenge_service.dart';
+import '../services/social_notification_service.dart';
+import '../widgets/champion_celebration_card.dart';
+
+class ChallengeCenterPage extends StatefulWidget {
+  final String? initialChallengeId;
+
+  const ChallengeCenterPage({super.key, this.initialChallengeId});
+
+  @override
+  State<ChallengeCenterPage> createState() => _ChallengeCenterPageState();
+}
+
+class _ChallengeCenterPageState extends State<ChallengeCenterPage> {
+  final SocialChallengeService _challenges = SocialChallengeService.instance;
+  final OnlineLeaderboardService _leaderboard =
+      OnlineLeaderboardService.instance;
+  final PlayerProgressService _player = PlayerProgressService.instance;
+  final TextEditingController _friendCodeController = TextEditingController();
+
+  OnlineLeaderboardResult? _world;
+  Stream<List<SocialChallenge>>? _challengeStream;
+  Stream<List<String>>? _friendStream;
+  bool _loading = true;
+  bool _online = false;
+  bool _busy = false;
+  bool _initialChallengeOpened = false;
+  String? _offlineReason;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialize();
+  }
+
+  @override
+  void dispose() {
+    _friendCodeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initialize({bool forceRetry = false}) async {
+    final bool online = await _challenges.ensureOnline(forceRetry: forceRetry);
+    OnlineLeaderboardResult? world;
+    if (online) {
+      final PlayerDashboardData dashboard = await _player.load();
+      await _leaderboard.syncCurrentPlayer(dashboard);
+      world = await _leaderboard.fetchGlobal(limit: 30);
+      await SocialNotificationService.instance.enableNotifications();
+    }
+    if (!mounted) return;
+    setState(() {
+      _online = online;
+      _offlineReason = online ? null : _challenges.lastError;
+      _world = world;
+      _challengeStream = online ? _challenges.watchMyChallenges() : null;
+      _friendStream = online ? _challenges.watchFriendUids() : null;
+      _loading = false;
+    });
+    _openInitialChallenge();
+  }
+
+  void _openInitialChallenge() {
+    final String? challengeId = widget.initialChallengeId;
+    if (_initialChallengeOpened ||
+        challengeId == null ||
+        challengeId.trim().isEmpty ||
+        !_online) {
+      return;
+    }
+    _initialChallengeOpened = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => ChallengeDuelPage(challengeId: challengeId.trim()),
+        ),
+      );
+    });
+  }
+
+  void _message(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _shareOpenChallenge() async {
+    if (_busy) return;
+
+    setState(() => _busy = true);
+
+    try {
+      final SocialChallenge? challenge = await _challenges
+          .createSeriesChallenge();
+
+      if (!mounted) return;
+
+      if (challenge == null) {
+        _message('Davet oluşturulamadı. İnternet bağlantını kontrol et.');
+        return;
+      }
+
+      final String url = _challenges.inviteUrl(challenge.id);
+
+      await SharePlus.instance.share(
+        ShareParams(
+          subject: 'Zeka Parkuru meydan okuma daveti',
+          text:
+              'Benimle Zeka Parkuru ${challenge.gameIds.length} oyunluk Meydan Okuma serisini oyna!\n'
+              '${challenge.gameIds.length} farklı oyun • Orta-zor bölümler\n'
+              'Puan üstünlüğü • Eşitlikte süre\n'
+              'Her oyunda GEÇ kullanılabilir\n'
+              'Davet 48 saat geçerli:\n$url',
+        ),
+      );
+    } catch (error) {
+      _message('Paylaşım açılamadı: $error');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _challengePlayer(OnlineLeaderboardEntry player) async {
+    if (_busy || player.uid == _challenges.currentUid) return;
+
+    setState(() => _busy = true);
+
+    try {
+      final SocialChallenge? challenge = await _challenges
+          .createSeriesChallenge(target: player);
+
+      if (!mounted) return;
+
+      if (challenge == null) {
+        _message('Meydan okuma gönderilemedi.');
+        return;
+      }
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => ChallengeDuelPage(challengeId: challenge.id),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _findFriend() async {
+    if (_busy) return;
+    final String code = _friendCodeController.text;
+    if (code.trim().isEmpty) {
+      _message('8 karakterli arkadaş kodunu yaz.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final OnlineLeaderboardEntry? player = await _leaderboard
+          .findByFriendCode(code);
+      if (!mounted) return;
+      if (player == null || player.uid == _challenges.currentUid) {
+        _message('Bu kodla başka bir oyuncu bulunamadı.');
+        return;
+      }
+      final bool? send = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('${player.avatar} ${player.displayName}'),
+          content: Text(
+            '${player.score} ZP • ${player.stars}/330 ⭐\n'
+            'Meydan okuma göndermek ister misin?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('VAZGEÇ'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('MEYDAN OKU'),
+            ),
+          ],
+        ),
+      );
+      if (send == true) {
+        if (mounted) setState(() => _busy = false);
+        await _challengePlayer(player);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF07162E),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: const Text(
+          'ARKADAŞLAR & MEYDAN OKUMA',
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Yenile',
+            onPressed: _busy ? null : () => _initialize(forceRetry: true),
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : !_online
+          ? _OfflineState(
+              reason: _offlineReason,
+              onRetry: () => _initialize(forceRetry: true),
+            )
+          : Stack(
+              children: [
+                ScrollConfiguration(
+                  behavior: const MaterialScrollBehavior().copyWith(
+                    overscroll: false,
+                  ),
+                  child: RefreshIndicator(
+                    onRefresh: _initialize,
+                    child: ListView(
+                      physics: const ClampingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
+                      children: [
+                        _InvitePanel(
+                          friendCode:
+                              _challenges.currentFriendCode ?? '--------',
+                          onShare: _shareOpenChallenge,
+                          onCopy: () async {
+                            final String code =
+                                _challenges.currentFriendCode ?? '';
+                            await Clipboard.setData(ClipboardData(text: code));
+                            _message('Arkadaş kodun kopyalandı.');
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _FriendCodePanel(
+                          controller: _friendCodeController,
+                          onFind: _findFriend,
+                        ),
+                        const SizedBox(height: 18),
+                        const _SectionTitle(
+                          icon: Icons.bolt_rounded,
+                          title: 'MEYDAN OKUMALARIM',
+                        ),
+                        const SizedBox(height: 8),
+                        StreamBuilder<List<SocialChallenge>>(
+                          stream: _challengeStream,
+                          builder: (context, snapshot) {
+                            if (snapshot.hasError) {
+                              return _InfoCard(
+                                text:
+                                    'Meydan okumalar yüklenemedi: '
+                                    '${snapshot.error}',
+                              );
+                            }
+                            final List<SocialChallenge> items =
+                                snapshot.data ?? const <SocialChallenge>[];
+                            if (items.isEmpty) {
+                              return const _InfoCard(
+                                text:
+                                    'Henüz düellon yok. WhatsApp daveti '
+                                    'göndererek ilk mücadeleyi başlat.',
+                              );
+                            }
+                            return Column(
+                              children: items
+                                  .take(12)
+                                  .map((challenge) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: _ChallengeCard(
+                                        challenge: challenge,
+                                        currentUid:
+                                            _challenges.currentUid ?? '',
+                                        onOpen: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute<void>(
+                                            builder: (_) => ChallengeDuelPage(
+                                              challengeId: challenge.id,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  })
+                                  .toList(growable: false),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 18),
+                        const _SectionTitle(
+                          icon: Icons.people_alt_rounded,
+                          title: 'ARKADAŞLAR',
+                        ),
+                        const SizedBox(height: 8),
+                        StreamBuilder<List<String>>(
+                          stream: _friendStream,
+                          builder: (context, snapshot) {
+                            final List<String> uids =
+                                snapshot.data ?? const <String>[];
+
+                            final String? currentUid = _challenges.currentUid;
+
+                            final Set<String> rankUids = <String>{
+                              ...uids,
+                              if (currentUid != null && currentUid.isNotEmpty)
+                                currentUid,
+                            };
+
+                            if (rankUids.isEmpty) {
+                              return const _InfoCard(
+                                text: 'Arkadaş sıralaması henüz hazırlanamadı.',
+                              );
+                            }
+
+                            return FutureBuilder<List<OnlineLeaderboardEntry>>(
+                              future: _leaderboard.fetchPlayersByUid(rankUids),
+                              builder: (context, playersSnapshot) {
+                                final List<OnlineLeaderboardEntry>? players =
+                                    playersSnapshot.data;
+
+                                if (players == null) {
+                                  return const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
+
+                                final List<OnlineLeaderboardEntry> ranked =
+                                    List<OnlineLeaderboardEntry>.from(players);
+
+                                ranked.sort((a, b) {
+                                  final int scoreCompare = b.score.compareTo(
+                                    a.score,
+                                  );
+                                  if (scoreCompare != 0) {
+                                    return scoreCompare;
+                                  }
+
+                                  final int starCompare = b.stars.compareTo(
+                                    a.stars,
+                                  );
+                                  if (starCompare != 0) {
+                                    return starCompare;
+                                  }
+
+                                  return b.completedLevels.compareTo(
+                                    a.completedLevels,
+                                  );
+                                });
+
+                                final int myIndex = currentUid == null
+                                    ? -1
+                                    : ranked.indexWhere(
+                                        (player) => player.uid == currentUid,
+                                      );
+
+                                final int? myRank = myIndex >= 0
+                                    ? myIndex + 1
+                                    : null;
+
+                                final List<
+                                  MapEntry<int, OnlineLeaderboardEntry>
+                                >
+                                rankedFriends = ranked
+                                    .asMap()
+                                    .entries
+                                    .where(
+                                      (item) => item.value.uid != currentUid,
+                                    )
+                                    .toList(growable: false);
+
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: <Widget>[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 11,
+                                      ),
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF10274B),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: Row(
+                                        children: <Widget>[
+                                          const Icon(
+                                            Icons.emoji_events_rounded,
+                                            size: 20,
+                                            color: Color(0xFFFFD54F),
+                                          ),
+                                          const SizedBox(width: 9),
+                                          Expanded(
+                                            child: Text(
+                                              myRank == null
+                                                  ? 'Arkadaş sırası hesaplanamadı'
+                                                  : 'Arkadaşlar arasında #$myRank',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w900,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ),
+                                          if (myRank != null)
+                                            Text(
+                                              '${ranked.length} oyuncu',
+                                              style: const TextStyle(
+                                                color: Colors.white54,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (rankedFriends.isEmpty)
+                                      const _InfoCard(
+                                        text: 'Henüz arkadaşın yok. Bir meydan okuma kabul edildiğinde oyuncu otomatik olarak arkadaş listene eklenir.',
+                                      )
+                                    else
+                                      ...rankedFriends.map(
+                                        (item) => _PlayerCard(
+                                          rank: item.key + 1,
+                                          player: item.value,
+                                          onChallenge: () =>
+                                              _challengePlayer(item.value),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 18),
+                        const _SectionTitle(
+                          icon: Icons.online_prediction_rounded,
+                          title: 'ŞİMDİ AKTİF OYUNCULAR',
+                        ),
+                        const SizedBox(height: 8),
+                        if ((_world?.entries ??
+                                const <OnlineLeaderboardEntry>[])
+                            .where(
+                              (player) =>
+                                  player.recentlyActive &&
+                                  player.uid != _challenges.currentUid,
+                            )
+                            .isEmpty)
+                          const _InfoCard(
+                            text:
+                                'Son 15 dakikada başka aktif oyuncu '
+                                'görünmüyor. Dünya listesinden yine de '
+                                'bildirimli meydan okuma gönderebilirsin.',
+                          )
+                        else
+                          ...(_world?.entries ??
+                                  const <OnlineLeaderboardEntry>[])
+                              .where(
+                                (player) =>
+                                    player.recentlyActive &&
+                                    player.uid != _challenges.currentUid,
+                              )
+                              .take(10)
+                              .map(
+                                (player) => _PlayerCard(
+                                  player: player,
+                                  active: true,
+                                  onChallenge: () => _challengePlayer(player),
+                                ),
+                              ),
+                        const SizedBox(height: 18),
+                        const _SectionTitle(
+                          icon: Icons.public_rounded,
+                          title: 'DÜNYA SIRALAMASI',
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          _world?.currentRank == null
+                              ? 'Dünya sırası hesaplanamadı • ${_world?.totalPlayers ?? 0} oyuncu'
+                              : 'Dünya #${_world!.currentRank} • ${_world?.totalPlayers ?? 0} oyuncu',
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...(_world?.entries ?? const <OnlineLeaderboardEntry>[])
+                            .asMap()
+                            .entries
+                            .where(
+                              (item) =>
+                                  item.value.uid != _challenges.currentUid,
+                            )
+                            .take(20)
+                            .map(
+                              (item) => _PlayerCard(
+                                rank: item.key + 1,
+                                player: item.value,
+                                active: item.value.recentlyActive,
+                                onChallenge: () => _challengePlayer(item.value),
+                              ),
+                            ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_busy)
+                  const Positioned.fill(
+                    child: ColoredBox(
+                      color: Color(0x44000000),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
+class ChallengeDuelPage extends StatefulWidget {
+  final String challengeId;
+
+  const ChallengeDuelPage({super.key, required this.challengeId});
+
+  @override
+  State<ChallengeDuelPage> createState() => _ChallengeDuelPageState();
+}
+
+class _ChallengeDuelPageState extends State<ChallengeDuelPage> {
+  final SocialChallengeService _service = SocialChallengeService.instance;
+  final ChallengeRunProgressService _runProgress =
+      ChallengeRunProgressService.instance;
+  bool _busy = false;
+
+  static const ReflexLevel _duelLevel = ReflexLevel(
+    number: 1,
+    title: 'Düello: Yeşil Işık',
+    subtitle: 'İki oyuncu da aynı seriyi oynar',
+    difficulty: 'DÜELLO',
+    mode: ReflexMode.reaction,
+    rounds: 6,
+    lives: 3,
+    timeLimitMs: 1200,
+    targetMs: 520,
+  );
+
+  void _message(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _accept() async {
+    setState(() => _busy = true);
+    final bool success = await _service.acceptChallenge(widget.challengeId);
+    if (mounted) {
+      setState(() => _busy = false);
+      _message(
+        success ? 'Meydan okuma kabul edildi!' : 'Davet kabul edilemedi.',
+      );
+    }
+  }
+
+  Future<void> _decline() async {
+    setState(() => _busy = true);
+    final bool success = await _service.declineChallenge(widget.challengeId);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (success) Navigator.pop(context);
+  }
+
+  Future<void> _playSeries(SocialChallenge challenge) async {
+    if (!challenge.isSeries || _busy) return;
+
+    final String playerUid = _service.currentUid ?? '';
+    if (playerUid.isEmpty) {
+      _message('Oyuncu bilgisi alınamadı. Parkur başlatılamadı.');
+      return;
+    }
+
+    final String parkourFingerprint = <String>[
+      '${challenge.schemaVersion}',
+      challenge.gameIds.join(','),
+      challenge.levels.join(','),
+      challenge.layoutCodes.join(','),
+    ].join('|');
+
+    ChallengeRunCheckpoint checkpoint = await _runProgress.loadOrCreate(
+      challengeId: challenge.id,
+      playerUid: playerUid,
+      parkourFingerprint: parkourFingerprint,
+      stationCount: challenge.gameIds.length,
+    );
+
+    if (!mounted) return;
+
+    if (checkpoint.nextStationIndex > 0 &&
+        checkpoint.nextStationIndex < challenge.gameIds.length) {
+      _message(
+        'Parkura ${checkpoint.nextStationIndex + 1}. bölümden devam ediliyor.',
+      );
+    }
+
+    for (
+      int index = checkpoint.nextStationIndex;
+      index < challenge.gameIds.length;
+      index++
+    ) {
+      if (!mounted) return;
+
+      final String gameId = challenge.gameIds[index];
+      final int level = challenge.levelForIndex(index);
+      final int layoutCode = challenge.layoutCodeForIndex(index);
+
+      final int stationStartedAtMs =
+          checkpoint.activeStationStartedAtMs ??
+          DateTime.now().millisecondsSinceEpoch;
+
+      checkpoint = checkpoint.copyWith(
+        activeStationStartedAtMs: stationStartedAtMs,
+      );
+      await _runProgress.save(checkpoint);
+
+      if (!mounted) return;
+
+      final Object? result = await Navigator.push<Object?>(
+        context,
+        MaterialPageRoute<Object?>(
+          builder: (_) => _ChallengeSeriesGameShell(
+            stationNumber: index + 1,
+            totalStations: challenge.gameIds.length,
+            gameName: challengeGameDefinition(gameId).name,
+            game: buildChallengeCompetitionPage(
+              gameId: gameId,
+              level: level,
+              layoutCode: layoutCode,
+            ),
+          ),
+        ),
+      );
+
+      if (!mounted) return;
+
+      final int stationElapsedMs =
+          (DateTime.now().millisecondsSinceEpoch - stationStartedAtMs)
+              .clamp(0, 86400000)
+              .toInt();
+
+      if (result is _ChallengeSeriesSkip) {
+        checkpoint = checkpoint.copyWith(
+          nextStationIndex: index + 1,
+          elapsedMs: checkpoint.elapsedMs + stationElapsedMs,
+          skips: checkpoint.skips + 1,
+          clearActiveStationStartedAt: true,
+        );
+        await _runProgress.save(checkpoint);
+        continue;
+      }
+
+      if (result is! DailyCourseGameResult) {
+        _message(
+          'İlerlemen kaydedildi. Meydan Okuma ekranından kaldığın '
+          'bölüme devam edebilirsin.',
+        );
+        return;
+      }
+
+      final int safeStars = result.stars.clamp(0, 3).toInt();
+
+      // Oyunların ham skorları birbirinden farklı ölçeklerde.
+      // Bu yüzden tüm oyunları ortak seri puanına çeviriyoruz.
+      checkpoint = checkpoint.copyWith(
+        nextStationIndex: index + 1,
+        totalScore: checkpoint.totalScore + 100 + safeStars * 300,
+        totalStars: checkpoint.totalStars + safeStars,
+        elapsedMs: checkpoint.elapsedMs + stationElapsedMs,
+        clearActiveStationStartedAt: true,
+      );
+      await _runProgress.save(checkpoint);
+    }
+
+    if (!mounted) return;
+
+    setState(() => _busy = true);
+
+    try {
+      final bool saved = await _service.submitSeriesResult(
+        challengeId: challenge.id,
+        score: checkpoint.totalScore,
+        stars: checkpoint.totalStars,
+        elapsedMs: checkpoint.elapsedMs,
+        skips: checkpoint.skips,
+      );
+
+      if (!mounted) return;
+
+      if (saved) {
+        await _runProgress.clear(
+          challengeId: challenge.id,
+          playerUid: playerUid,
+        );
+      }
+
+      _message(
+        saved
+            ? '${challenge.gameIds.length} oyunluk seri sonucun kaydedildi.'
+            : 'Seri sonucu kaydedilemedi.',
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _play(SocialChallenge challenge) async {
+    if (challenge.isSeries) {
+      await _playSeries(challenge);
+      return;
+    }
+
+    int? score;
+    int? stars;
+
+    // Eski uygulama sürümlerinde oluşturulmuş Refleks davetleri
+    // çalışmaya devam eder.
+    if (challenge.gameId == 'reflex') {
+      final ReflexLevelResult? legacyResult =
+          await Navigator.push<ReflexLevelResult>(
+            context,
+            MaterialPageRoute<ReflexLevelResult>(
+              builder: (_) => ReflexPlayPage(
+                level: _duelLevel,
+                totalLevels: 1,
+                fixedSessionSeed: challenge.seed,
+              ),
+            ),
+          );
+
+      if (legacyResult == null || !legacyResult.completed || !mounted) {
+        return;
+      }
+
+      score = legacyResult.score;
+      stars = legacyResult.stars;
+    } else {
+      final DailyCourseGameResult? result =
+          await Navigator.push<DailyCourseGameResult>(
+            context,
+            MaterialPageRoute<DailyCourseGameResult>(
+              builder: (_) => buildChallengeCompetitionPage(
+                gameId: challenge.gameId,
+                level: challenge.level,
+                layoutCode: challenge.seed,
+              ),
+            ),
+          );
+
+      if (result == null || !mounted) return;
+
+      score = result.score;
+      stars = result.stars;
+    }
+
+    if (!mounted) return;
+
+    setState(() => _busy = true);
+
+    final bool saved = await _service.submitScore(
+      challengeId: challenge.id,
+      score: score,
+      stars: stars,
+    );
+
+    if (!mounted) return;
+
+    setState(() => _busy = false);
+
+    _message(
+      saved ? 'Skorun meydan okumaya kaydedildi.' : 'Skor kaydedilemedi.',
+    );
+  }
+
+  Future<void> _sendReaction(SocialChallenge challenge, String reaction) async {
+    if (_busy) return;
+
+    setState(() => _busy = true);
+
+    try {
+      final bool sent = await _service.sendReaction(
+        challengeId: challenge.id,
+        reaction: reaction,
+      );
+
+      if (!mounted) return;
+
+      if (!sent) {
+        _message('Tepki gönderilemedi.');
+        return;
+      }
+
+      switch (reaction) {
+        case 'rematch':
+          _message('Rövanş isteğin gönderildi. ⚔️');
+          break;
+        case 'good_game':
+          _message('Tepkin gönderildi. 👏');
+          break;
+        case 'close_game':
+          _message('Tepkin gönderildi. 😅');
+          break;
+        case 'congrats':
+          _message('Tebrik mesajın gönderildi. 🏆');
+          break;
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  Future<void> _rematch(SocialChallenge challenge) async {
+    if (_busy) return;
+
+    final String uid = _service.currentUid ?? '';
+    if (uid.isEmpty) {
+      _message('Oyuncu bilgisi alınamadı.');
+      return;
+    }
+
+    final String opponentUid = challenge.challengerUid == uid
+        ? (challenge.opponentUid ?? challenge.targetUid ?? '')
+        : challenge.challengerUid;
+
+    if (opponentUid.isEmpty || opponentUid == uid) {
+      _message('Rövanş için rakip bulunamadı.');
+      return;
+    }
+
+    setState(() => _busy = true);
+
+    try {
+      final List<OnlineLeaderboardEntry> players =
+          await OnlineLeaderboardService.instance.fetchPlayersByUid(<String>[
+            opponentUid,
+          ]);
+
+      if (!mounted) return;
+
+      if (players.isEmpty) {
+        _message('Rakip bilgisi alınamadı.');
+        return;
+      }
+
+      final SocialChallenge? rematch = await _service.createSeriesChallenge(
+        target: players.first,
+      );
+
+      if (!mounted) return;
+
+      if (rematch == null) {
+        _message('Rövanş oluşturulamadı.');
+        return;
+      }
+
+      await Navigator.pushReplacement<void, void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => ChallengeDuelPage(challengeId: rematch.id),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  Future<void> _share(SocialChallenge challenge) async {
+    await SharePlus.instance.share(
+      ShareParams(
+        subject: 'Zeka Parkuru meydan okuma daveti',
+        text:
+            '${challenge.gameIds.length} oyunluk Zeka Parkuru Meydan Okuma serisine katıl!\n'
+            'Puan üstünlüğü • Eşitlikte süre\n'
+            '${_service.inviteUrl(challenge.id)}',
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String uid = _service.currentUid ?? '';
+    return Scaffold(
+      backgroundColor: const Color(0xFF07162E),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: const Text(
+          'MEYDAN OKUMA',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Davet bağlantısını paylaş',
+            onPressed: () async {
+              final SocialChallenge? challenge = await _service.getChallenge(
+                widget.challengeId,
+              );
+              if (challenge != null) await _share(challenge);
+            },
+            icon: const Icon(Icons.share_rounded),
+          ),
+        ],
+      ),
+      body: StreamBuilder<SocialChallenge?>(
+        stream: _service.watchChallenge(widget.challengeId),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Düello açılamadı: ${snapshot.error}'));
+          }
+          final SocialChallenge? challenge = snapshot.data;
+          if (challenge == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final bool mine = challenge.challengerUid == uid;
+          final bool canAccept =
+              challenge.pending &&
+              !mine &&
+              (challenge.targetUid == null || challenge.targetUid == uid);
+          final bool canPlay =
+              challenge.accepted &&
+              challenge.scoreFor(uid) == null &&
+              !challenge.expired;
+
+          return Stack(
+            children: [
+              ListView(
+                padding: const EdgeInsets.all(18),
+                children: [
+                  _DuelHero(challenge: challenge),
+                  const SizedBox(height: 14),
+                  _ScoreComparison(challenge: challenge),
+                  const SizedBox(height: 14),
+                  if (challenge.expired && !challenge.completed)
+                    const _InfoCard(
+                      text: 'Bu davetin 48 saatlik süresi doldu.',
+                    ),
+                  if (challenge.pending && mine)
+                    const _InfoCard(
+                      text:
+                          'Rakibin daveti açıp kabul etmesi bekleniyor. '
+                          'Bağlantıyı WhatsApp üzerinden paylaşabilirsin.',
+                    ),
+                  if (canAccept)
+                    Row(
+                      children: [
+                        if (challenge.targetUid != null)
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _busy ? null : _decline,
+                              child: const Text('REDDET'),
+                            ),
+                          ),
+                        if (challenge.targetUid != null)
+                          const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: FilledButton.icon(
+                            onPressed: _busy ? null : _accept,
+                            icon: const Icon(Icons.check_rounded),
+                            label: const Text('KABUL ET'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (canPlay)
+                    FilledButton.icon(
+                      onPressed: _busy ? null : () => _play(challenge),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: Text(
+                        challenge.isSeries
+                            ? '${challenge.gameIds.length} OYUNLUK PARKURU BAŞLAT / DEVAM ET'
+                            : 'AYNI SERİYİ OYNA',
+                      ),
+                    ),
+                  if (challenge.accepted && challenge.scoreFor(uid) != null)
+                    const _InfoCard(
+                      text: 'Skorun kaydedildi. Rakibinin sonucu bekleniyor.',
+                    ),
+                  if (challenge.completed)
+                    _ResultBanner(challenge: challenge, currentUid: uid),
+                  if (challenge.completed) const SizedBox(height: 10),
+                  if (challenge.completed)
+                    _ReactionPanel(
+                      challenge: challenge,
+                      currentUid: uid,
+                      onReaction: (reaction) =>
+                          _sendReaction(challenge, reaction),
+                    ),
+                  if (challenge.completed) const SizedBox(height: 10),
+                  if (challenge.completed)
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _busy ? null : () => _rematch(challenge),
+                        icon: const Icon(Icons.replay_rounded),
+                        label: const Text(
+                          'RÖVANŞ',
+                          style: TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ),
+                  if (challenge.declined)
+                    const _InfoCard(text: 'Bu meydan okuma reddedildi.'),
+                ],
+              ),
+              if (_busy)
+                const Positioned.fill(
+                  child: ColoredBox(
+                    color: Color(0x44000000),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ChallengeSeriesSkip {
+  const _ChallengeSeriesSkip();
+}
+
+class _ChallengeSeriesGameShell extends StatelessWidget {
+  final int stationNumber;
+  final int totalStations;
+  final String gameName;
+  final Widget game;
+
+  const _ChallengeSeriesGameShell({
+    required this.stationNumber,
+    required this.totalStations,
+    required this.gameName,
+    required this.game,
+  });
+
+  Future<void> _skip(BuildContext context) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Bu bölümü geç?'),
+        content: Text(
+          '$gameName için 0 seri puanı alırsın. '
+          'Süre yarışın devam eder ve sonraki oyuna geçersin.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('DEVAM ET'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('GEÇ'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      Navigator.of(context).pop(const _ChallengeSeriesSkip());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double top = MediaQuery.paddingOf(context).top + kToolbarHeight + 6;
+
+    return Stack(
+      children: <Widget>[
+        Positioned.fill(child: game),
+        Positioned(
+          top: top,
+          left: 10,
+          child: IgnorePointer(
+            child: Material(
+              color: const Color(0xDD07162E),
+              borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 7,
+                ),
+                child: Text(
+                  '$stationNumber/$totalStations',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 18,
+          right: 18,
+          bottom: MediaQuery.paddingOf(context).bottom + 14,
+          child: SafeArea(
+            top: false,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFFF8A00),
+                foregroundColor: const Color(0xFF07162E),
+                minimumSize: const Size.fromHeight(54),
+                elevation: 10,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+              onPressed: () => _skip(context),
+              icon: const Icon(Icons.skip_next_rounded, size: 26),
+              label: const Text(
+                'GEÇ',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InvitePanel extends StatelessWidget {
+  final String friendCode;
+  final VoidCallback onShare;
+  final VoidCallback onCopy;
+
+  const _InvitePanel({
+    required this.friendCode,
+    required this.onShare,
+    required this.onCopy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF5C42E8), Color(0xFF0D8FA9)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'ARKADAŞINI ARENAYA ÇAĞIR',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+          ),
+          const SizedBox(height: 5),
+          const Text(
+            'WhatsApp veya istediğin uygulamayla tek kullanımlık '
+            'düello bağlantısı gönder.',
+            style: TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: onShare,
+              icon: const Icon(Icons.share_rounded),
+              label: const Text('WHATSAPP İLE DAVET GÖNDER'),
+            ),
+          ),
+          const SizedBox(height: 9),
+          Row(
+            children: [
+              const Text('Arkadaş kodun: ', style: TextStyle(fontSize: 12)),
+              Text(
+                friendCode,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2,
+                ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                onPressed: onCopy,
+                icon: const Icon(Icons.copy_rounded, size: 18),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FriendCodePanel extends StatelessWidget {
+  final TextEditingController controller;
+  final VoidCallback onFind;
+
+  const _FriendCodePanel({required this.controller, required this.onFind});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10274B),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              textCapitalization: TextCapitalization.characters,
+              maxLength: 8,
+              decoration: const InputDecoration(
+                counterText: '',
+                labelText: 'Arkadaş kodu',
+                hintText: 'Örn. AB12CD34',
+                prefixIcon: Icon(Icons.person_search_rounded),
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (_) => onFind(),
+            ),
+          ),
+          const SizedBox(width: 9),
+          FilledButton(onPressed: onFind, child: const Text('BUL')),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final IconData icon;
+  final String title;
+
+  const _SectionTitle({required this.icon, required this.title});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, color: const Color(0xFF00D9FF), size: 20),
+      const SizedBox(width: 7),
+      Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+    ],
+  );
+}
+
+class _PlayerCard extends StatelessWidget {
+  final int? rank;
+  final OnlineLeaderboardEntry player;
+  final bool active;
+  final VoidCallback onChallenge;
+
+  const _PlayerCard({
+    this.rank,
+    required this.player,
+    this.active = false,
+    required this.onChallenge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xFF10274B),
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Text(
+          rank == null ? player.avatar : '${rank!}. ${player.avatar}',
+          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+        ),
+        title: Text(
+          player.displayName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        subtitle: Text(
+          active
+              ? '● Şimdi aktif • ${player.score} ZP • ${player.stars}/330 ⭐'
+              : '${player.score} ZP • ${player.stars}/330 ⭐',
+          style: TextStyle(color: active ? const Color(0xFF56E39F) : null),
+        ),
+        trailing: IconButton.filledTonal(
+          tooltip: 'Meydan oku',
+          onPressed: onChallenge,
+          icon: const Icon(Icons.bolt_rounded, size: 20),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChallengeCard extends StatelessWidget {
+  final SocialChallenge challenge;
+  final String currentUid;
+  final VoidCallback onOpen;
+
+  const _ChallengeCard({
+    required this.challenge,
+    required this.currentUid,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final String status = challenge.completed
+        ? 'SONUÇ HAZIR'
+        : challenge.accepted
+        ? 'OYUN AÇIK'
+        : challenge.declined
+        ? 'REDDEDİLDİ'
+        : challenge.expired
+        ? 'SÜRESİ DOLDU'
+        : 'KABUL BEKLİYOR';
+    return Card(
+      color: const Color(0xFF10274B),
+      child: ListTile(
+        onTap: onOpen,
+        leading: Text(
+          challenge.opponentAvatarFor(currentUid),
+          style: const TextStyle(fontSize: 26),
+        ),
+        title: Text(
+          challenge.opponentLabelFor(currentUid),
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        subtitle: Text(status),
+        trailing: const Icon(Icons.chevron_right_rounded),
+      ),
+    );
+  }
+}
+
+class _DuelHero extends StatelessWidget {
+  final SocialChallenge challenge;
+
+  const _DuelHero({required this.challenge});
+
+  @override
+  Widget build(BuildContext context) {
+    final ChallengeGameDefinition game = challenge.isSeries
+        ? const ChallengeGameDefinition(
+            id: 'series',
+            name: 'Meydan Okuma',
+            icon: Icons.route_rounded,
+            color: Color(0xFF7655FF),
+          )
+        : challengeGameDefinition(challenge.gameId);
+
+    final bool legacyReflex =
+        !challenge.isSeries && challenge.gameId == 'reflex';
+
+    final String title = challenge.isSeries
+        ? '${challenge.gameIds.length} OYUNLUK MEYDAN OKUMA'
+        : legacyReflex
+        ? 'REFLEKS AVI • KLASİK'
+        : '${game.name.toUpperCase()} • BÖLÜM ${challenge.level}';
+
+    final String detail = challenge.isSeries
+        ? '${challenge.gameIds.length} farklı oyun • Puan öncelikli • Eşitlikte süre'
+        : legacyReflex
+        ? '6 tur • 3 can • En yüksek skor kazanır'
+        : '${challengeDifficultyLabel(challenge.level)} • '
+              'Aynı görev • En yüksek skor kazanır';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: <Color>[
+            game.color.withValues(alpha: 0.88),
+            const Color(0xFFD63C79),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        children: <Widget>[
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Icon(game.icon, size: 32, color: Colors.white),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            '${challenge.challengerAvatar} ${challenge.challengerName}  '
+            'VS  ${challenge.opponentAvatar ?? '⚔️'} '
+            '${challenge.opponentName ?? 'Rakip'}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            detail,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScoreComparison extends StatelessWidget {
+  final SocialChallenge challenge;
+
+  const _ScoreComparison({required this.challenge});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget score(String name, String avatar, int? points, int? stars) {
+      return Expanded(
+        child: Column(
+          children: [
+            Text(avatar, style: const TextStyle(fontSize: 28)),
+            Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              points == null ? 'BEKLİYOR' : '$points PUAN',
+              style: TextStyle(
+                color: points == null
+                    ? Colors.white54
+                    : const Color(0xFFFFD334),
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            if (stars != null) Text('$stars ⭐'),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10274B),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          score(
+            challenge.challengerName,
+            challenge.challengerAvatar,
+            challenge.challengerScore,
+            challenge.challengerStars,
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8),
+            child: Text('VS', style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+          score(
+            challenge.opponentName ?? 'Rakip',
+            challenge.opponentAvatar ?? '⚔️',
+            challenge.opponentScore,
+            challenge.opponentStars,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReactionPanel extends StatelessWidget {
+  final SocialChallenge challenge;
+  final String currentUid;
+  final Future<void> Function(String reaction) onReaction;
+
+  const _ReactionPanel({
+    required this.challenge,
+    required this.currentUid,
+    required this.onReaction,
+  });
+
+  static const Map<String, String> _labels = <String, String>{
+    'good_game': 'İyi oynadın 👏',
+    'rematch': 'Rövanş? ⚔️',
+    'close_game': 'Çok yakındı 😅',
+    'congrats': 'Tebrikler 🏆',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final bool amChallenger = challenge.challengerUid == currentUid;
+
+    final String? mine = amChallenger
+        ? challenge.challengerReaction
+        : challenge.opponentReaction;
+
+    final String? other = amChallenger
+        ? challenge.opponentReaction
+        : challenge.challengerReaction;
+
+    final String opponentName = challenge.opponentLabelFor(currentUid);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10274B),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          if (other != null && _labels.containsKey(other)) ...<Widget>[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$opponentName: ${_labels[other]}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          const Text(
+            'TEPKİ GÖNDER',
+            style: TextStyle(
+              color: Colors.white70,
+              fontWeight: FontWeight.w900,
+              fontSize: 11,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 9),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _labels.entries
+                .map((entry) {
+                  return ChoiceChip(
+                    label: Text(entry.value),
+                    selected: mine == entry.key,
+                    onSelected: (_) {
+                      onReaction(entry.key);
+                    },
+                  );
+                })
+                .toList(growable: false),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResultBanner extends StatelessWidget {
+  final SocialChallenge challenge;
+  final String currentUid;
+
+  const _ResultBanner({required this.challenge, required this.currentUid});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool draw = challenge.winnerUid == 'draw';
+    final bool won = challenge.winnerUid == currentUid;
+    return ChampionCelebrationCard(
+      key: ValueKey<String>('challenge_result_${challenge.id}_$currentUid'),
+      celebrate: won,
+      title: draw
+          ? 'BAŞA BAŞA!'
+          : won
+          ? 'MAŞALLAH!'
+          : 'MÜCADELE TAMAMLANDI',
+      subtitle: draw
+          ? 'Müthiş mücadele 🤝'
+          : won
+          ? 'Şampiyon sensin 🏆'
+          : 'Bu mücadeleyi rakibin kazandı. Rövanşta sıra sende!',
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  final String text;
+
+  const _InfoCard({required this.text});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(15),
+    decoration: BoxDecoration(
+      color: const Color(0xFF10274B),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Text(text, style: const TextStyle(color: Colors.white70)),
+  );
+}
+
+class _OfflineState extends StatelessWidget {
+  final VoidCallback onRetry;
+  final String? reason;
+
+  const _OfflineState({required this.onRetry, required this.reason});
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off_rounded, size: 54),
+          const SizedBox(height: 12),
+          const Text(
+            'Çevrim içi arena bağlanamadı',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            reason?.trim().isNotEmpty == true ? reason! : 'İnternetini ve Firebase yapılandırmasını kontrol edip tekrar dene.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white60),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('TEKRAR DENE'),
+          ),
+        ],
+      ),
+    ),
+  );
+}

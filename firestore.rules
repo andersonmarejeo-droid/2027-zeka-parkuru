@@ -1,0 +1,1840 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function validLeaderboardData(data, uid) {
+      return data.keys().hasOnly([
+          'uid',
+          'displayName',
+          'avatar',
+          'xp',
+          'level',
+          'score',
+          'stars',
+          'completedLevels',
+          'bestStreak',
+          'perfectDays',
+          'league',
+          'locale',
+          'schemaVersion',
+          'updatedAt'
+        ])
+        && data.uid == uid
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 18
+        && data.avatar is string
+        && data.avatar.size() >= 1
+        && data.avatar.size() <= 16
+        && data.xp is int
+        && data.xp >= 0
+        && data.xp <= 1000000
+        && data.level is int
+        && data.level >= 1
+        && data.level <= 50
+        && data.score is int
+        && data.score >= 0
+        && data.score <= 10000000
+        && data.stars is int
+        && data.stars >= 0
+        && data.stars <= 330
+        && data.completedLevels is int
+        && data.completedLevels >= 0
+        && data.completedLevels <= 110
+        && data.bestStreak is int
+        && data.bestStreak >= 0
+        && data.bestStreak <= 10000
+        && data.perfectDays is int
+        && data.perfectDays >= 0
+        && data.perfectDays <= 10000
+        && data.league is string
+        && data.league.size() >= 1
+        && data.league.size() <= 16
+        && data.locale is string
+        && data.locale.size() >= 2
+        && data.locale.size() <= 10
+        && data.schemaVersion == 1
+        && data.updatedAt == request.time;
+    }
+
+    function validLeaderboardV3Data(data, uid) {
+      return data.keys().hasOnly([
+          'uid',
+          'displayName',
+          'avatar',
+          'xp',
+          'level',
+          'score',
+          'stars',
+          'completedLevels',
+          'bestStreak',
+          'perfectDays',
+          'league',
+          'locale',
+          'friendCode',
+          'schemaVersion',
+          'updatedAt'
+        ])
+        && data.uid == uid
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 18
+        && data.avatar is string
+        && data.avatar.size() >= 1
+        && data.avatar.size() <= 16
+        && data.xp is int
+        && data.xp >= 0
+        && data.xp <= 1000000
+        && data.score is int
+        && data.score == data.xp
+        && data.score >= 0
+        && data.score <= 1000000
+        && data.level is int
+        && data.level >= 1
+        && data.level <= 50
+        && data.stars is int
+        && data.stars >= 0
+        && data.stars <= 330
+        && data.completedLevels is int
+        && data.completedLevels >= 0
+        && data.completedLevels <= 110
+        && data.bestStreak is int
+        && data.bestStreak >= 0
+        && data.bestStreak <= 10000
+        && data.perfectDays is int
+        && data.perfectDays >= 0
+        && data.perfectDays <= 10000
+        && data.league is string
+        && data.league.size() >= 1
+        && data.league.size() <= 16
+        && data.locale is string
+        && data.locale.size() >= 2
+        && data.locale.size() <= 10
+        && data.friendCode is string
+        && data.friendCode.size() == 8
+        && data.schemaVersion == 3
+        && data.updatedAt == request.time;
+    }
+
+
+    function validDeletionRequest(data, uid) {
+      return data.keys().hasOnly([
+          'uid',
+          'requestedAt',
+          'schemaVersion'
+        ])
+        && data.uid == uid
+        && data.requestedAt == request.time
+        && data.schemaVersion == 1;
+    }
+
+    function validDeviceData(data, uid) {
+      return data.keys().hasOnly([
+          'uid',
+          'token',
+          'platform',
+          'locale',
+          'updatedAt',
+          'schemaVersion'
+        ])
+        && data.uid == uid
+        && data.token is string
+        && data.token.size() >= 20
+        && data.token.size() <= 4096
+        && data.platform == 'android'
+        && data.locale is string
+        && data.locale.size() >= 2
+        && data.locale.size() <= 32
+        && data.updatedAt == request.time
+        && data.schemaVersion == 1;
+    }
+
+    function validFriendshipData(data) {
+      return data.keys().hasOnly([
+          'members',
+          'createdAt',
+          'updatedAt',
+          'schemaVersion'
+        ])
+        && data.members is list
+        && data.members.size() == 2
+        && data.members[0] is string
+        && data.members[1] is string
+        && data.members[0] != data.members[1]
+        && request.auth.uid in data.members
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && data.schemaVersion == 1;
+    }
+
+    // ============================================================
+    // MEYDAN OKUMA V1 - ESKİ TEK OYUNLUK BELGELER
+    // ============================================================
+
+    function validChallengeCreateV1(data, uid) {
+      return data.keys().hasOnly([
+          'challengerUid',
+          'challengerName',
+          'challengerAvatar',
+          'targetUid',
+          'opponentUid',
+          'opponentName',
+          'opponentAvatar',
+          'participantIds',
+          'status',
+          'gameId',
+          'level',
+          'seed',
+          'challengerScore',
+          'challengerStars',
+          'opponentScore',
+          'opponentStars',
+          'winnerUid',
+          'createdAt',
+          'updatedAt',
+          'expiresAt',
+          'schemaVersion'
+        ])
+        && data.challengerUid == uid
+        && data.challengerName is string
+        && data.challengerName.size() >= 1
+        && data.challengerName.size() <= 18
+        && data.challengerAvatar is string
+        && data.challengerAvatar.size() >= 1
+        && data.challengerAvatar.size() <= 16
+        && data.participantIds is list
+        && uid in data.participantIds
+        && ((data.targetUid == null && data.participantIds.size() == 1)
+          || (data.targetUid is string
+            && data.targetUid != uid
+            && data.targetUid in data.participantIds
+            && data.participantIds.size() == 2))
+        && data.opponentUid == null
+        && (data.opponentName == null || data.opponentName is string)
+        && (data.opponentAvatar == null || data.opponentAvatar is string)
+        && data.status == 'pending'
+        && (
+          (data.gameId == 'reflex' && data.level == 1)
+          || (
+            data.gameId in [
+              'logic',
+              'blocks',
+              'memory',
+              'hanoi',
+              'word_hunt',
+              'picture_iq',
+              'candy_sort',
+              'number_sort',
+              'shape_puzzle'
+            ]
+            && data.level is int
+            && data.level >= 5
+            && data.level <= 10
+          )
+        )
+        && data.seed is int
+        && data.seed > 0
+        && data.challengerScore == null
+        && data.challengerStars == null
+        && data.opponentScore == null
+        && data.opponentStars == null
+        && data.winnerUid == null
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && data.expiresAt is timestamp
+        && data.expiresAt > request.time
+        && data.expiresAt <= request.time + duration.value(3, 'd')
+        && data.schemaVersion == 1;
+    }
+
+    // ============================================================
+    // MEYDAN OKUMA V2 - 8 OYUNLUK SERİ
+    // ============================================================
+
+    function validChallengeCreateV2(data, uid) {
+      return data.keys().hasOnly([
+          'challengerUid',
+          'challengerName',
+          'challengerAvatar',
+          'targetUid',
+          'opponentUid',
+          'opponentName',
+          'opponentAvatar',
+          'participantIds',
+          'status',
+          'gameIds',
+          'levels',
+          'layoutCodes',
+          'challengerScore',
+          'challengerStars',
+          'challengerTimeMs',
+          'challengerSkips',
+          'opponentScore',
+          'opponentStars',
+          'opponentTimeMs',
+          'opponentSkips',
+          'winnerUid',
+          'createdAt',
+          'updatedAt',
+          'expiresAt',
+          'schemaVersion'
+        ])
+        && data.challengerUid == uid
+        && data.challengerName is string
+        && data.challengerName.size() >= 1
+        && data.challengerName.size() <= 18
+        && data.challengerAvatar is string
+        && data.challengerAvatar.size() >= 1
+        && data.challengerAvatar.size() <= 16
+
+        && data.participantIds is list
+        && uid in data.participantIds
+        && ((data.targetUid == null && data.participantIds.size() == 1)
+          || (data.targetUid is string
+            && data.targetUid != uid
+            && data.targetUid in data.participantIds
+            && data.participantIds.size() == 2))
+
+        && data.opponentUid == null
+        && (data.opponentName == null || data.opponentName is string)
+        && (data.opponentAvatar == null || data.opponentAvatar is string)
+        && data.status == 'pending'
+
+        && data.gameIds is list
+        && data.gameIds.size() == 8
+        && data.gameIds.toSet().size() == 8
+        && data.gameIds.toSet().hasOnly([
+          'logic',
+          'blocks',
+          'memory',
+          'hanoi',
+          'word_hunt',
+          'picture_iq',
+          'candy_sort',
+          'number_sort',
+          'shape_puzzle'
+        ])
+
+        && data.levels is list
+        && data.levels.size() == 8
+        && data.levels[0] is int
+        && data.levels[0] >= 5
+        && data.levels[0] <= 10
+        && data.levels[1] is int
+        && data.levels[1] >= 5
+        && data.levels[1] <= 10
+        && data.levels[2] is int
+        && data.levels[2] >= 5
+        && data.levels[2] <= 10
+        && data.levels[3] is int
+        && data.levels[3] >= 5
+        && data.levels[3] <= 10
+        && data.levels[4] is int
+        && data.levels[4] >= 5
+        && data.levels[4] <= 10
+        && data.levels[5] is int
+        && data.levels[5] >= 5
+        && data.levels[5] <= 10
+        && data.levels[6] is int
+        && data.levels[6] >= 5
+        && data.levels[6] <= 10
+        && data.levels[7] is int
+        && data.levels[7] >= 5
+        && data.levels[7] <= 10
+
+        && data.layoutCodes is list
+        && data.layoutCodes.size() == 8
+        && data.layoutCodes[0] is int
+        && data.layoutCodes[0] > 0
+        && data.layoutCodes[1] is int
+        && data.layoutCodes[1] > 0
+        && data.layoutCodes[2] is int
+        && data.layoutCodes[2] > 0
+        && data.layoutCodes[3] is int
+        && data.layoutCodes[3] > 0
+        && data.layoutCodes[4] is int
+        && data.layoutCodes[4] > 0
+        && data.layoutCodes[5] is int
+        && data.layoutCodes[5] > 0
+        && data.layoutCodes[6] is int
+        && data.layoutCodes[6] > 0
+        && data.layoutCodes[7] is int
+        && data.layoutCodes[7] > 0
+
+        && data.challengerScore == null
+        && data.challengerStars == null
+        && data.challengerTimeMs == null
+        && data.challengerSkips == null
+
+        && data.opponentScore == null
+        && data.opponentStars == null
+        && data.opponentTimeMs == null
+        && data.opponentSkips == null
+
+        && data.winnerUid == null
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && data.expiresAt is timestamp
+        && data.expiresAt > request.time
+        && data.expiresAt <= request.time + duration.value(3, 'd')
+        && data.schemaVersion == 2;
+    }
+
+    function validChallengeCreateV3(data, uid) {
+      return data.keys().hasOnly([
+          'challengerUid',
+          'challengerName',
+          'challengerAvatar',
+          'targetUid',
+          'opponentUid',
+          'opponentName',
+          'opponentAvatar',
+          'participantIds',
+          'status',
+          'gameIds',
+          'levels',
+          'layoutCodes',
+          'challengerScore',
+          'challengerStars',
+          'challengerTimeMs',
+          'challengerSkips',
+          'opponentScore',
+          'opponentStars',
+          'opponentTimeMs',
+          'opponentSkips',
+          'winnerUid',
+          'createdAt',
+          'updatedAt',
+          'expiresAt',
+          'schemaVersion'
+        ])
+        && data.challengerUid == uid
+        && data.challengerName is string
+        && data.challengerName.size() >= 1
+        && data.challengerName.size() <= 18
+        && data.challengerAvatar is string
+        && data.challengerAvatar.size() >= 1
+        && data.challengerAvatar.size() <= 16
+
+        && data.participantIds is list
+        && uid in data.participantIds
+        && ((data.targetUid == null && data.participantIds.size() == 1)
+          || (data.targetUid is string
+            && data.targetUid != uid
+            && data.targetUid in data.participantIds
+            && data.participantIds.size() == 2))
+
+        && data.opponentUid == null
+        && (data.opponentName == null || data.opponentName is string)
+        && (data.opponentAvatar == null || data.opponentAvatar is string)
+        && data.status == 'pending'
+
+        && data.gameIds is list
+        && data.gameIds.size() == 5
+        && data.gameIds.toSet().size() == 5
+        && data.gameIds.toSet().hasOnly([
+          'logic',
+          'blocks',
+          'memory',
+          'hanoi',
+          'word_hunt',
+          'picture_iq',
+          'candy_sort',
+          'number_sort',
+          'shape_puzzle'
+        ])
+
+        && data.levels is list
+        && data.levels.size() == 5
+        && data.levels[0] is int
+        && data.levels[0] >= 5
+        && data.levels[0] <= 10
+        && data.levels[1] is int
+        && data.levels[1] >= 5
+        && data.levels[1] <= 10
+        && data.levels[2] is int
+        && data.levels[2] >= 5
+        && data.levels[2] <= 10
+        && data.levels[3] is int
+        && data.levels[3] >= 5
+        && data.levels[3] <= 10
+        && data.levels[4] is int
+        && data.levels[4] >= 5
+        && data.levels[4] <= 10
+
+        && data.layoutCodes is list
+        && data.layoutCodes.size() == 5
+        && data.layoutCodes[0] is int
+        && data.layoutCodes[0] > 0
+        && data.layoutCodes[1] is int
+        && data.layoutCodes[1] > 0
+        && data.layoutCodes[2] is int
+        && data.layoutCodes[2] > 0
+        && data.layoutCodes[3] is int
+        && data.layoutCodes[3] > 0
+        && data.layoutCodes[4] is int
+        && data.layoutCodes[4] > 0
+
+        && data.challengerScore == null
+        && data.challengerStars == null
+        && data.challengerTimeMs == null
+        && data.challengerSkips == null
+
+        && data.opponentScore == null
+        && data.opponentStars == null
+        && data.opponentTimeMs == null
+        && data.opponentSkips == null
+
+        && data.winnerUid == null
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && data.expiresAt is timestamp
+        && data.expiresAt > request.time
+        && data.expiresAt <= request.time + duration.value(3, 'd')
+        && data.schemaVersion == 3;
+    }
+
+    // V4: 11 oyunluk havuzdan tekrarsız seçilen 6 oyun.
+    function validChallengeCreateV4(data, uid) {
+      return data.keys().hasOnly([
+          'challengerUid',
+          'challengerName',
+          'challengerAvatar',
+          'targetUid',
+          'opponentUid',
+          'opponentName',
+          'opponentAvatar',
+          'participantIds',
+          'status',
+          'gameIds',
+          'levels',
+          'layoutCodes',
+          'challengerScore',
+          'challengerStars',
+          'challengerTimeMs',
+          'challengerSkips',
+          'opponentScore',
+          'opponentStars',
+          'opponentTimeMs',
+          'opponentSkips',
+          'winnerUid',
+          'createdAt',
+          'updatedAt',
+          'expiresAt',
+          'schemaVersion'
+        ])
+        && data.challengerUid == uid
+        && data.challengerName is string
+        && data.challengerName.size() >= 1
+        && data.challengerName.size() <= 18
+        && data.challengerAvatar is string
+        && data.challengerAvatar.size() >= 1
+        && data.challengerAvatar.size() <= 16
+
+        && data.participantIds is list
+        && uid in data.participantIds
+        && ((data.targetUid == null && data.participantIds.size() == 1)
+          || (data.targetUid is string
+            && data.targetUid != uid
+            && data.targetUid in data.participantIds
+            && data.participantIds.size() == 2))
+
+        && data.opponentUid == null
+        && (data.opponentName == null || data.opponentName is string)
+        && (data.opponentAvatar == null || data.opponentAvatar is string)
+        && data.status == 'pending'
+
+        && data.gameIds is list
+        && data.gameIds.size() == 6
+        && data.gameIds.toSet().size() == 6
+        && data.gameIds.toSet().hasOnly([
+          'logic',
+          'numbers',
+          'blocks',
+          'memory',
+          'reflex',
+          'hanoi',
+          'word_hunt',
+          'picture_iq',
+          'candy_sort',
+          'number_sort',
+          'shape_puzzle'
+        ])
+
+        && data.levels is list
+        && data.levels.size() == 6
+        && data.levels[0] is int
+        && data.levels[0] >= 5
+        && data.levels[0] <= 10
+        && data.levels[1] is int
+        && data.levels[1] >= 5
+        && data.levels[1] <= 10
+        && data.levels[2] is int
+        && data.levels[2] >= 5
+        && data.levels[2] <= 10
+        && data.levels[3] is int
+        && data.levels[3] >= 5
+        && data.levels[3] <= 10
+        && data.levels[4] is int
+        && data.levels[4] >= 5
+        && data.levels[4] <= 10
+        && data.levels[5] is int
+        && data.levels[5] >= 5
+        && data.levels[5] <= 10
+
+        && data.layoutCodes is list
+        && data.layoutCodes.size() == 6
+        && data.layoutCodes[0] is int
+        && data.layoutCodes[0] > 0
+        && data.layoutCodes[1] is int
+        && data.layoutCodes[1] > 0
+        && data.layoutCodes[2] is int
+        && data.layoutCodes[2] > 0
+        && data.layoutCodes[3] is int
+        && data.layoutCodes[3] > 0
+        && data.layoutCodes[4] is int
+        && data.layoutCodes[4] > 0
+        && data.layoutCodes[5] is int
+        && data.layoutCodes[5] > 0
+
+        && data.challengerScore == null
+        && data.challengerStars == null
+        && data.challengerTimeMs == null
+        && data.challengerSkips == null
+
+        && data.opponentScore == null
+        && data.opponentStars == null
+        && data.opponentTimeMs == null
+        && data.opponentSkips == null
+
+        && data.winnerUid == null
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && data.expiresAt is timestamp
+        && data.expiresAt > request.time
+        && data.expiresAt <= request.time + duration.value(3, 'd')
+        && data.schemaVersion == 4;
+    }
+
+    function validChallengeCreate(data, uid) {
+      return (data.schemaVersion == 1
+          && validChallengeCreateV1(data, uid))
+        || (data.schemaVersion == 2
+          && validChallengeCreateV2(data, uid))
+        || (data.schemaVersion == 3
+          && validChallengeCreateV3(data, uid))
+        || (data.schemaVersion == 4
+          && validChallengeCreateV4(data, uid));
+    }
+
+    // Kabul / ret V1 ve V2 için aynı.
+    function validChallengeAccept() {
+      return resource.data.status == 'pending'
+        && resource.data.expiresAt > request.time
+        && request.auth.uid != resource.data.challengerUid
+        && (resource.data.targetUid == null
+          || resource.data.targetUid == request.auth.uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'opponentUid',
+          'opponentName',
+          'opponentAvatar',
+          'participantIds',
+          'status',
+          'updatedAt'
+        ])
+        && request.resource.data.opponentUid == request.auth.uid
+        && request.resource.data.opponentName is string
+        && request.resource.data.opponentName.size() >= 1
+        && request.resource.data.opponentName.size() <= 18
+        && request.resource.data.opponentAvatar is string
+        && request.resource.data.opponentAvatar.size() >= 1
+        && request.resource.data.opponentAvatar.size() <= 16
+        && request.resource.data.participantIds is list
+        && request.resource.data.participantIds.size() == 2
+        && request.resource.data.challengerUid
+          in request.resource.data.participantIds
+        && request.auth.uid in request.resource.data.participantIds
+        && request.resource.data.status == 'accepted'
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validChallengeDecline() {
+      return resource.data.status == 'pending'
+        && resource.data.targetUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'updatedAt'
+        ])
+        && request.resource.data.status == 'declined'
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    // ============================================================
+    // V1 SONUÇ
+    // ============================================================
+
+    function validChallengeOutcomeV1(data) {
+      return data.challengerScore is int
+        && data.opponentScore is int
+        && ((data.challengerScore == data.opponentScore
+            && data.winnerUid == 'draw')
+          || (data.challengerScore > data.opponentScore
+            && data.winnerUid == data.challengerUid)
+          || (data.opponentScore > data.challengerScore
+            && data.winnerUid == data.opponentUid));
+    }
+
+    function validChallengeScoreV1() {
+      return resource.data.schemaVersion == 1
+        && resource.data.status == 'accepted'
+        && resource.data.expiresAt > request.time
+        && request.auth.uid in resource.data.participantIds
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'challengerScore',
+          'challengerStars',
+          'opponentScore',
+          'opponentStars',
+          'status',
+          'winnerUid',
+          'updatedAt'
+        ])
+        && request.resource.data.updatedAt == request.time
+        && ((request.auth.uid == resource.data.challengerUid
+            && resource.data.challengerScore == null
+            && request.resource.data.challengerScore is int
+            && request.resource.data.challengerScore >= 0
+            && request.resource.data.challengerScore <= 1000000
+            && request.resource.data.challengerStars is int
+            && request.resource.data.challengerStars >= 0
+            && request.resource.data.challengerStars <= 3
+            && request.resource.data.opponentScore
+              == resource.data.opponentScore)
+          || (request.auth.uid == resource.data.opponentUid
+            && resource.data.opponentScore == null
+            && request.resource.data.opponentScore is int
+            && request.resource.data.opponentScore >= 0
+            && request.resource.data.opponentScore <= 1000000
+            && request.resource.data.opponentStars is int
+            && request.resource.data.opponentStars >= 0
+            && request.resource.data.opponentStars <= 3
+            && request.resource.data.challengerScore
+              == resource.data.challengerScore))
+        && ((request.resource.data.challengerScore == null
+              || request.resource.data.opponentScore == null)
+            && request.resource.data.status == 'accepted'
+            && request.resource.data.winnerUid == null
+          || (request.resource.data.status == 'completed'
+            && validChallengeOutcomeV1(request.resource.data)));
+    }
+
+    // ============================================================
+    // V2 SERİ SONUÇ
+    // Puan önce, eşitlikte daha kısa süre.
+    // ============================================================
+
+    function validChallengeOutcomeV2(data) {
+      return data.challengerScore is int
+        && data.opponentScore is int
+        && data.challengerTimeMs is int
+        && data.opponentTimeMs is int
+        && (
+          (data.challengerScore > data.opponentScore
+            && data.winnerUid == data.challengerUid)
+          || (data.opponentScore > data.challengerScore
+            && data.winnerUid == data.opponentUid)
+          || (data.challengerScore == data.opponentScore
+            && data.challengerTimeMs < data.opponentTimeMs
+            && data.winnerUid == data.challengerUid)
+          || (data.challengerScore == data.opponentScore
+            && data.opponentTimeMs < data.challengerTimeMs
+            && data.winnerUid == data.opponentUid)
+          || (data.challengerScore == data.opponentScore
+            && data.challengerTimeMs == data.opponentTimeMs
+            && data.winnerUid == 'draw')
+        );
+    }
+
+    function validChallengeScoreV2() {
+      return resource.data.schemaVersion == 2
+        && resource.data.status == 'accepted'
+        && resource.data.expiresAt > request.time
+        && request.auth.uid in resource.data.participantIds
+
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'challengerScore',
+          'challengerStars',
+          'challengerTimeMs',
+          'challengerSkips',
+          'opponentScore',
+          'opponentStars',
+          'opponentTimeMs',
+          'opponentSkips',
+          'status',
+          'winnerUid',
+          'updatedAt'
+        ])
+
+        && request.resource.data.updatedAt == request.time
+
+        && (
+          (
+            request.auth.uid == resource.data.challengerUid
+            && resource.data.challengerScore == null
+
+            && request.resource.data.challengerScore is int
+            && request.resource.data.challengerScore >= 0
+            && request.resource.data.challengerScore <= 8000
+
+            && request.resource.data.challengerStars is int
+            && request.resource.data.challengerStars >= 0
+            && request.resource.data.challengerStars <= 24
+
+            && request.resource.data.challengerSkips is int
+            && request.resource.data.challengerSkips >= 0
+            && request.resource.data.challengerSkips <= 8
+
+            && request.resource.data.challengerStars
+              <= (8 - request.resource.data.challengerSkips) * 3
+
+            && request.resource.data.challengerScore
+              == (8 - request.resource.data.challengerSkips) * 100
+                + request.resource.data.challengerStars * 300
+
+            && request.resource.data.challengerTimeMs is int
+            && request.resource.data.challengerTimeMs >= 0
+            && request.resource.data.challengerTimeMs <= 86400000
+
+            && request.resource.data.opponentScore
+              == resource.data.opponentScore
+            && request.resource.data.opponentStars
+              == resource.data.opponentStars
+            && request.resource.data.opponentTimeMs
+              == resource.data.opponentTimeMs
+            && request.resource.data.opponentSkips
+              == resource.data.opponentSkips
+          )
+          ||
+          (
+            request.auth.uid == resource.data.opponentUid
+            && resource.data.opponentScore == null
+
+            && request.resource.data.opponentScore is int
+            && request.resource.data.opponentScore >= 0
+            && request.resource.data.opponentScore <= 8000
+
+            && request.resource.data.opponentStars is int
+            && request.resource.data.opponentStars >= 0
+            && request.resource.data.opponentStars <= 24
+
+            && request.resource.data.opponentSkips is int
+            && request.resource.data.opponentSkips >= 0
+            && request.resource.data.opponentSkips <= 8
+
+            && request.resource.data.opponentStars
+              <= (8 - request.resource.data.opponentSkips) * 3
+
+            && request.resource.data.opponentScore
+              == (8 - request.resource.data.opponentSkips) * 100
+                + request.resource.data.opponentStars * 300
+
+            && request.resource.data.opponentTimeMs is int
+            && request.resource.data.opponentTimeMs >= 0
+            && request.resource.data.opponentTimeMs <= 86400000
+
+            && request.resource.data.challengerScore
+              == resource.data.challengerScore
+            && request.resource.data.challengerStars
+              == resource.data.challengerStars
+            && request.resource.data.challengerTimeMs
+              == resource.data.challengerTimeMs
+            && request.resource.data.challengerSkips
+              == resource.data.challengerSkips
+          )
+        )
+
+        && (
+          (
+            request.resource.data.challengerScore == null
+            || request.resource.data.opponentScore == null
+          )
+          && request.resource.data.status == 'accepted'
+          && request.resource.data.winnerUid == null
+
+          ||
+
+          (
+            request.resource.data.status == 'completed'
+            && validChallengeOutcomeV2(request.resource.data)
+          )
+        );
+    }
+
+    function validChallengeScoreV3() {
+      return resource.data.schemaVersion == 3
+        && resource.data.status == 'accepted'
+        && resource.data.expiresAt > request.time
+        && request.auth.uid in resource.data.participantIds
+
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'challengerScore',
+          'challengerStars',
+          'challengerTimeMs',
+          'challengerSkips',
+          'opponentScore',
+          'opponentStars',
+          'opponentTimeMs',
+          'opponentSkips',
+          'status',
+          'winnerUid',
+          'updatedAt'
+        ])
+
+        && request.resource.data.updatedAt == request.time
+
+        && (
+          (
+            request.auth.uid == resource.data.challengerUid
+            && resource.data.challengerScore == null
+
+            && request.resource.data.challengerScore is int
+            && request.resource.data.challengerScore >= 0
+            && request.resource.data.challengerScore <= 5000
+
+            && request.resource.data.challengerStars is int
+            && request.resource.data.challengerStars >= 0
+            && request.resource.data.challengerStars <= 15
+
+            && request.resource.data.challengerSkips is int
+            && request.resource.data.challengerSkips >= 0
+            && request.resource.data.challengerSkips <= 5
+
+            && request.resource.data.challengerStars
+              <= (5 - request.resource.data.challengerSkips) * 3
+
+            && request.resource.data.challengerScore
+              == (5 - request.resource.data.challengerSkips) * 100
+                + request.resource.data.challengerStars * 300
+
+            && request.resource.data.challengerTimeMs is int
+            && request.resource.data.challengerTimeMs >= 0
+            && request.resource.data.challengerTimeMs <= 86400000
+
+            && request.resource.data.opponentScore
+              == resource.data.opponentScore
+            && request.resource.data.opponentStars
+              == resource.data.opponentStars
+            && request.resource.data.opponentTimeMs
+              == resource.data.opponentTimeMs
+            && request.resource.data.opponentSkips
+              == resource.data.opponentSkips
+          )
+          ||
+          (
+            request.auth.uid == resource.data.opponentUid
+            && resource.data.opponentScore == null
+
+            && request.resource.data.opponentScore is int
+            && request.resource.data.opponentScore >= 0
+            && request.resource.data.opponentScore <= 5000
+
+            && request.resource.data.opponentStars is int
+            && request.resource.data.opponentStars >= 0
+            && request.resource.data.opponentStars <= 15
+
+            && request.resource.data.opponentSkips is int
+            && request.resource.data.opponentSkips >= 0
+            && request.resource.data.opponentSkips <= 5
+
+            && request.resource.data.opponentStars
+              <= (5 - request.resource.data.opponentSkips) * 3
+
+            && request.resource.data.opponentScore
+              == (5 - request.resource.data.opponentSkips) * 100
+                + request.resource.data.opponentStars * 300
+
+            && request.resource.data.opponentTimeMs is int
+            && request.resource.data.opponentTimeMs >= 0
+            && request.resource.data.opponentTimeMs <= 86400000
+
+            && request.resource.data.challengerScore
+              == resource.data.challengerScore
+            && request.resource.data.challengerStars
+              == resource.data.challengerStars
+            && request.resource.data.challengerTimeMs
+              == resource.data.challengerTimeMs
+            && request.resource.data.challengerSkips
+              == resource.data.challengerSkips
+          )
+        )
+
+        && (
+          (
+            request.resource.data.challengerScore == null
+            || request.resource.data.opponentScore == null
+          )
+          && request.resource.data.status == 'accepted'
+          && request.resource.data.winnerUid == null
+
+          ||
+
+          (
+            request.resource.data.status == 'completed'
+            && validChallengeOutcomeV2(request.resource.data)
+          )
+        );
+    }
+
+    function validChallengeScoreV4() {
+      return resource.data.schemaVersion == 4
+        && resource.data.status == 'accepted'
+        && resource.data.expiresAt > request.time
+        && request.auth.uid in resource.data.participantIds
+
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'challengerScore',
+          'challengerStars',
+          'challengerTimeMs',
+          'challengerSkips',
+          'opponentScore',
+          'opponentStars',
+          'opponentTimeMs',
+          'opponentSkips',
+          'status',
+          'winnerUid',
+          'updatedAt'
+        ])
+
+        && request.resource.data.updatedAt == request.time
+
+        && (
+          (
+            request.auth.uid == resource.data.challengerUid
+            && resource.data.challengerScore == null
+
+            && request.resource.data.challengerScore is int
+            && request.resource.data.challengerScore >= 0
+            && request.resource.data.challengerScore <= 6000
+
+            && request.resource.data.challengerStars is int
+            && request.resource.data.challengerStars >= 0
+            && request.resource.data.challengerStars <= 18
+
+            && request.resource.data.challengerSkips is int
+            && request.resource.data.challengerSkips >= 0
+            && request.resource.data.challengerSkips <= 6
+
+            && request.resource.data.challengerStars
+              <= (6 - request.resource.data.challengerSkips) * 3
+
+            && request.resource.data.challengerScore
+              == (6 - request.resource.data.challengerSkips) * 100
+                + request.resource.data.challengerStars * 300
+
+            && request.resource.data.challengerTimeMs is int
+            && request.resource.data.challengerTimeMs >= 0
+            && request.resource.data.challengerTimeMs <= 86400000
+
+            && request.resource.data.opponentScore
+              == resource.data.opponentScore
+            && request.resource.data.opponentStars
+              == resource.data.opponentStars
+            && request.resource.data.opponentTimeMs
+              == resource.data.opponentTimeMs
+            && request.resource.data.opponentSkips
+              == resource.data.opponentSkips
+          )
+          ||
+          (
+            request.auth.uid == resource.data.opponentUid
+            && resource.data.opponentScore == null
+
+            && request.resource.data.opponentScore is int
+            && request.resource.data.opponentScore >= 0
+            && request.resource.data.opponentScore <= 6000
+
+            && request.resource.data.opponentStars is int
+            && request.resource.data.opponentStars >= 0
+            && request.resource.data.opponentStars <= 18
+
+            && request.resource.data.opponentSkips is int
+            && request.resource.data.opponentSkips >= 0
+            && request.resource.data.opponentSkips <= 6
+
+            && request.resource.data.opponentStars
+              <= (6 - request.resource.data.opponentSkips) * 3
+
+            && request.resource.data.opponentScore
+              == (6 - request.resource.data.opponentSkips) * 100
+                + request.resource.data.opponentStars * 300
+
+            && request.resource.data.opponentTimeMs is int
+            && request.resource.data.opponentTimeMs >= 0
+            && request.resource.data.opponentTimeMs <= 86400000
+
+            && request.resource.data.challengerScore
+              == resource.data.challengerScore
+            && request.resource.data.challengerStars
+              == resource.data.challengerStars
+            && request.resource.data.challengerTimeMs
+              == resource.data.challengerTimeMs
+            && request.resource.data.challengerSkips
+              == resource.data.challengerSkips
+          )
+        )
+
+        && (
+          (
+            request.resource.data.challengerScore == null
+            || request.resource.data.opponentScore == null
+          )
+          && request.resource.data.status == 'accepted'
+          && request.resource.data.winnerUid == null
+
+          ||
+
+          (
+            request.resource.data.status == 'completed'
+            && validChallengeOutcomeV2(request.resource.data)
+          )
+        );
+    }
+
+    function validChallengeReactionValue(value) {
+      return value is string
+        && value in [
+          'good_game',
+          'rematch',
+          'close_game',
+          'congrats'
+        ];
+    }
+
+    function validChallengeReaction() {
+      return resource.data.status == 'completed'
+        && request.auth.uid in resource.data.participantIds
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            request.auth.uid == resource.data.challengerUid
+            && request.resource.data
+              .diff(resource.data)
+              .affectedKeys()
+              .hasOnly([
+                'challengerReaction',
+                'updatedAt'
+              ])
+            && validChallengeReactionValue(
+              request.resource.data.challengerReaction
+            )
+          )
+          ||
+          (
+            request.auth.uid == resource.data.opponentUid
+            && request.resource.data
+              .diff(resource.data)
+              .affectedKeys()
+              .hasOnly([
+                'opponentReaction',
+                'updatedAt'
+              ])
+            && validChallengeReactionValue(
+              request.resource.data.opponentReaction
+            )
+          )
+        );
+    }
+    function validChallengeScore() {
+      return validChallengeScoreV1()
+        || validChallengeScoreV2()
+        || validChallengeScoreV3()
+        || validChallengeScoreV4();
+    }
+    function validArenaGroupCreateV1(data, uid) {
+      return data.keys().hasOnly([
+          'ownerUid',
+          'name',
+          'joinCode',
+          'memberIds',
+          'createdAt',
+          'updatedAt',
+          'schemaVersion'
+        ])
+        && data.ownerUid == uid
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 40
+        && data.joinCode is string
+        && data.joinCode.size() == 6
+        && data.memberIds is list
+        && data.memberIds.size() == 1
+        && data.memberIds[0] == uid
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && data.schemaVersion == 1;
+    }
+
+    function validArenaGroupCreateV2(data, uid) {
+      return data.keys().hasOnly([
+          'ownerUid',
+          'name',
+          'joinCode',
+          'joinCodeProof',
+          'memberIds',
+          'activeEventId',
+          'eventSequence',
+          'createdAt',
+          'updatedAt',
+          'schemaVersion'
+        ])
+        && data.ownerUid == uid
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 40
+        && data.joinCode is string
+        && data.joinCode.size() == 6
+        && data.joinCodeProof == data.joinCode + ':' + uid
+        && data.memberIds is list
+        && data.memberIds.size() == 1
+        && data.memberIds[0] == uid
+        && data.activeEventId == null
+        && data.eventSequence == 0
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && data.schemaVersion == 2;
+    }
+
+    function validArenaGroupCreate(data, uid) {
+      return validArenaGroupCreateV1(data, uid)
+        || validArenaGroupCreateV2(data, uid);
+    }
+
+    function validArenaInviteCreate(data, code, uid) {
+      return data.keys().hasOnly([
+          'joinCode',
+          'groupId',
+          'ownerUid',
+          'createdAt',
+          'schemaVersion'
+        ])
+        && data.joinCode == code
+        && code.size() == 6
+        && data.groupId is string
+        && data.groupId.size() >= 1
+        && data.groupId.size() <= 160
+        && data.ownerUid == uid
+        && data.createdAt == request.time
+        && data.schemaVersion == 1;
+    }
+
+    function validArenaGroupJoin() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'memberIds',
+          'joinCodeProof',
+          'updatedAt'
+        ])
+        && resource.data.memberIds is list
+        && resource.data.memberIds.size() < 30
+        && !(request.auth.uid in resource.data.memberIds)
+        && request.resource.data.memberIds is list
+        && request.resource.data.memberIds.size()
+          == resource.data.memberIds.size() + 1
+        && request.auth.uid in request.resource.data.memberIds
+        && request.resource.data.memberIds.toSet()
+          .difference(resource.data.memberIds.toSet())
+          .hasOnly([request.auth.uid])
+        && resource.data.memberIds.toSet()
+          .difference(request.resource.data.memberIds.toSet())
+          .size() == 0
+        && request.resource.data.joinCodeProof
+          == resource.data.joinCode + ':' + request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function arenaGroupExists(groupId) {
+      return exists(/databases/$(database)/documents/arena_groups_v1/$(groupId));
+    }
+
+    function arenaGroupData(groupId) {
+      return get(/databases/$(database)/documents/arena_groups_v1/$(groupId)).data;
+    }
+
+    function arenaGroupExistsAfter(groupId) {
+      return existsAfter(
+        /databases/$(database)/documents/arena_groups_v1/$(groupId)
+      );
+    }
+
+    function arenaGroupDataAfter(groupId) {
+      return getAfter(
+        /databases/$(database)/documents/arena_groups_v1/$(groupId)
+      ).data;
+    }
+
+    function arenaEventExists(eventId) {
+      return exists(/databases/$(database)/documents/arena_events_v1/$(eventId));
+    }
+
+    function arenaEventData(eventId) {
+      return get(/databases/$(database)/documents/arena_events_v1/$(eventId)).data;
+    }
+
+    function arenaEventExistsAfter(eventId) {
+      return existsAfter(
+        /databases/$(database)/documents/arena_events_v1/$(eventId)
+      );
+    }
+
+    function arenaEventDataAfter(eventId) {
+      return getAfter(
+        /databases/$(database)/documents/arena_events_v1/$(eventId)
+      ).data;
+    }
+
+    function arenaOldActiveEventCanBeReplaced() {
+      let oldEventId = resource.data.get('activeEventId', null);
+      return oldEventId == null
+        || !arenaEventExists(oldEventId)
+        || arenaEventData(oldEventId).status != 'active'
+        || arenaEventData(oldEventId).endsAt <= request.time;
+    }
+
+    function validArenaGroupEventLink(groupId) {
+      let newEventId = request.resource.data.get('activeEventId', null);
+      let oldEventId = resource.data.get('activeEventId', null);
+      let oldSequence = resource.data.get('eventSequence', 0);
+      return request.auth.uid == resource.data.ownerUid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'activeEventId',
+          'eventSequence',
+          'schemaVersion',
+          'updatedAt'
+        ])
+        && request.resource.data.schemaVersion == 2
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            newEventId is string
+            && newEventId.size() >= 1
+            && newEventId.size() <= 160
+            && newEventId != oldEventId
+            && arenaOldActiveEventCanBeReplaced()
+            && request.resource.data.eventSequence == oldSequence + 1
+            && arenaEventExistsAfter(newEventId)
+            && arenaEventDataAfter(newEventId).groupId == groupId
+            && arenaEventDataAfter(newEventId).ownerUid == request.auth.uid
+            && arenaEventDataAfter(newEventId).status == 'active'
+            && arenaEventDataAfter(newEventId).schemaVersion == 2
+          )
+          ||
+          (
+            oldEventId is string
+            && newEventId == null
+            && request.resource.data.eventSequence == oldSequence
+            && arenaEventExistsAfter(oldEventId)
+            && arenaEventDataAfter(oldEventId).groupId == groupId
+            && arenaEventDataAfter(oldEventId).status == 'completed'
+          )
+        );
+    }
+
+    // ============================================================
+    // MEYDAN OKUMA DEVAM NOKTASI V1
+    // Yalnızca belgenin sahibi okuyabilir ve yazabilir.
+    // Puan, yıldız ve bölüm değerleri geriye gidemez.
+    // ============================================================
+
+    function challengeForProgressExists(challengeId) {
+      return exists(
+        /databases/$(database)/documents/challenges_v1/$(challengeId)
+      );
+    }
+
+    function challengeForProgressData(challengeId) {
+      return get(
+        /databases/$(database)/documents/challenges_v1/$(challengeId)
+      ).data;
+    }
+
+    function validChallengeProgressData(data, progressId) {
+      return data.keys().hasOnly([
+          'schemaVersion',
+          'challengeId',
+          'playerUid',
+          'parkourFingerprint',
+          'nextStationIndex',
+          'totalScore',
+          'totalStars',
+          'elapsedMs',
+          'skips',
+          'activeStationStartedAtMs',
+          'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'schemaVersion',
+          'challengeId',
+          'playerUid',
+          'parkourFingerprint',
+          'nextStationIndex',
+          'totalScore',
+          'totalStars',
+          'elapsedMs',
+          'skips',
+          'activeStationStartedAtMs',
+          'updatedAt'
+        ])
+        && data.schemaVersion == 1
+        && data.challengeId is string
+        && data.challengeId.size() >= 1
+        && data.challengeId.size() <= 128
+        && data.playerUid == request.auth.uid
+        && data.playerUid is string
+        && data.playerUid.size() >= 1
+        && data.playerUid.size() <= 128
+        && progressId == data.challengeId + '--' + data.playerUid
+        && challengeForProgressExists(data.challengeId)
+        && request.auth.uid
+          in challengeForProgressData(data.challengeId).participantIds
+        && challengeForProgressData(data.challengeId).schemaVersion
+          in [2, 3, 4]
+        && challengeForProgressData(data.challengeId).status == 'accepted'
+        && challengeForProgressData(data.challengeId).expiresAt > request.time
+        && data.parkourFingerprint is string
+        && data.parkourFingerprint.size() >= 1
+        && data.parkourFingerprint.size() <= 512
+        && data.nextStationIndex is int
+        && data.nextStationIndex >= 0
+        && (
+          (challengeForProgressData(data.challengeId).schemaVersion == 2
+            && data.nextStationIndex <= 8)
+          || (challengeForProgressData(data.challengeId).schemaVersion == 3
+            && data.nextStationIndex <= 5)
+          || (challengeForProgressData(data.challengeId).schemaVersion == 4
+            && data.nextStationIndex <= 6)
+        )
+        && data.skips is int
+        && data.skips >= 0
+        && data.skips <= data.nextStationIndex
+        && data.totalStars is int
+        && data.totalStars >= 0
+        && data.totalStars <= (data.nextStationIndex - data.skips) * 3
+        && data.totalScore is int
+        && data.totalScore
+          == (data.nextStationIndex - data.skips) * 100
+            + data.totalStars * 300
+        && data.elapsedMs is int
+        && data.elapsedMs >= 0
+        && data.elapsedMs <= 86400000
+        && (
+          data.activeStationStartedAtMs == null
+          || (
+            data.activeStationStartedAtMs is int
+            && data.activeStationStartedAtMs > 0
+            && data.activeStationStartedAtMs <= 4102444800000
+          )
+        )
+        && data.updatedAt == request.time;
+    }
+
+    function validChallengeProgressUpdate() {
+      return request.resource.data.challengeId
+          == resource.data.challengeId
+        && request.resource.data.playerUid
+          == resource.data.playerUid
+        && request.resource.data.parkourFingerprint
+          == resource.data.parkourFingerprint
+        && request.resource.data.nextStationIndex
+          >= resource.data.nextStationIndex
+        && request.resource.data.totalScore
+          >= resource.data.totalScore
+        && request.resource.data.totalStars
+          >= resource.data.totalStars
+        && request.resource.data.elapsedMs
+          >= resource.data.elapsedMs
+        && request.resource.data.skips
+          >= resource.data.skips;
+    }
+    function isArenaGroupMember(groupId) {
+      return signedIn()
+        && arenaGroupExists(groupId)
+        && request.auth.uid in arenaGroupData(groupId).memberIds;
+    }
+
+    function validArenaEventCreate(data, uid, eventId) {
+      return data.keys().hasOnly([
+          'groupId',
+          'ownerUid',
+          'title',
+          'format',
+          'status',
+          'level',
+          'gameIds',
+          'participantIds',
+          'layoutCodes',
+          'createdAt',
+          'updatedAt',
+          'endsAt',
+          'schemaVersion'
+        ])
+        && data.groupId is string
+        && arenaGroupExists(data.groupId)
+        && arenaGroupData(data.groupId).ownerUid == uid
+        && arenaGroupExistsAfter(data.groupId)
+        && arenaGroupDataAfter(data.groupId).activeEventId == eventId
+        && data.ownerUid == uid
+        && data.title is string
+        && data.title.size() >= 1
+        && data.title.size() <= 40
+        && data.format == 'direct'
+        && data.status == 'active'
+        && data.level == 1
+        && data.gameIds is list
+        && data.gameIds.size() == 6
+        && data.gameIds.toSet().size() == 6
+        && data.gameIds.toSet().hasOnly([
+          'logic',
+          'numbers',
+          'blocks',
+          'memory',
+          'hanoi',
+          'word_hunt',
+          'picture_iq',
+          'candy_sort',
+          'number_sort',
+          'shape_puzzle',
+          'reflex'
+        ])
+        && data.participantIds is list
+        && data.participantIds.size() >= 2
+        && data.participantIds.size() <= 30
+        && data.participantIds == arenaGroupData(data.groupId).memberIds
+        && data.layoutCodes is map
+        && data.layoutCodes.keys().toSet().hasOnly(data.gameIds)
+        && data.gameIds.toSet().hasOnly(data.layoutCodes.keys())
+        && data.layoutCodes[data.gameIds[0]] is int
+        && data.layoutCodes[data.gameIds[0]] > 0
+        && data.layoutCodes[data.gameIds[1]] is int
+        && data.layoutCodes[data.gameIds[1]] > 0
+        && data.layoutCodes[data.gameIds[2]] is int
+        && data.layoutCodes[data.gameIds[2]] > 0
+        && data.layoutCodes[data.gameIds[3]] is int
+        && data.layoutCodes[data.gameIds[3]] > 0
+        && data.layoutCodes[data.gameIds[4]] is int
+        && data.layoutCodes[data.gameIds[4]] > 0
+        && data.layoutCodes[data.gameIds[5]] is int
+        && data.layoutCodes[data.gameIds[5]] > 0
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && data.endsAt is timestamp
+        && data.endsAt > request.time
+        && data.endsAt <= request.time + duration.value(7, 'd')
+        && data.schemaVersion == 2;
+    }
+
+    function validArenaEventFinish(eventId) {
+      let groupId = resource.data.groupId;
+      return request.auth.uid == resource.data.ownerUid
+        && resource.data.status == 'active'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'updatedAt'
+        ])
+        && request.resource.data.status == 'completed'
+        && request.resource.data.updatedAt == request.time
+        && (
+          resource.data.get('schemaVersion', 1) == 1
+          ||
+          (
+            resource.data.schemaVersion == 2
+            && arenaGroupExistsAfter(groupId)
+            && arenaGroupDataAfter(groupId).activeEventId == null
+            && arenaGroupData(groupId).get('activeEventId', null) == eventId
+          )
+        );
+    }
+
+    function validArenaAttemptIdentity(data, attemptId) {
+      return data.eventId is string
+        && attemptId
+          == data.eventId + '--' + request.auth.uid + '--' + data.gameId
+        && arenaEventExists(data.eventId)
+        && arenaEventData(data.eventId).status == 'active'
+        && arenaEventData(data.eventId).endsAt > request.time
+        && data.groupId == arenaEventData(data.eventId).groupId
+        && data.uid == request.auth.uid
+        && request.auth.uid in arenaEventData(data.eventId).participantIds
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 18
+        && data.avatar is string
+        && data.avatar.size() >= 1
+        && data.avatar.size() <= 16
+        && data.gameId is string
+        && data.gameId in arenaEventData(data.eventId).gameIds
+        && data.rawScore is int
+        && data.rawScore >= 0
+        && data.rawScore <= 10000000
+        && data.stars is int
+        && data.stars >= 0
+        && data.stars <= 3
+        && data.points is int
+        && data.submittedAt == request.time;
+    }
+
+    function validArenaAttemptCreateV1(data, attemptId) {
+      return data.keys().hasOnly([
+          'eventId',
+          'groupId',
+          'uid',
+          'displayName',
+          'avatar',
+          'gameId',
+          'rawScore',
+          'stars',
+          'points',
+          'submittedAt',
+          'schemaVersion'
+        ])
+        && validArenaAttemptIdentity(data, attemptId)
+        && arenaEventData(data.eventId).get('schemaVersion', 1) == 1
+        && data.points == 100 + data.stars * 300
+        && data.schemaVersion == 1;
+    }
+
+    function validArenaAttemptCreateV2(data, attemptId) {
+      return data.keys().hasOnly([
+          'eventId',
+          'groupId',
+          'uid',
+          'displayName',
+          'avatar',
+          'gameId',
+          'outcome',
+          'rawScore',
+          'stars',
+          'points',
+          'submittedAt',
+          'schemaVersion'
+        ])
+        && validArenaAttemptIdentity(data, attemptId)
+        && arenaEventData(data.eventId).schemaVersion == 2
+        && data.outcome in ['completed', 'failed', 'skipped']
+        && (
+          (
+            data.outcome == 'completed'
+            && data.points == 100 + data.stars * 300
+          )
+          ||
+          (
+            data.outcome in ['failed', 'skipped']
+            && data.rawScore == 0
+            && data.stars == 0
+            && data.points == 0
+          )
+        )
+        && data.schemaVersion == 2;
+    }
+
+    function validArenaAttemptCreate(data, attemptId) {
+      return validArenaAttemptCreateV1(data, attemptId)
+        || validArenaAttemptCreateV2(data, attemptId);
+    }
+
+    function validArenaReaction(data, reactionId) {
+      return data.keys().hasOnly([
+          'eventId',
+          'groupId',
+          'uid',
+          'displayName',
+          'avatar',
+          'reaction',
+          'updatedAt',
+          'schemaVersion'
+        ])
+        && data.eventId is string
+        && reactionId == data.eventId + '--' + request.auth.uid
+        && arenaEventExists(data.eventId)
+        && data.groupId == arenaEventData(data.eventId).groupId
+        && data.uid == request.auth.uid
+        && request.auth.uid in arenaEventData(data.eventId).participantIds
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 18
+        && data.avatar is string
+        && data.avatar.size() >= 1
+        && data.avatar.size() <= 16
+        && data.reaction in [
+          'good_game',
+          'rematch',
+          'close_game',
+          'congrats'
+        ]
+        && data.updatedAt == request.time
+        && data.schemaVersion == 1;
+    }
+
+    match /leaderboard_public/{uid} {
+      // Anonymous Firebase users are authenticated, so real players can
+      // read the public leaderboard without exposing private user data.
+      allow read: if signedIn();
+
+      allow create: if isOwner(uid)
+        && validLeaderboardData(request.resource.data, uid);
+
+      allow update: if isOwner(uid)
+        && validLeaderboardData(request.resource.data, uid)
+        && request.resource.data.uid == resource.data.uid
+
+        // Progress values are not allowed to go backwards.
+        // This is useful protection against accidental bad writes.
+        && request.resource.data.xp >= resource.data.xp
+        && request.resource.data.score >= resource.data.score
+        && request.resource.data.stars >= resource.data.stars
+        && request.resource.data.completedLevels >= resource.data.completedLevels
+        && request.resource.data.bestStreak >= resource.data.bestStreak
+        && request.resource.data.perfectDays >= resource.data.perfectDays;
+
+      allow delete: if isOwner(uid);
+    }
+
+    match /leaderboard_v3_public/{uid} {
+      allow read: if signedIn();
+
+      allow create: if isOwner(uid)
+        && validLeaderboardV3Data(request.resource.data, uid);
+
+      allow update: if isOwner(uid)
+        && validLeaderboardV3Data(request.resource.data, uid)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.score >= resource.data.score
+        && request.resource.data.stars >= resource.data.stars
+        && request.resource.data.completedLevels >= resource.data.completedLevels
+        && request.resource.data.bestStreak >= resource.data.bestStreak
+        && request.resource.data.perfectDays >= resource.data.perfectDays;
+
+      allow delete: if isOwner(uid);
+    }
+
+    match /player_devices_v1/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && validDeviceData(request.resource.data, uid);
+      allow delete: if isOwner(uid);
+    }
+
+    match /account_deletion_requests_v1/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && validDeletionRequest(request.resource.data, uid);
+      allow delete: if false;
+    }
+
+    match /friendships_v1/{friendshipId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.members;
+      allow create: if signedIn()
+        && validFriendshipData(request.resource.data);
+      allow update: if signedIn()
+        && validFriendshipData(request.resource.data)
+        && request.resource.data.members == resource.data.members;
+      allow delete: if false;
+    }
+
+    match /challenge_progress_v1/{progressId} {
+      allow get: if signedIn()
+        && resource.data.playerUid == request.auth.uid
+        && progressId
+          == resource.data.challengeId + '--' + request.auth.uid;
+
+      allow list: if false;
+
+      allow create: if signedIn()
+        && validChallengeProgressData(request.resource.data, progressId);
+
+      allow update: if signedIn()
+        && validChallengeProgressData(request.resource.data, progressId)
+        && validChallengeProgressUpdate();
+
+      allow delete: if signedIn()
+        && resource.data.playerUid == request.auth.uid
+        && progressId
+          == resource.data.challengeId + '--' + request.auth.uid;
+    }
+    match /challenges_v1/{challengeId} {
+      allow read: if signedIn()
+        && (request.auth.uid in resource.data.participantIds
+          || (resource.data.status == 'pending'
+            && resource.data.targetUid == null));
+      allow create: if signedIn()
+        && validChallengeCreate(request.resource.data, request.auth.uid);
+      allow update: if signedIn()
+        && (validChallengeAccept()
+          || validChallengeDecline()
+          || validChallengeScore()
+          || validChallengeReaction());
+      allow delete: if false;
+    }
+
+    match /arena_groups_v1/{groupId} {
+      // Grup belgeleri yalnız üyelere okunur. Katılım kodları ayrı
+      // arena_invites_v1 koleksiyonunda tam belge anahtarıyla çözülür;
+      // böylece tüm gruplar veya kodlar listelenemez.
+      allow get, list: if signedIn()
+        && request.auth.uid in resource.data.memberIds;
+      allow create: if signedIn()
+        && validArenaGroupCreate(request.resource.data, request.auth.uid);
+      allow update: if signedIn()
+        && (validArenaGroupJoin() || validArenaGroupEventLink(groupId));
+      allow delete: if false;
+    }
+
+    match /arena_invites_v1/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && validArenaInviteCreate(request.resource.data, code, request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    match /arena_events_v1/{eventId} {
+      allow read: if signedIn()
+        && isArenaGroupMember(resource.data.groupId);
+      allow create: if signedIn()
+        && validArenaEventCreate(
+          request.resource.data,
+          request.auth.uid,
+          eventId
+        );
+      allow update: if signedIn() && validArenaEventFinish(eventId);
+      allow delete: if false;
+    }
+
+    match /arena_attempts_v1/{attemptId} {
+      allow read: if signedIn()
+        && isArenaGroupMember(resource.data.groupId);
+      allow create: if signedIn()
+        && validArenaAttemptCreate(request.resource.data, attemptId);
+      allow update, delete: if false;
+    }
+
+    match /arena_reactions_v1/{reactionId} {
+      allow read: if signedIn()
+        && isArenaGroupMember(resource.data.groupId);
+      allow create, update: if signedIn()
+        && validArenaReaction(request.resource.data, reactionId);
+      allow delete: if false;
+    }
+
+    // Everything else is denied by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

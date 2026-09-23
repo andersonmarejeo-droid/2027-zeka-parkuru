@@ -1,0 +1,61 @@
+ZEKA PARKURU - ÜCRETSİZ HESAP/VERİ SİLME YÖNETİCİ ARACI V1
+=============================================================
+
+Amaç:
+Firebase Spark planında kalırken Firestore'daki account_deletion_requests_v1
+taleplerini Cloud Functions olmadan yerel bilgisayardan işlemek.
+
+Güvenlik:
+- Varsayılan mod DRY-RUN'dır.
+- Gerçek silme için -Execute ve ardından TAMAM onayı gerekir.
+- Service account içindeki project_id yalnızca zeka-parkuru-eu-2026 ise çalışır.
+- Talep belgesi tüm işlemler bitmeden silinmez.
+- Hata olursa talep belgesi Firestore'da kalır ve daha sonra yeniden denenebilir.
+
+Kurulum:
+ZIP içeriğini proje köküne kopyalayın.
+
+Oluşacak yapı:
+  zeka_parkuru\
+    HESAP_SILME_ADMIN.ps1
+    functions\
+      admin_tools\
+        process_account_deletions.js
+
+functions\node_modules zaten bulunduğu için yeni npm paketi kurmanız gerekmez.
+
+Service account:
+Firebase Console > Project settings > Service accounts bölümünden
+zeka-parkuru-eu-2026 için private key JSON oluşturun.
+
+Örnek güvenli konum:
+  C:\Users\GiresuN\FirebaseKeys\zeka-parkuru-admin.json
+
+ÖNEMLİ:
+- JSON dosyasını proje klasörüne koymayın.
+- Sohbete yüklemeyin.
+- Git'e eklemeyin.
+- Anahtar sızarsa Google Cloud/Firebase tarafından iptal edin.
+
+Önce DRY-RUN:
+  powershell -ExecutionPolicy Bypass -File ".\HESAP_SILME_ADMIN.ps1" `
+    -ServiceAccount "C:\Users\GiresuN\FirebaseKeys\zeka-parkuru-admin.json"
+
+Tek UID DRY-RUN:
+  powershell -ExecutionPolicy Bypass -File ".\HESAP_SILME_ADMIN.ps1" `
+    -ServiceAccount "C:\Users\GiresuN\FirebaseKeys\zeka-parkuru-admin.json" `
+    -Uid "FIREBASE_UID"
+
+Gerçek silme:
+  powershell -ExecutionPolicy Bypass -File ".\HESAP_SILME_ADMIN.ps1" `
+    -ServiceAccount "C:\Users\GiresuN\FirebaseKeys\zeka-parkuru-admin.json" `
+    -Execute
+
+Öneri:
+Başlangıçta haftada birkaç kez DRY-RUN çalıştırın. Bekleyen talep varsa
+çıktıyı kontrol edin, ardından -Execute ile işleyin.
+
+Not:
+Bu araç Cloud Functions yerine hesap/veri silme işini yapar.
+Meydan okuma/Arena push bildirimlerini gönderen diğer Cloud Functions'ların
+yerine geçmez.

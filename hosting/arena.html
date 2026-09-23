@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Zekâ Parkuru • Arena Daveti</title>
+  <style>
+    body{margin:0;background:#07162e;color:#fff;font-family:system-ui,-apple-system,Segoe UI,sans-serif;display:grid;min-height:100vh;place-items:center;padding:24px;box-sizing:border-box}
+    main{max-width:520px;width:100%;background:#10274b;border:1px solid #ffffff22;border-radius:24px;padding:28px;box-sizing:border-box;text-align:center}
+    h1{margin:0 0 12px;font-size:26px}p{color:#ffffffc7;line-height:1.55}.btn{display:block;background:#76ff03;color:#07162e;text-decoration:none;font-weight:900;border-radius:16px;padding:15px 18px;margin-top:18px}.code{font-size:22px;font-weight:900;letter-spacing:4px}.small{font-size:13px;color:#ffffff88;margin-top:18px}
+  </style>
+</head>
+<body>
+<main>
+  <h1>🏟️ Zekâ Arenası</h1>
+  <p>Özel bir Zekâ Parkuru grubuna davet edildin.</p>
+  <p id="code" class="code"></p>
+  <a id="open" class="btn" href="#">ARENA'YI UYGULAMADA AÇ</a>
+  <p class="small">Uygulama kurulu değilse Zekâ Parkuru'nu yükleyip bağlantıyı yeniden aç.</p>
+</main>
+<script>
+  const q=new URLSearchParams(location.search);const g=q.get('g')||'';const code=(q.get('code')||'').toUpperCase();
+  const goodG=/^[A-Za-z0-9_-]{1,160}$/.test(g);const goodCode=/^[A-Z0-9]{6}$/.test(code);
+  document.getElementById('code').textContent=goodCode?'GRUP KODU: '+code:'';
+  const button=document.getElementById('open');
+  if(goodG&&goodCode){button.href='zekaparkuru://arena?g='+encodeURIComponent(g)+'&code='+encodeURIComponent(code);}else{button.textContent='DAVET BAĞLANTISI GEÇERSİZ';button.removeAttribute('href');}
+</script>
+</body>
+</html>

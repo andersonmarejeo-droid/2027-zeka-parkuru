@@ -1,0 +1,2687 @@
+import 'dart:math';
+
+import '../../services/replayability_service.dart';
+import '../../services/daily_challenge_service.dart';
+import '../../services/daily_course_service.dart';
+import '../../services/game_audio_service.dart';
+import '../../theme/app_visual_theme.dart';
+
+import 'package:flutter/material.dart';
+
+import '../../l10n/app_localizations.dart';
+import '../../widgets/advanced_result_banner.dart';
+import '../../services/local_progress_service.dart';
+
+class BlockGamePage extends StatefulWidget {
+  final bool dailyCourseMode;
+  final int? competitionLevel;
+  final int? competitionLayoutCode;
+
+  const BlockGamePage({
+    super.key,
+    this.dailyCourseMode = false,
+    this.competitionLevel,
+    this.competitionLayoutCode,
+  });
+
+  @override
+  State<BlockGamePage> createState() => _BlockGamePageState();
+}
+
+class _BlockGamePageState extends State<BlockGamePage> {
+  final LocalProgressService _progressService = LocalProgressService();
+
+  bool yukleniyor = true;
+  int acikSeviye = 1;
+
+  List<int> yildizlar = List<int>.filled(10, 0);
+  List<int> enIyiPuanlar = List<int>.filled(10, 0);
+  bool _competitionOpened = false;
+
+  final List<BlockLevel> seviyeler = const [
+    BlockLevel(
+      number: 1,
+      title: 'Blok Başlangıç',
+      difficulty: 'KOLAY',
+      targetScore: 1050,
+      targetLines: 4,
+      targetMoves: 30,
+    ),
+    BlockLevel(
+      number: 2,
+      title: 'Renk Patlaması',
+      difficulty: 'KOLAY',
+      targetScore: 1600,
+      targetLines: 6,
+      targetMoves: 37,
+    ),
+    BlockLevel(
+      number: 3,
+      title: 'Çift Çizgi',
+      difficulty: 'ORTA',
+      targetScore: 2300,
+      targetLines: 8,
+      targetMoves: 46,
+    ),
+    BlockLevel(
+      number: 4,
+      title: 'Combo Avı',
+      difficulty: 'ORTA',
+      targetScore: 3100,
+      targetLines: 10,
+      targetCombo: 2,
+      targetMoves: 55,
+    ),
+    BlockLevel(
+      number: 5,
+      title: 'Dar Alan',
+      difficulty: 'ZOR',
+      targetScore: 4000,
+      targetLines: 12,
+      targetMoves: 64,
+    ),
+    BlockLevel(
+      number: 6,
+      title: 'Hız Turu',
+      difficulty: 'KOLAY',
+      targetScore: 4950,
+      targetLines: 14,
+      targetMoves: 74,
+    ),
+    BlockLevel(
+      number: 7,
+      title: 'Zincir Ustası',
+      difficulty: 'ORTA',
+      targetScore: 6000,
+      targetLines: 16,
+      targetCombo: 2,
+      targetMoves: 83,
+    ),
+    BlockLevel(
+      number: 8,
+      title: 'Mega Temizleme',
+      difficulty: 'ZOR',
+      targetScore: 7250,
+      targetLines: 18,
+      targetCombo: 2,
+      targetMoves: 94,
+    ),
+    BlockLevel(
+      number: 9,
+      title: 'Blok Fırtınası',
+      difficulty: 'ZOR',
+      targetScore: 8650,
+      targetLines: 21,
+      targetCombo: 2,
+      targetMoves: 108,
+    ),
+    BlockLevel(
+      number: 10,
+      title: 'Blok Boss',
+      difficulty: 'BOSS',
+      targetScore: 10350,
+      targetLines: 24,
+      targetCombo: 3,
+      targetMoves: 124,
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    ilerlemeyiYukle();
+  }
+
+  Future<void> ilerlemeyiYukle() async {
+    final BlockProgressData veri = await _progressService
+        .blokIlerlemesiniYukle();
+
+    if (!mounted) return;
+
+    setState(() {
+      acikSeviye = veri.acikSeviye;
+      yildizlar = List<int>.from(veri.yildizlar);
+      enIyiPuanlar = List<int>.from(veri.enIyiPuanlar);
+      yukleniyor = false;
+    });
+
+    _openCompetitionLevelIfNeeded();
+  }
+
+  void _openCompetitionLevelIfNeeded() {
+    final int? level = widget.competitionLevel;
+    if (_competitionOpened || level == null) return;
+    _competitionOpened = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      seviyeAc((level - 1).clamp(0, seviyeler.length - 1).toInt());
+    });
+  }
+
+  Future<void> ilerlemeyiKaydet() async {
+    await _progressService.blokIlerlemesiniKaydet(
+      acikSeviye: acikSeviye,
+      yildizlar: yildizlar,
+      enIyiPuanlar: enIyiPuanlar,
+    );
+  }
+
+  int get toplamYildiz => yildizlar.fold(0, (a, b) => a + b);
+
+  int get toplamPuan => enIyiPuanlar.fold(0, (a, b) => a + b);
+
+  Future<void> seviyeAc(int index) async {
+    if (widget.competitionLevel == null && index + 1 > acikSeviye) return;
+
+    GameAudioService.instance.play(GameSound.uiClick);
+
+    final BlockLevelResult? sonuc = await Navigator.push<BlockLevelResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BlockPlayPage(
+          level: seviyeler[index],
+          totalLevels: seviyeler.length,
+          previousBestScore: enIyiPuanlar[index],
+          fixedSessionSeed: widget.competitionLayoutCode,
+          competitionMode: widget.competitionLevel != null,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (widget.dailyCourseMode) {
+      Navigator.pop(
+        context,
+        sonuc == null
+            ? const DailyStageResult.exited(gameId: 'blocks')
+            : sonuc.completed
+            ? DailyStageResult.completed(
+                gameId: 'blocks',
+                stars: sonuc.stars,
+                rawScore: sonuc.score,
+              )
+            : const DailyStageResult.failed(gameId: 'blocks'),
+      );
+      return;
+    }
+
+    if (sonuc == null || !sonuc.completed) {
+      if (widget.competitionLevel != null && mounted) {
+        Navigator.pop(context);
+      }
+      return;
+    }
+
+    if (widget.competitionLevel != null) {
+      Navigator.pop(
+        context,
+        DailyCourseGameResult(
+          gameId: 'blocks',
+          stars: sonuc.stars,
+          score: sonuc.score,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      yildizlar[index] = max(yildizlar[index], sonuc.stars);
+
+      enIyiPuanlar[index] = max(enIyiPuanlar[index], sonuc.score);
+
+      if (index + 1 == acikSeviye && acikSeviye < seviyeler.length) {
+        acikSeviye++;
+      }
+    });
+
+    await ilerlemeyiKaydet();
+
+    await DailyChallengeService.instance.recordLevelCompleted(
+      gameId: 'blocks',
+      stars: sonuc.stars,
+      score: sonuc.score,
+    );
+
+    if (!widget.dailyCourseMode && index + 1 == seviyeler.length) {
+      await GameAudioService.instance.playMashallahCelebration();
+    }
+
+    if (sonuc.nextLevel && index + 1 < seviyeler.length && mounted) {
+      await Future.delayed(const Duration(milliseconds: 180));
+
+      if (mounted) {
+        seviyeAc(index + 1);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (yukleniyor || widget.competitionLevel != null) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LText(
+              'BLOK FIRTINASI',
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+            ),
+            LText(
+              'Sürükle • Yerleştir • Patlat',
+              style: TextStyle(color: Colors.white60, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: _ProgressPanel(
+                score: toplamPuan,
+                stars: toplamYildiz,
+                level: acikSeviye,
+              ),
+            ),
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
+                itemCount: seviyeler.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                  mainAxisExtent: 165,
+                ),
+                itemBuilder: (context, index) {
+                  return _LevelCard(
+                    level: seviyeler[index],
+                    unlocked: index + 1 <= acikSeviye,
+                    stars: yildizlar[index],
+                    bestScore: enIyiPuanlar[index],
+                    onTap: () => seviyeAc(index),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class BlockPlayPage extends StatefulWidget {
+  final BlockLevel level;
+  final int totalLevels;
+  final int previousBestScore;
+  final int? fixedSessionSeed;
+  final bool competitionMode;
+
+  const BlockPlayPage({
+    super.key,
+    required this.level,
+    required this.totalLevels,
+    required this.previousBestScore,
+    this.fixedSessionSeed,
+    this.competitionMode = false,
+  });
+
+  @override
+  State<BlockPlayPage> createState() => _BlockPlayPageState();
+}
+
+class _BlockPlayPageState extends State<BlockPlayPage> {
+  static const int boardSize = 8;
+  static const double boardGap = 3;
+
+  // Parça parmağın altında gizlenmesin.
+  static const double fingerLift = 120;
+
+  Random random = Random();
+  final ReplayabilityService _replayability = ReplayabilityService();
+  final GameAudioService _audio = GameAudioService.instance;
+
+  int sessionSeed = 0;
+
+  final GlobalKey _boardGridKey = GlobalKey();
+
+  late List<List<Color?>> board;
+  late List<GamePiece?> pieces;
+
+  int score = 0;
+  int moves = 0;
+  int clearedLines = 0;
+  int combo = 0;
+  int bestCombo = 0;
+
+  bool get _scoreMissionCompleted => score >= widget.level.targetScore;
+
+  bool get _lineMissionCompleted => clearedLines >= widget.level.targetLines;
+
+  bool get _comboMissionCompleted => bestCombo >= widget.level.targetCombo;
+
+  bool get _allMissionsCompleted =>
+      _scoreMissionCompleted && _lineMissionCompleted && _comboMissionCompleted;
+
+  int? selectedPieceIndex;
+
+  bool processing = false;
+  bool completed = false;
+
+  Set<String> clearingCells = {};
+  Set<String> poppingCells = {};
+
+  int burstSeed = 0;
+  bool showBurst = false;
+  bool showFlash = false;
+
+  String floatingText = '';
+  bool showFloatingText = false;
+
+  bool dragging = false;
+  int? draggingIndex;
+  GamePiece? draggingPiece;
+
+  BlockCell grabbedCell = const BlockCell(0, 0);
+
+  Offset dragGlobalPosition = Offset.zero;
+  Offset dragPointerStart = Offset.zero;
+  Offset dragVirtualStart = Offset.zero;
+
+  // Parmağın 0.7 birim hareketi, bloğu yaklaşık 1 birim hareket ettirir.
+  static const double dragSensitivity = 1.43;
+
+  int? hoverRow;
+  int? hoverCol;
+  bool hoverValid = false;
+
+  // Yalnızca bırakma sonrasında gerçekten temizlenecek yatay/dikey
+  // hatları içerir. Gerçek tahta veya skor bu önizlemede değiştirilmez.
+  Set<String> _lineClearPreviewCells = <String>{};
+
+  double boardCellSize = 38;
+
+  OverlayEntry? _dragOverlay;
+
+  final List<Color> blockColors = const [
+    Color(0xFF00D9FF),
+    Color(0xFF745CFF),
+    Color(0xFFFF4F9A),
+    Color(0xFFFF9F1C),
+    Color(0xFFFFD93D),
+    Color(0xFF52E86B),
+    Color(0xFFFF5E57),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+
+    _audio.preload(GameAudioGroup.blocks);
+    _audio.playMusic(GameMusic.calm);
+
+    if (widget.level.difficulty == 'BOSS') {
+      _audio.play(GameSound.bossIntro);
+    }
+
+    board = _emptyBoard();
+    pieces = _generateThreePieces();
+
+    _initializeReplaySession();
+  }
+
+  Future<void> _initializeReplaySession() async {
+    sessionSeed =
+        widget.fixedSessionSeed ??
+        await _replayability.newSeed(
+          gameId: 'blocks',
+          level: widget.level.number,
+        );
+
+    random = _replayability.randomFor(
+      sessionSeed: sessionSeed,
+      round: 0,
+      salt: 71,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      board = _scenarioBoard();
+      pieces = _generateThreePieces();
+    });
+    if (widget.fixedSessionSeed == null) {
+      await _replayability.registerFingerprint(
+        gameId: 'blocks',
+        level: widget.level.number,
+        fingerprint: _scenarioFingerprint(),
+        historyLimit: 100,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _removeDragOverlay();
+    _audio.stopMusic();
+    super.dispose();
+  }
+
+  List<List<Color?>> _emptyBoard() {
+    return List.generate(
+      boardSize,
+      (_) => List<Color?>.filled(boardSize, null),
+    );
+  }
+
+  List<List<Color?>> _scenarioBoard() {
+    final List<List<Color?>> result = _emptyBoard();
+    if (widget.level.number < 5) return result;
+
+    final int fillTarget = min(22, 5 + widget.level.number * 2);
+    final List<int> cells = List<int>.generate(
+      boardSize * boardSize,
+      (int index) => index,
+    )..shuffle(random);
+    final List<int> rowCounts = List<int>.filled(boardSize, 0);
+    final List<int> columnCounts = List<int>.filled(boardSize, 0);
+    int filled = 0;
+    for (final int cell in cells) {
+      if (filled >= fillTarget) break;
+      final int row = cell ~/ boardSize;
+      final int column = cell % boardSize;
+      if (rowCounts[row] >= 5 || columnCounts[column] >= 5) continue;
+      result[row][column] = blockColors[random.nextInt(blockColors.length)];
+      rowCounts[row]++;
+      columnCounts[column]++;
+      filled++;
+    }
+    return result;
+  }
+
+  String _scenarioFingerprint() {
+    final String geometry = board
+        .expand((List<Color?> row) => row)
+        .map((Color? cell) => cell == null ? '0' : '1')
+        .join();
+    final String flow = pieces
+        .whereType<GamePiece>()
+        .map((GamePiece piece) {
+          final List<String> cells =
+              piece.cells
+                  .map((BlockCell cell) => '${cell.x},${cell.y}')
+                  .toList(growable: true)
+                ..sort();
+          return cells.join(';');
+        })
+        .join('/');
+    return '$geometry|$flow';
+  }
+
+  List<GamePiece?> _generateThreePieces() {
+    return List<GamePiece?>.generate(3, (_) {
+      GamePiece piece = _randomPiece();
+      for (
+        int attempt = 0;
+        attempt < 40 && !_pieceHasPlacement(piece);
+        attempt++
+      ) {
+        piece = _randomPiece();
+      }
+      if (!_pieceHasPlacement(piece)) {
+        piece = GamePiece(
+          cells: const <BlockCell>[BlockCell(0, 0)],
+          color: blockColors[random.nextInt(blockColors.length)],
+        );
+      }
+      return piece;
+    });
+  }
+
+  bool _pieceHasPlacement(GamePiece piece) {
+    for (int row = 0; row < boardSize; row++) {
+      for (int column = 0; column < boardSize; column++) {
+        if (canPlace(piece, row, column)) return true;
+      }
+    }
+    return false;
+  }
+
+  GamePiece _randomPiece() {
+    final List<List<BlockCell>> kolay = [
+      const [BlockCell(0, 0)],
+      const [BlockCell(0, 0), BlockCell(1, 0)],
+      const [BlockCell(0, 0), BlockCell(1, 0), BlockCell(2, 0)],
+      const [BlockCell(0, 0), BlockCell(0, 1)],
+      const [BlockCell(0, 0), BlockCell(0, 1), BlockCell(0, 2)],
+      const [BlockCell(0, 0), BlockCell(1, 0), BlockCell(0, 1)],
+      const [
+        BlockCell(0, 0),
+        BlockCell(1, 0),
+        BlockCell(0, 1),
+        BlockCell(1, 1),
+      ],
+    ];
+
+    final List<List<BlockCell>> orta = [
+      ...kolay,
+      const [
+        BlockCell(0, 0),
+        BlockCell(1, 0),
+        BlockCell(2, 0),
+        BlockCell(3, 0),
+      ],
+      const [
+        BlockCell(0, 0),
+        BlockCell(0, 1),
+        BlockCell(0, 2),
+        BlockCell(0, 3),
+      ],
+      const [
+        BlockCell(0, 0),
+        BlockCell(1, 0),
+        BlockCell(2, 0),
+        BlockCell(1, 1),
+      ],
+      const [
+        BlockCell(0, 0),
+        BlockCell(0, 1),
+        BlockCell(0, 2),
+        BlockCell(1, 2),
+      ],
+      const [
+        BlockCell(1, 0),
+        BlockCell(0, 1),
+        BlockCell(1, 1),
+        BlockCell(2, 1),
+      ],
+    ];
+
+    final List<List<BlockCell>> zor = [
+      ...orta,
+      const [
+        BlockCell(0, 0),
+        BlockCell(1, 0),
+        BlockCell(2, 0),
+        BlockCell(3, 0),
+        BlockCell(4, 0),
+      ],
+      const [
+        BlockCell(0, 0),
+        BlockCell(0, 1),
+        BlockCell(0, 2),
+        BlockCell(0, 3),
+        BlockCell(0, 4),
+      ],
+      const [
+        BlockCell(0, 0),
+        BlockCell(1, 0),
+        BlockCell(2, 0),
+        BlockCell(2, 1),
+        BlockCell(2, 2),
+      ],
+      const [
+        BlockCell(0, 0),
+        BlockCell(1, 0),
+        BlockCell(1, 1),
+        BlockCell(2, 1),
+      ],
+    ];
+
+    List<List<BlockCell>> pool;
+
+    if (widget.level.number <= 2) {
+      pool = kolay;
+    } else if (widget.level.number <= 6) {
+      pool = orta;
+    } else {
+      pool = zor;
+    }
+
+    return GamePiece(
+      cells: List<BlockCell>.from(pool[random.nextInt(pool.length)]),
+      color: blockColors[random.nextInt(blockColors.length)],
+    );
+  }
+
+  // =========================================================
+  // ULTRA HIZLI POINTER SÜRÜKLEME
+  // =========================================================
+
+  void _pointerDown(
+    int index,
+    GamePiece piece,
+    PointerDownEvent event,
+    double previewCellSize,
+  ) {
+    if (processing || completed || dragging) {
+      return;
+    }
+
+    _audio.hapticMedium();
+    _audio.play(GameSound.blockPickup);
+
+    // Kartın herhangi bir noktasına dokunmak yeterli.
+    // Parçanın merkeze en yakın bloğu referans alınır.
+    grabbedCell = _defaultGrabCell(piece);
+
+    dragging = true;
+    draggingIndex = index;
+    draggingPiece = piece;
+
+    dragPointerStart = event.position;
+    dragVirtualStart = event.position;
+    dragGlobalPosition = event.position;
+
+    selectedPieceIndex = null;
+
+    _updateHover(dragGlobalPosition);
+
+    _createDragOverlay();
+
+    setState(() {});
+  }
+
+  void _pointerMove(PointerMoveEvent event) {
+    if (!dragging) return;
+
+    final Offset fingerDelta = event.position - dragPointerStart;
+    final Offset amplifiedDelta = fingerDelta * dragSensitivity;
+
+    dragGlobalPosition = dragVirtualStart + amplifiedDelta;
+
+    _updateHover(dragGlobalPosition);
+
+    _dragOverlay?.markNeedsBuild();
+  }
+
+  Future<void> _pointerUp(PointerUpEvent event) async {
+    if (!dragging) return;
+
+    await _finishDrag();
+  }
+
+  Future<void> _pointerCancel(PointerCancelEvent event) async {
+    if (!dragging) return;
+
+    await _cancelDrag();
+  }
+
+  BlockCell _defaultGrabCell(GamePiece piece) {
+    final double centerX =
+        piece.cells.map((e) => e.x).reduce((a, b) => a + b) /
+        piece.cells.length;
+
+    final double centerY =
+        piece.cells.map((e) => e.y).reduce((a, b) => a + b) /
+        piece.cells.length;
+
+    BlockCell best = piece.cells.first;
+    double bestDistance = double.infinity;
+
+    for (final cell in piece.cells) {
+      final double dx = cell.x - centerX;
+      final double dy = cell.y - centerY;
+      final double distance = dx * dx + dy * dy;
+
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = cell;
+      }
+    }
+
+    return best;
+  }
+
+  void _updateHover(Offset pointerGlobal) {
+    final BuildContext? boardContext = _boardGridKey.currentContext;
+
+    final GamePiece? piece = draggingPiece;
+
+    if (boardContext == null || piece == null) {
+      return;
+    }
+
+    final RenderBox? box = boardContext.findRenderObject() as RenderBox?;
+
+    if (box == null) return;
+
+    // Parça parmağın biraz üstünde.
+    final Offset liftedGlobal = pointerGlobal - const Offset(0, fingerLift);
+
+    final Offset local = box.globalToLocal(liftedGlobal);
+
+    final double pitch = boardCellSize + boardGap;
+
+    // FLOOR yerine ROUND:
+    // Hücre merkezine yaklaşınca mıknatıs gibi kilitlenir.
+    final int touchedCol = ((local.dx - boardCellSize / 2) / pitch).round();
+
+    final int touchedRow = ((local.dy - boardCellSize / 2) / pitch).round();
+
+    final int startRow = touchedRow - grabbedCell.y;
+
+    final int startCol = touchedCol - grabbedCell.x;
+
+    final bool valid = canPlace(piece, startRow, startCol);
+
+    final Set<String> nextLinePreview = valid
+        ? blockLineClearPreviewCells(
+            board: board,
+            piece: piece,
+            startRow: startRow,
+            startCol: startCol,
+            boardSize: boardSize,
+          )
+        : <String>{};
+
+    final bool linePreviewChanged =
+        _lineClearPreviewCells.length != nextLinePreview.length ||
+        !_lineClearPreviewCells.containsAll(nextLinePreview);
+
+    final bool changed =
+        hoverRow != startRow ||
+        hoverCol != startCol ||
+        hoverValid != valid ||
+        linePreviewChanged;
+
+    hoverRow = startRow;
+    hoverCol = startCol;
+    hoverValid = valid;
+    _lineClearPreviewCells = nextLinePreview;
+
+    // Tahtayı sadece hedef hücre değişince yeniden çiz.
+    if (changed && mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _finishDrag() async {
+    final int? index = draggingIndex;
+
+    final GamePiece? piece = draggingPiece;
+
+    final int? row = hoverRow;
+
+    final int? col = hoverCol;
+
+    final bool valid = hoverValid;
+
+    _removeDragOverlay();
+
+    dragging = false;
+    draggingIndex = null;
+    draggingPiece = null;
+
+    hoverRow = null;
+    hoverCol = null;
+    hoverValid = false;
+    _lineClearPreviewCells.clear();
+
+    if (mounted) {
+      setState(() {});
+    }
+
+    if (piece == null ||
+        index == null ||
+        row == null ||
+        col == null ||
+        !valid) {
+      _audio.hapticLight();
+      _audio.play(GameSound.blockInvalid);
+      return;
+    }
+
+    await _placePiece(index, piece, row, col);
+  }
+
+  Future<void> _cancelDrag() async {
+    _removeDragOverlay();
+
+    dragging = false;
+    draggingIndex = null;
+    draggingPiece = null;
+
+    hoverRow = null;
+    hoverCol = null;
+    hoverValid = false;
+    _lineClearPreviewCells.clear();
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _createDragOverlay() {
+    _removeDragOverlay();
+
+    final OverlayState overlay = Overlay.of(context);
+
+    _dragOverlay = OverlayEntry(
+      builder: (_) {
+        final GamePiece? piece = draggingPiece;
+
+        if (!dragging || piece == null) {
+          return const SizedBox.shrink();
+        }
+
+        final int maxX = piece.cells.map((e) => e.x).reduce(max);
+
+        final int maxY = piece.cells.map((e) => e.y).reduce(max);
+
+        final double width = (maxX + 1) * boardCellSize + maxX * boardGap;
+
+        final double height = (maxY + 1) * boardCellSize + maxY * boardGap;
+
+        final double grabCenterX =
+            grabbedCell.x * (boardCellSize + boardGap) + boardCellSize / 2;
+
+        final double grabCenterY =
+            grabbedCell.y * (boardCellSize + boardGap) + boardCellSize / 2;
+
+        return Positioned(
+          left: dragGlobalPosition.dx - grabCenterX,
+          top: dragGlobalPosition.dy - fingerLift - grabCenterY,
+          width: width,
+          height: height,
+          child: IgnorePointer(
+            child: Material(
+              color: Colors.transparent,
+              child: _FloatingPiece(
+                piece: piece,
+                cellSize: boardCellSize,
+                valid: hoverValid,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    overlay.insert(_dragOverlay!);
+  }
+
+  void _removeDragOverlay() {
+    _dragOverlay?.remove();
+    _dragOverlay = null;
+  }
+
+  // =========================================================
+  // YERLEŞTİRME
+  // =========================================================
+
+  bool canPlace(GamePiece piece, int startRow, int startCol) {
+    for (final cell in piece.cells) {
+      final int row = startRow + cell.y;
+
+      final int col = startCol + cell.x;
+
+      if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) {
+        return false;
+      }
+
+      if (board[row][col] != null) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  Future<void> _placePiece(int index, GamePiece piece, int row, int col) async {
+    if (processing || completed || pieces[index] == null) {
+      return;
+    }
+
+    if (!canPlace(piece, row, col)) {
+      return;
+    }
+
+    processing = true;
+
+    _audio.hapticMedium();
+
+    _audio.play(GameSound.blockPlace);
+
+    setState(() {
+      poppingCells = piece.cells
+          .map((cell) => '${row + cell.y}-${col + cell.x}')
+          .toSet();
+
+      for (final cell in piece.cells) {
+        board[row + cell.y][col + cell.x] = piece.color;
+      }
+
+      score += piece.cells.length * 10;
+
+      moves++;
+
+      pieces[index] = null;
+
+      selectedPieceIndex = null;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 115));
+
+    if (mounted) {
+      setState(() {
+        poppingCells.clear();
+      });
+    }
+
+    await _clearLines();
+
+    if (pieces.every((piece) => piece == null)) {
+      setState(() {
+        pieces = _generateThreePieces();
+      });
+    }
+
+    if (_allMissionsCompleted && !completed) {
+      completed = true;
+
+      await Future.delayed(const Duration(milliseconds: 180));
+
+      if (mounted) {
+        _showLevelCompleted();
+      }
+
+      processing = false;
+      return;
+    }
+
+    if (!_anyMoveAvailable()) {
+      await Future.delayed(const Duration(milliseconds: 180));
+
+      if (!mounted) return;
+
+      setState(() {
+        pieces = _generateThreePieces();
+        selectedPieceIndex = null;
+      });
+
+      _audio.hapticMedium();
+
+      processing = false;
+      return;
+    }
+
+    processing = false;
+  }
+
+  // Yedek dokun-seç yöntemi.
+  void selectPiece(int index) {
+    if (pieces[index] == null || processing || dragging) {
+      return;
+    }
+
+    _audio.hapticMedium();
+
+    _audio.play(GameSound.blockPickup);
+
+    setState(() {
+      selectedPieceIndex = selectedPieceIndex == index ? null : index;
+    });
+  }
+
+  Future<void> tapBoard(int row, int col) async {
+    if (selectedPieceIndex == null || processing || dragging) {
+      return;
+    }
+
+    final int index = selectedPieceIndex!;
+
+    final GamePiece? piece = pieces[index];
+
+    if (piece == null) return;
+
+    if (!canPlace(piece, row, col)) {
+      _audio.hapticLight();
+
+      _audio.play(GameSound.blockInvalid);
+
+      return;
+    }
+
+    await _placePiece(index, piece, row, col);
+  }
+
+  // =========================================================
+  // TEMİZLEME
+  // =========================================================
+
+  Future<void> _clearLines() async {
+    final Set<int> fullRows = {};
+
+    final Set<int> fullCols = {};
+
+    for (int row = 0; row < boardSize; row++) {
+      if (board[row].every((e) => e != null)) {
+        fullRows.add(row);
+      }
+    }
+
+    for (int col = 0; col < boardSize; col++) {
+      bool full = true;
+
+      for (int row = 0; row < boardSize; row++) {
+        if (board[row][col] == null) {
+          full = false;
+          break;
+        }
+      }
+
+      if (full) {
+        fullCols.add(col);
+      }
+    }
+
+    final int lineCount = fullRows.length + fullCols.length;
+
+    if (lineCount == 0) {
+      combo = 0;
+      return;
+    }
+
+    clearedLines += lineCount;
+    combo++;
+
+    bestCombo = max(bestCombo, combo);
+
+    final Set<String> cells = {};
+
+    for (final row in fullRows) {
+      for (int col = 0; col < boardSize; col++) {
+        cells.add('$row-$col');
+      }
+    }
+
+    for (final col in fullCols) {
+      for (int row = 0; row < boardSize; row++) {
+        cells.add('$row-$col');
+      }
+    }
+
+    int bonus = lineCount * 120;
+
+    if (lineCount >= 2) {
+      bonus += 180;
+    }
+
+    if (lineCount >= 3) {
+      bonus += 350;
+    }
+
+    if (combo >= 2) {
+      bonus += combo * 70;
+    }
+
+    score += bonus;
+
+    setState(() {
+      clearingCells = cells;
+      burstSeed++;
+      showBurst = true;
+      showFlash = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 95), () {
+      if (mounted) {
+        setState(() {
+          showFlash = false;
+        });
+      }
+    });
+
+    Future.delayed(const Duration(milliseconds: 520), () {
+      if (mounted) {
+        setState(() {
+          showBurst = false;
+        });
+      }
+    });
+
+    if (lineCount >= 3) {
+      _audio.hapticHeavy();
+
+      _audio.play(GameSound.blockMega);
+
+      await _floating('🔥 MEGA!  +$bonus');
+    } else if (lineCount >= 2) {
+      _audio.hapticHeavy();
+
+      _audio.play(GameSound.blockDoubleClear);
+
+      await _floating('⚡ ÇİFT ÇİZGİ  +$bonus');
+    } else if (combo >= 2) {
+      _audio.hapticMedium();
+
+      _audio.play(GameSound.blockCombo);
+
+      await _floating('COMBO x$combo  +$bonus');
+    } else {
+      _audio.hapticMedium();
+
+      _audio.play(GameSound.blockClear);
+
+      await _floating('✨ +$bonus');
+    }
+
+    await Future.delayed(const Duration(milliseconds: 150));
+
+    if (!mounted) return;
+
+    setState(() {
+      for (final key in clearingCells) {
+        final List<String> p = key.split('-');
+
+        board[int.parse(p[0])][int.parse(p[1])] = null;
+      }
+
+      clearingCells.clear();
+    });
+  }
+
+  Future<void> _floating(String text) async {
+    if (!mounted) return;
+
+    setState(() {
+      floatingText = text;
+      showFloatingText = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 430));
+
+    if (!mounted) return;
+
+    setState(() {
+      showFloatingText = false;
+    });
+  }
+
+  bool _anyMoveAvailable() {
+    for (final piece in pieces) {
+      if (piece == null) {
+        continue;
+      }
+
+      for (int row = 0; row < boardSize; row++) {
+        for (int col = 0; col < boardSize; col++) {
+          if (canPlace(piece, row, col)) {
+            return true;
+          }
+        }
+      }
+    }
+
+    return false;
+  }
+
+  int calculateStars() {
+    if (moves <= widget.level.targetMoves) {
+      return 3;
+    }
+
+    if (moves <= (widget.level.targetMoves * 1.35).ceil()) {
+      return 2;
+    }
+
+    return 1;
+  }
+
+  Future<void> _newGame() async {
+    _removeDragOverlay();
+
+    sessionSeed =
+        widget.fixedSessionSeed ??
+        await _replayability.newSeed(
+          gameId: 'blocks',
+          level: widget.level.number,
+        );
+
+    random = _replayability.randomFor(
+      sessionSeed: sessionSeed,
+      round: 0,
+      salt: widget.fixedSessionSeed == null ? 73 : 71,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      board = _scenarioBoard();
+
+      pieces = _generateThreePieces();
+
+      score = 0;
+      moves = 0;
+      clearedLines = 0;
+
+      combo = 0;
+      bestCombo = 0;
+
+      selectedPieceIndex = null;
+
+      dragging = false;
+      draggingPiece = null;
+      draggingIndex = null;
+
+      hoverRow = null;
+      hoverCol = null;
+      hoverValid = false;
+      _lineClearPreviewCells.clear();
+
+      clearingCells.clear();
+      poppingCells.clear();
+      showBurst = false;
+      showFlash = false;
+
+      processing = false;
+      completed = false;
+    });
+    if (widget.fixedSessionSeed == null) {
+      await _replayability.registerFingerprint(
+        gameId: 'blocks',
+        level: widget.level.number,
+        fingerprint: _scenarioFingerprint(),
+        historyLimit: 100,
+      );
+    }
+  }
+
+  void _showLevelCompleted() {
+    final int stars = calculateStars();
+
+    final int finalScore = score + bestCombo * 30;
+
+    _audio.hapticHeavy();
+
+    _audio.playVictory(stars: stars, boss: widget.level.difficulty == 'BOSS');
+
+    if (widget.competitionMode) {
+      Navigator.pop(
+        context,
+        BlockLevelResult(
+          completed: true,
+          stars: stars,
+          score: finalScore,
+          nextLevel: false,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 22,
+          ),
+          child: SingleChildScrollView(
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF123465), Color(0xFF492785)],
+                ),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0xFFFFD93D), width: 2),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.emoji_events_rounded,
+                    size: 62,
+                    color: Color(0xFFFFD93D),
+                  ),
+                  const SizedBox(height: 8),
+                  LText(
+                    widget.level.difficulty == 'BOSS'
+                        ? '🔥 BLOK BOSS!'
+                        : '🎉 HEDEF TAMAMLANDI!',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 23,
+                    ),
+                  ),
+                  const SizedBox(height: 11),
+                  AdvancedResultBanner(
+                    score: finalScore,
+                    previousBestScore: widget.previousBestScore,
+                    english: context.l10n.isEnglish,
+                    accentColor: const Color(0xFFFF8A00),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      3,
+                      (index) => Icon(
+                        index < stars
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        color: const Color(0xFFFFD93D),
+                        size: 46,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  LText(
+                    '$clearedLines sıra • $moves hamle • x$bestCombo en iyi kombo',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _ResultBox(title: 'PUAN', value: '$finalScore'),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _ResultBox(title: 'HAMLE', value: '$moves'),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _ResultBox(title: 'COMBO', value: 'x$bestCombo'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  if (widget.level.number < widget.totalLevels)
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+
+                          Navigator.pop(
+                            context,
+                            BlockLevelResult(
+                              completed: true,
+                              stars: stars,
+                              score: finalScore,
+                              nextLevel: true,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.arrow_forward_rounded),
+                        label: const LText('SONRAKİ SEVİYE'),
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+
+                          Navigator.pop(
+                            context,
+                            BlockLevelResult(
+                              completed: true,
+                              stars: stars,
+                              score: finalScore,
+                              nextLevel: false,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.workspace_premium_rounded),
+                        label: const LText('PARKURU TAMAMLA'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double scoreProgress = min(
+      score / widget.level.targetScore,
+      1.0,
+    ).toDouble();
+    final double lineProgress = min(
+      clearedLines / widget.level.targetLines,
+      1.0,
+    ).toDouble();
+    final double comboProgress = widget.level.targetCombo == 0
+        ? 1.0
+        : min(bestCombo / widget.level.targetCombo, 1.0).toDouble();
+    final double progress = widget.level.targetCombo == 0
+        ? (scoreProgress + lineProgress) / 2
+        : (scoreProgress + lineProgress + comboProgress) / 3;
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LText(
+              widget.level.title.toUpperCase(),
+              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+            ),
+            LText(
+              'Seviye ${widget.level.number} / ${widget.totalLevels}',
+              style: const TextStyle(color: Colors.white60, fontSize: 11),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Yeni oyun',
+            onPressed: _newGame,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+          child: Column(
+            children: [
+              _GameHeader(
+                score: score,
+                clearedLines: clearedLines,
+                targetLines: widget.level.targetLines,
+                moves: moves,
+                bestCombo: bestCombo,
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 9,
+                  backgroundColor: Colors.white12,
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    Color(0xFF52E86B),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              _MissionSummary(
+                targetScore: widget.level.targetScore,
+                targetLines: widget.level.targetLines,
+                targetCombo: widget.level.targetCombo,
+                scoreCompleted: _scoreMissionCompleted,
+                linesCompleted: _lineMissionCompleted,
+                comboCompleted: _comboMissionCompleted,
+              ),
+              const SizedBox(height: 7),
+
+              Expanded(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    _buildBoard(),
+
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 90),
+                          opacity: showFlash ? 0.30 : 0,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(26),
+                              gradient: const RadialGradient(
+                                colors: [
+                                  Color(0xFFFFFFFF),
+                                  Color(0x55FFD93D),
+                                  Color(0x0000D9FF),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    if (showBurst)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: TweenAnimationBuilder<double>(
+                            key: ValueKey(burstSeed),
+                            tween: Tween<double>(begin: 0, end: 1),
+                            duration: const Duration(milliseconds: 500),
+                            builder: (context, value, child) {
+                              return CustomPaint(
+                                painter: _BurstPainter(
+                                  progress: value,
+                                  seed: burstSeed,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+
+                    IgnorePointer(
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 120),
+                        opacity: showFloatingText ? 1 : 0,
+                        child: TweenAnimationBuilder<double>(
+                          key: ValueKey(floatingText),
+                          tween: Tween<double>(begin: 0, end: 1),
+                          duration: const Duration(milliseconds: 430),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, value, child) {
+                            final double scale =
+                                0.72 + (0.38 * min(value * 1.7, 1.0));
+                            return Transform.translate(
+                              offset: Offset(0, -54 * value),
+                              child: Transform.scale(
+                                scale: scale,
+                                child: Opacity(
+                                  opacity:
+                                      (1 -
+                                              (value - 0.72).clamp(0.0, 0.28) /
+                                                  0.28)
+                                          .clamp(0.0, 1.0),
+                                  child: child,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF09162E)
+                                  .withValues(alpha: 0.94),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: const Color(0xFFFFD93D),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFFFD93D)
+                                      .withValues(alpha: 0.22),
+                                  blurRadius: 18,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: LText(
+                              floatingText,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Color(0xFFFFD93D),
+                                fontWeight: FontWeight.w900,
+                                fontSize: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 5),
+
+              const Row(
+                children: [
+                  Icon(Icons.bolt_rounded, color: Color(0xFF00D9FF), size: 18),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: LText(
+                      'Bloğa dokunduğun anda kalkar. Parmağını bırakınca otomatik yerleşir.',
+                      style: TextStyle(color: Colors.white60, fontSize: 10),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 6),
+
+              SizedBox(
+                height: 108,
+                child: Row(
+                  children: List.generate(3, (index) {
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: index == 1 ? 4 : 2,
+                        ),
+                        child: _FastPieceTray(
+                          piece: pieces[index],
+                          selected: selectedPieceIndex == index,
+                          onTap: () => selectPiece(index),
+                          onPointerDown: (event, cellSize) {
+                            final GamePiece? piece = pieces[index];
+
+                            if (piece != null) {
+                              _pointerDown(index, piece, event, cellSize);
+                            }
+                          },
+                          onPointerMove: _pointerMove,
+                          onPointerUp: _pointerUp,
+                          onPointerCancel: _pointerCancel,
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBoard() {
+    return AspectRatio(
+      aspectRatio: 1,
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF09182E),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0xFF235080), width: 2),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            boardCellSize = (constraints.maxWidth - boardGap * 7) / 8;
+
+            return SizedBox(
+              key: _boardGridKey,
+              width: constraints.maxWidth,
+              height: constraints.maxWidth,
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: 64,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 8,
+                  crossAxisSpacing: boardGap,
+                  mainAxisSpacing: boardGap,
+                ),
+                itemBuilder: (context, index) {
+                  final int row = index ~/ 8;
+
+                  final int col = index % 8;
+
+                  bool preview = false;
+
+                  if (dragging &&
+                      draggingPiece != null &&
+                      hoverRow != null &&
+                      hoverCol != null) {
+                    for (final cell in draggingPiece!.cells) {
+                      if (hoverRow! + cell.y == row &&
+                          hoverCol! + cell.x == col) {
+                        preview = true;
+
+                        break;
+                      }
+                    }
+                  }
+
+                  return GestureDetector(
+                    onTap: () {
+                      tapBoard(row, col);
+                    },
+                    child: _BoardCell(
+                      color: board[row][col],
+                      clearing: clearingCells.contains('$row-$col'),
+                      popping: poppingCells.contains('$row-$col'),
+                      preview: preview,
+                      previewValid: hoverValid,
+                      previewColor: draggingPiece?.color,
+                      lineClearPreview: _lineClearPreviewCells.contains(
+                        '$row-$col',
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// =========================================================
+// POINTER TABANLI HIZLI PARÇA TEPSİSİ
+// =========================================================
+
+class _FastPieceTray extends StatelessWidget {
+  final GamePiece? piece;
+  final bool selected;
+
+  final VoidCallback onTap;
+
+  final void Function(PointerDownEvent event, double cellSize) onPointerDown;
+
+  final void Function(PointerMoveEvent event) onPointerMove;
+
+  final Future<void> Function(PointerUpEvent event) onPointerUp;
+
+  final Future<void> Function(PointerCancelEvent event) onPointerCancel;
+
+  const _FastPieceTray({
+    required this.piece,
+    required this.selected,
+    required this.onTap,
+    required this.onPointerDown,
+    required this.onPointerMove,
+    required this.onPointerUp,
+    required this.onPointerCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (piece == null) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: const Center(
+          child: Icon(Icons.check_rounded, color: Color(0xFF52E86B), size: 30),
+        ),
+      );
+    }
+
+    const double previewCellSize = 18;
+
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (event) {
+        onPointerDown(event, previewCellSize);
+      },
+      onPointerMove: onPointerMove,
+      onPointerUp: onPointerUp,
+      onPointerCancel: onPointerCancel,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 60),
+          decoration: BoxDecoration(
+            color: selected
+                ? piece!.color.withValues(alpha: 0.13)
+                : ZpVisualPalette.of(context).surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected ? piece!.color : Colors.white12,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: _PiecePreview(piece: piece!, cellSize: previewCellSize),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FloatingPiece extends StatelessWidget {
+  final GamePiece piece;
+  final double cellSize;
+  final bool valid;
+
+  const _FloatingPiece({
+    required this.piece,
+    required this.cellSize,
+    required this.valid,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: piece.cells.map((cell) {
+        return Positioned(
+          left: cell.x * (cellSize + _BlockPlayPageState.boardGap),
+          top: cell.y * (cellSize + _BlockPlayPageState.boardGap),
+          width: cellSize,
+          height: cellSize,
+          child: _ColorBlock(
+            color: valid ? piece.color : const Color(0xFFFF5E57),
+            glow: true,
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _PiecePreview extends StatelessWidget {
+  final GamePiece piece;
+  final double cellSize;
+
+  const _PiecePreview({required this.piece, required this.cellSize});
+
+  @override
+  Widget build(BuildContext context) {
+    final int maxX = piece.cells.map((e) => e.x).reduce(max);
+
+    final int maxY = piece.cells.map((e) => e.y).reduce(max);
+
+    const double gap = 3;
+
+    final double width = (maxX + 1) * cellSize + maxX * gap;
+
+    final double height = (maxY + 1) * cellSize + maxY * gap;
+
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Stack(
+        children: piece.cells.map((cell) {
+          return Positioned(
+            left: cell.x * (cellSize + gap),
+            top: cell.y * (cellSize + gap),
+            width: cellSize,
+            height: cellSize,
+            child: _ColorBlock(color: piece.color),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _LineClearLedCell extends StatelessWidget {
+  final Color color;
+  final bool ghost;
+
+  const _LineClearLedCell({required this.color, required this.ghost});
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+      builder: (BuildContext context, double glow, Widget? child) {
+        final Color litColor =
+            Color.lerp(color, Colors.white, 0.28 + glow * 0.22) ?? color;
+
+        final Color edgeColor =
+            Color.lerp(
+              const Color(0xFF00E5FF),
+              Colors.white,
+              0.30 + glow * 0.28,
+            ) ??
+            Colors.white;
+
+        return Transform.scale(
+          scale: 1 + glow * 0.025,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: <Color>[
+                  Colors.white.withValues(alpha: 0.96),
+                  litColor.withValues(alpha: ghost ? 0.88 : 1),
+                  color.withValues(alpha: ghost ? 0.82 : 0.98),
+                ],
+                stops: const <double>[0, 0.38, 1],
+              ),
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(color: edgeColor, width: 1.8 + glow * 0.9),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: const Color(0xFF00E5FF)
+                      .withValues(alpha: 0.44 + glow * 0.28),
+                  blurRadius: 10 + glow * 10,
+                  spreadRadius: 0.5 + glow * 1.2,
+                ),
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.20 + glow * 0.22),
+                  blurRadius: 4 + glow * 4,
+                ),
+              ],
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                Positioned(
+                  left: 4,
+                  right: 4,
+                  top: 3,
+                  child: Container(
+                    height: 2,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.70 + glow * 0.25),
+                      borderRadius: BorderRadius.circular(99),
+                      boxShadow: <BoxShadow>[
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 0.65),
+                          blurRadius: 5,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.72 + glow * 0.26),
+                      shape: BoxShape.circle,
+                      boxShadow: <BoxShadow>[
+                        BoxShadow(
+                          color: edgeColor.withValues(alpha: 0.85),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BoardCell extends StatelessWidget {
+  final Color? color;
+  final bool clearing;
+  final bool popping;
+
+  final bool preview;
+  final bool previewValid;
+  final Color? previewColor;
+  final bool lineClearPreview;
+
+  const _BoardCell({
+    required this.color,
+    required this.clearing,
+    required this.popping,
+    required this.preview,
+    required this.previewValid,
+    required this.previewColor,
+    required this.lineClearPreview,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (lineClearPreview) {
+      return _LineClearLedCell(
+        color: preview
+            ? (previewColor ?? const Color(0xFF00D9FF))
+            : (color ?? previewColor ?? const Color(0xFF00D9FF)),
+        ghost: preview,
+      );
+    }
+
+    if (preview) {
+      return Container(
+        decoration: BoxDecoration(
+          color: previewValid
+              ? (previewColor ?? Colors.green).withValues(alpha: 0.72)
+              : const Color(0xFFFF5E57).withValues(alpha: 0.72),
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(
+            color: previewValid
+                ? const Color(0xFF76FF03)
+                : const Color(0xFFFF5E57),
+            width: 3,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color:
+                  (previewValid
+                          ? (previewColor ?? const Color(0xFF76FF03))
+                          : const Color(0xFFFF5E57))
+                      .withValues(alpha: 0.36),
+              blurRadius: 8,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(
+        begin: popping ? 0.72 : 1.0,
+        end: clearing ? 0.10 : 1.0,
+      ),
+      duration: Duration(milliseconds: clearing ? 130 : 115),
+      curve: popping ? Curves.easeOutBack : Curves.easeInOut,
+      builder: (context, scale, child) {
+        return Transform.scale(scale: scale, child: child);
+      },
+      child: color == null
+          ? Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF142A49),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+              ),
+            )
+          : _ColorBlock(color: color!, glow: true),
+    );
+  }
+}
+
+class _ColorBlock extends StatelessWidget {
+  final Color color;
+  final bool glow;
+
+  const _ColorBlock({required this.color, this.glow = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.lerp(color, Colors.white, 0.30) ?? color,
+            color,
+            Color.lerp(color, Colors.black, 0.18) ?? color,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+        boxShadow: glow
+            ? [BoxShadow(color: color.withValues(alpha: 0.28), blurRadius: 5)]
+            : null,
+      ),
+      child: Center(
+        child: Container(
+          width: 5,
+          height: 5,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.22),
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GameHeader extends StatelessWidget {
+  final int score;
+  final int clearedLines;
+  final int targetLines;
+  final int moves;
+  final int bestCombo;
+
+  const _GameHeader({
+    required this.score,
+    required this.clearedLines,
+    required this.targetLines,
+    required this.moves,
+    required this.bestCombo,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _stat(context, 'PUAN', '$score', const Color(0xFFFFD93D)),
+        const SizedBox(width: 6),
+        _stat(
+          context,
+          'SIRA',
+          '$clearedLines/$targetLines',
+          const Color(0xFF52E86B),
+        ),
+        const SizedBox(width: 6),
+        _stat(context, 'HAMLE', '$moves', const Color(0xFF00D9FF)),
+        const SizedBox(width: 6),
+        _stat(context, 'COMBO', 'x$bestCombo', const Color(0xFFFF5E57)),
+      ],
+    );
+  }
+
+  Widget _stat(BuildContext context, String title, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: ZpVisualPalette.of(context).surface,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            LText(
+              value,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
+              ),
+            ),
+            LText(
+              title,
+              style: const TextStyle(color: Colors.white38, fontSize: 7),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MissionSummary extends StatelessWidget {
+  final int targetScore;
+  final int targetLines;
+  final int targetCombo;
+  final bool scoreCompleted;
+  final bool linesCompleted;
+  final bool comboCompleted;
+
+  const _MissionSummary({
+    required this.targetScore,
+    required this.targetLines,
+    required this.targetCombo,
+    required this.scoreCompleted,
+    required this.linesCompleted,
+    required this.comboCompleted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D2342),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 10,
+        runSpacing: 4,
+        children: [
+          _missionItem(completed: scoreCompleted, text: '$targetScore puan'),
+          _missionItem(completed: linesCompleted, text: '$targetLines sıra'),
+          if (targetCombo > 0)
+            _missionItem(
+              completed: comboCompleted,
+              text: 'x$targetCombo kombo',
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _missionItem({required bool completed, required String text}) {
+    final Color color = completed ? const Color(0xFF52E86B) : Colors.white60;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          completed
+              ? Icons.check_circle_rounded
+              : Icons.radio_button_unchecked_rounded,
+          size: 14,
+          color: color,
+        ),
+        const SizedBox(width: 4),
+        LText(
+          text,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProgressPanel extends StatelessWidget {
+  final int score;
+  final int stars;
+  final int level;
+
+  const _ProgressPanel({
+    required this.score,
+    required this.stars,
+    required this.level,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF173E9A), Color(0xFF6D2C91)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.grid_view_rounded,
+            size: 42,
+            color: Color(0xFF00D9FF),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const LText(
+                  'BLOK FIRTINASI',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+                ),
+                LText(
+                  'Seviye $level / 10   •   ⭐ $stars / 30',
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          LText(
+            '$score',
+            style: const TextStyle(
+              color: Color(0xFFFFD93D),
+              fontWeight: FontWeight.w900,
+              fontSize: 21,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LevelCard extends StatelessWidget {
+  final BlockLevel level;
+  final bool unlocked;
+  final int stars;
+  final int bestScore;
+  final VoidCallback onTap;
+
+  const _LevelCard({
+    required this.level,
+    required this.unlocked,
+    required this.stars,
+    required this.bestScore,
+    required this.onTap,
+  });
+
+  Color get color {
+    switch (level.difficulty) {
+      case 'KOLAY':
+        return const Color(0xFF52E86B);
+      case 'ORTA':
+        return const Color(0xFFFF9F1C);
+      case 'ZOR':
+        return const Color(0xFFFF5E57);
+      case 'BOSS':
+        return const Color(0xFFFF4F9A);
+      default:
+        return const Color(0xFF00D9FF);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: unlocked ? onTap : null,
+        borderRadius: BorderRadius.circular(22),
+        child: Ink(
+          padding: const EdgeInsets.all(11),
+          decoration: BoxDecoration(
+            color: unlocked
+                ? ZpVisualPalette.of(context).surface
+                : ZpVisualPalette.of(context).surfaceAlternative,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: unlocked ? color.withValues(alpha: 0.60) : Colors.white12,
+            ),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  LText(
+                    unlocked ? '${level.number}' : '🔒',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 17,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (unlocked)
+                    LText(
+                      level.difficulty,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                ],
+              ),
+              const Spacer(),
+              Icon(
+                level.difficulty == 'BOSS'
+                    ? Icons.local_fire_department_rounded
+                    : Icons.grid_view_rounded,
+                color: unlocked ? color : Colors.white12,
+                size: 34,
+              ),
+              const SizedBox(height: 5),
+              LText(
+                level.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: unlocked ? Colors.white : Colors.white24,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              LText(
+                '${level.targetScore} puan • ${level.targetLines} sıra',
+                style: const TextStyle(color: Colors.white38, fontSize: 9),
+              ),
+              const Spacer(),
+              if (bestScore > 0)
+                LText(
+                  'En iyi: $bestScore',
+                  style: const TextStyle(color: Colors.white54, fontSize: 9),
+                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  3,
+                  (index) => Icon(
+                    index < stars
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
+                    color: unlocked ? const Color(0xFFFFD93D) : Colors.white12,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultBox extends StatelessWidget {
+  final String title;
+  final String value;
+
+  const _ResultBox({required this.title, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          LText(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+          ),
+          LText(
+            title,
+            style: const TextStyle(color: Colors.white54, fontSize: 8),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BurstPainter extends CustomPainter {
+  final double progress;
+  final int seed;
+
+  const _BurstPainter({required this.progress, required this.seed});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Random rng = Random(seed);
+    final Offset center = Offset(size.width / 2, size.height / 2);
+
+    const List<Color> colors = [
+      Color(0xFF00D9FF),
+      Color(0xFF745CFF),
+      Color(0xFFFF4F9A),
+      Color(0xFFFF9F1C),
+      Color(0xFFFFD93D),
+      Color(0xFF52E86B),
+      Color(0xFFFF5E57),
+    ];
+
+    final double fade = (1 - progress).clamp(0.0, 1.0);
+
+    for (int i = 0; i < 62; i++) {
+      final double angle = rng.nextDouble() * pi * 2;
+      final double distance =
+          (24 + rng.nextDouble() * 175) *
+          Curves.easeOutBack.transform(progress);
+
+      final Offset point =
+          center + Offset(cos(angle) * distance, sin(angle) * distance);
+
+      final Paint paint = Paint()
+        ..color = colors[i % colors.length].withValues(alpha: fade)
+        ..style = PaintingStyle.fill;
+
+      final double radius =
+          (3.0 + rng.nextDouble() * 6.5) * (0.65 + fade * 0.35);
+
+      if (i.isEven) {
+        canvas.drawCircle(point, radius, paint);
+      } else {
+        canvas.save();
+        canvas.translate(point.dx, point.dy);
+        canvas.rotate(angle + progress * 2);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: Offset.zero,
+              width: radius * 2.2,
+              height: radius * 1.1,
+            ),
+            Radius.circular(radius / 2),
+          ),
+          paint,
+        );
+        canvas.restore();
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BurstPainter oldDelegate) {
+    return oldDelegate.progress != progress || oldDelegate.seed != seed;
+  }
+}
+
+/// Parça gerçekten yerleştirilmeden, yerleştirme sonrasında tamamlanacak
+/// yatay ve dikey hatların bütün hücrelerini döndürür.
+///
+/// Bu fonksiyon [board] listesini değiştirmez. Geçersiz veya hat
+/// tamamlamayan bir yerleşimde boş küme döndürür.
+Set<String> blockLineClearPreviewCells({
+  required List<List<Color?>> board,
+  required GamePiece piece,
+  required int startRow,
+  required int startCol,
+  int boardSize = 8,
+}) {
+  if (boardSize <= 0 ||
+      board.length < boardSize ||
+      board.any((List<Color?> row) => row.length < boardSize)) {
+    return <String>{};
+  }
+
+  final Set<String> placedCells = <String>{};
+
+  for (final BlockCell cell in piece.cells) {
+    final int row = startRow + cell.y;
+    final int col = startCol + cell.x;
+
+    if (row < 0 ||
+        row >= boardSize ||
+        col < 0 ||
+        col >= boardSize ||
+        board[row][col] != null) {
+      return <String>{};
+    }
+
+    placedCells.add('$row-$col');
+  }
+
+  bool occupiedAfterPlacement(int row, int col) {
+    return board[row][col] != null || placedCells.contains('$row-$col');
+  }
+
+  final Set<int> completedRows = <int>{};
+  final Set<int> completedColumns = <int>{};
+
+  for (int row = 0; row < boardSize; row++) {
+    bool full = true;
+
+    for (int col = 0; col < boardSize; col++) {
+      if (!occupiedAfterPlacement(row, col)) {
+        full = false;
+        break;
+      }
+    }
+
+    if (full) completedRows.add(row);
+  }
+
+  for (int col = 0; col < boardSize; col++) {
+    bool full = true;
+
+    for (int row = 0; row < boardSize; row++) {
+      if (!occupiedAfterPlacement(row, col)) {
+        full = false;
+        break;
+      }
+    }
+
+    if (full) completedColumns.add(col);
+  }
+
+  final Set<String> result = <String>{};
+
+  for (final int row in completedRows) {
+    for (int col = 0; col < boardSize; col++) {
+      result.add('$row-$col');
+    }
+  }
+
+  for (final int col in completedColumns) {
+    for (int row = 0; row < boardSize; row++) {
+      result.add('$row-$col');
+    }
+  }
+
+  return result;
+}
+
+class BlockLevel {
+  final int number;
+  final String title;
+  final String difficulty;
+  final int targetScore;
+  final int targetLines;
+  final int targetCombo;
+  final int targetMoves;
+
+  const BlockLevel({
+    required this.number,
+    required this.title,
+    required this.difficulty,
+    required this.targetScore,
+    required this.targetLines,
+    this.targetCombo = 0,
+    required this.targetMoves,
+  });
+}
+
+class GamePiece {
+  final List<BlockCell> cells;
+  final Color color;
+
+  const GamePiece({required this.cells, required this.color});
+}
+
+class BlockCell {
+  final int x;
+  final int y;
+
+  const BlockCell(this.x, this.y);
+}
+
+class BlockLevelResult {
+  final bool completed;
+  final int stars;
+  final int score;
+  final bool nextLevel;
+
+  const BlockLevelResult({
+    required this.completed,
+    required this.stars,
+    required this.score,
+    required this.nextLevel,
+  });
+}
