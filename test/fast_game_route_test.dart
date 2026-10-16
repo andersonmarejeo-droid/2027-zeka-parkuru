@@ -23,6 +23,7 @@ void main() {
                   onPressed: () {
                     Navigator.of(context).push<void>(
                       buildFastGameRoute<void>(
+                        gameId: 'numbers',
                         gameTitle: 'MANTIK PARKURU',
                         gameIcon: Icons.extension_rounded,
                         accentColor: const Color(0xFF8A4FFF),
@@ -60,6 +61,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 60));
     expect(gameBuildCount, 1);
     expect(find.text('OYUN HAZIR'), findsOneWidget);
+    expect(
+      Theme.of(tester.element(find.text('OYUN HAZIR'))).brightness,
+      Brightness.light,
+    );
 
     await tester.pumpAndSettle();
     expect(gameBuildCount, 1);

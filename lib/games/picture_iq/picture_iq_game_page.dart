@@ -2,11 +2,15 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+
+import '../../theme/studio_visuals.dart';
+
 import 'package:flutter/services.dart';
 
 import '../../services/game_audio_service.dart';
 import '../../services/replayability_service.dart';
 import '../shared/parkur_game_kit.dart';
+import '../shared/studio_game_contracts.dart';
 import 'professional_iq_art.dart';
 import 'professional_iq_engine.dart';
 import 'professional_iq_localizations.dart';
@@ -28,39 +32,39 @@ class PictureIqGamePage extends StatelessWidget {
     PictureIqLevel(
       number: 1,
       titleTr: 'Görsel Başlangıç',
-      titleEn: 'Core Patterns',
-      subtitleTr: 'Analoji, aykırı, dönüş ve ayna',
-      subtitleEn: 'Color, pattern, shape, rotation and count',
+      titleEn: 'Visual Foundations',
+      subtitleTr: 'Aykırı, döndürme, ayna ve temel analoji',
+      subtitleEn: 'Odd-one-out, rotation, mirror and core analogy',
       difficulty: 'KOLAY',
       questionCount: 6,
       targetSeconds: 72,
     ),
     PictureIqLevel(
       number: 2,
-      titleTr: 'İlişki ve Matris',
-      titleEn: 'Relationships',
-      subtitleTr: '2×2 matris, simetri ve adet ilişkisi',
-      subtitleEn: 'Series, size, position and visual analogy',
+      titleTr: 'Örüntü ve İlişki',
+      titleEn: 'Patterns & Relations',
+      subtitleTr: '2×2 matris, simetri ve adet döngüleri',
+      subtitleEn: '2×2 matrices, symmetry and count cycles',
       difficulty: 'KOLAY',
       questionCount: 7,
       targetSeconds: 84,
     ),
     PictureIqLevel(
       number: 3,
-      titleTr: 'Konum ve Birleşim',
-      titleEn: 'Reflection & Focus',
-      subtitleTr: 'Konum, şekil dönüşümü ve bindirme',
-      subtitleEn: 'Mirror relations and odd-one-out',
+      titleTr: 'Konum ve Şekil',
+      titleEn: 'Position & Shape',
+      subtitleTr: 'Komşu konumlar, şekil transferi ve birleşim',
+      subtitleEn: 'Adjacent positions, shape transfer and union',
       difficulty: 'ORTA',
       questionCount: 7,
       targetSeconds: 88,
     ),
     PictureIqLevel(
       number: 4,
-      titleTr: 'Desen ve Katlama',
-      titleEn: '2×2 Matrix',
-      subtitleTr: 'Renk örüntüsü ve kâğıt katlama',
-      subtitleEn: 'Combine row and column rules',
+      titleTr: 'Renk ve Katlama',
+      titleEn: 'Colour & Folding',
+      subtitleTr: 'Renk ritmi ve kâğıt katlama',
+      subtitleEn: 'Colour rhythms and paper folding',
       difficulty: 'ORTA',
       questionCount: 8,
       targetSeconds: 104,
@@ -68,9 +72,9 @@ class PictureIqGamePage extends StatelessWidget {
     PictureIqLevel(
       number: 5,
       titleTr: 'Görsel İşlemler',
-      titleEn: 'Symmetry & Union',
-      subtitleTr: 'Görsel seri ve mantıksal fark',
-      subtitleEn: 'Complete and overlay dot patterns',
+      titleEn: 'Visual Operations',
+      subtitleTr: 'Görsel seri, birleşim ve ortak parçayı çıkarma',
+      subtitleEn: 'Visual series, union and logical difference',
       difficulty: 'ORTA',
       questionCount: 8,
       targetSeconds: 108,
@@ -78,9 +82,9 @@ class PictureIqGamePage extends StatelessWidget {
     PictureIqLevel(
       number: 6,
       titleTr: '3×3 Akıl Yürütme',
-      titleEn: 'Logical Difference',
+      titleEn: '3×3 Reasoning',
       subtitleTr: 'Satır ve sütun ilişkilerini birlikte çöz',
-      subtitleEn: 'Remove common parts and find the remainder',
+      subtitleEn: 'Solve row and column relations together',
       difficulty: 'ZOR',
       questionCount: 9,
       targetSeconds: 122,
@@ -88,9 +92,9 @@ class PictureIqGamePage extends StatelessWidget {
     PictureIqLevel(
       number: 7,
       titleTr: 'Karma Kurallar',
-      titleEn: '3×3 Matrix',
+      titleEn: 'Mixed Rules',
       subtitleTr: 'Birden çok özelliği aynı anda izle',
-      subtitleEn: 'Solve transformations on two axes',
+      subtitleEn: 'Track several visual features at once',
       difficulty: 'ZOR',
       questionCount: 9,
       targetSeconds: 132,
@@ -98,9 +102,9 @@ class PictureIqGamePage extends StatelessWidget {
     PictureIqLevel(
       number: 8,
       titleTr: 'Uzamsal Ustalık',
-      titleEn: 'Paper Folding',
-      subtitleTr: 'Ayna, katlama, konum ve dönüş karışımı',
-      subtitleEn: 'Predict the unfolded pattern',
+      titleEn: 'Spatial Mastery',
+      subtitleTr: 'İleri matrisler, ayna, katlama ve konum',
+      subtitleEn: 'Advanced matrices, mirrors, folds and positions',
       difficulty: 'ZOR',
       questionCount: 10,
       targetSeconds: 146,
@@ -108,9 +112,9 @@ class PictureIqGamePage extends StatelessWidget {
     PictureIqLevel(
       number: 9,
       titleTr: 'İleri Görsel Mantık',
-      titleEn: 'Multiple Rules',
-      subtitleTr: 'Matris, işlem ve analojileri birlikte çöz',
-      subtitleEn: 'Apply several transformations together',
+      titleEn: 'Advanced Visual Logic',
+      subtitleTr: 'İki eksenli kuralları ve analojileri birleştir',
+      subtitleEn: 'Combine two-axis rules and analogies',
       difficulty: 'ZOR',
       questionCount: 11,
       targetSeconds: 162,
@@ -136,7 +140,7 @@ class PictureIqGamePage extends StatelessWidget {
       titleEn: 'VISUAL REASONING',
       taglineTr: 'İncele • Kuralı Çöz • Profilini Gör',
       taglineEn: 'Observe • Solve • View Your Profile',
-      accent: const Color(0xFFFF4FA3),
+      accent: StudioVisuals.teal,
       icon: Icons.psychology_alt_rounded,
       levels: levels,
       dailyCourseMode: dailyCourseMode,
@@ -153,7 +157,7 @@ class PictureIqGamePage extends StatelessWidget {
             return PictureIqPlayPage(
               level: level as PictureIqLevel,
               previousBestScore: previousBestScore,
-              fixedSessionSeed: fixedSessionSeed,
+              fixedSessionSeed: fixedSessionSeed ?? level.poolIndex,
               competitionMode: competitionMode,
             );
           },
@@ -166,6 +170,8 @@ class PictureIqLevel extends ParkurLevelSpec {
   final int targetSeconds;
 
   const PictureIqLevel({
+    super.sourceNumber,
+    super.poolIndex,
     required super.number,
     required super.titleTr,
     required super.titleEn,
@@ -175,6 +181,26 @@ class PictureIqLevel extends ParkurLevelSpec {
     required this.questionCount,
     required this.targetSeconds,
   }) : super(icon: Icons.psychology_alt_rounded);
+  @override
+  PictureIqLevel campaignCopy({
+    required int number,
+    int? sourceNumber,
+    int? poolIndex,
+    String? titleTr,
+    String? titleEn,
+    String? difficulty,
+  }) => PictureIqLevel(
+    number: number,
+    sourceNumber: sourceNumber,
+    poolIndex: poolIndex,
+    titleTr: titleTr ?? this.titleTr,
+    titleEn: titleEn ?? this.titleEn,
+    subtitleTr: subtitleTr,
+    subtitleEn: subtitleEn,
+    difficulty: difficulty ?? this.difficulty,
+    questionCount: questionCount,
+    targetSeconds: targetSeconds,
+  );
 }
 
 class PictureIqPlayPage extends StatefulWidget {
@@ -196,7 +222,7 @@ class PictureIqPlayPage extends StatefulWidget {
 }
 
 class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
-  static const Color _accent = Color(0xFFFF4FA3);
+  static const Color _accent = StudioVisuals.teal;
 
   final GameAudioService _audio = GameAudioService.instance;
   final ReplayabilityService _replayability = ReplayabilityService();
@@ -233,10 +259,10 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
         widget.fixedSessionSeed ??
         await _replayability.newSeed(
           gameId: 'picture_iq',
-          level: widget.level.number,
+          level: widget.level.contentLevel,
         );
     final List<ProfessionalIqQuestion> questions = await _engine.compose(
-      level: widget.level.number,
+      level: widget.level.contentLevel,
       count: widget.level.questionCount,
       sessionSeed: seed,
       fixedSession: widget.fixedSessionSeed != null,
@@ -325,7 +351,9 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
           max(0, widget.level.targetSeconds - _elapsed) * 8 -
           _mistakes * 90,
     );
-    unawaited(_audio.play(GameSound.levelComplete));
+    unawaited(
+      _audio.playLevelComplete(levelNumber: widget.level.number),
+    );
     _sessionBestScore = max(_sessionBestScore, score);
     _sessionBestStars = max(_sessionBestStars, stars);
     if (!mounted) return;
@@ -362,7 +390,7 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
       stars: stars,
       score: score,
       previousBestScore: _sessionBestScore,
-      canGoNext: widget.level.number < PictureIqGamePage.levels.length,
+      canGoNext: widget.level.number < GameContentPolicy.campaignLevels,
     );
     if (!mounted || action == null) return;
     Navigator.pop(
@@ -398,7 +426,10 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: <Color>[Color(0xFF12335E), Color(0xFF3C2057)],
+                colors: <Color>[
+                  StudioVisuals.surface,
+                  StudioVisuals.surfaceSoft,
+                ],
               ),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(color: _accent.withValues(alpha: 0.65)),
@@ -409,7 +440,7 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
                 children: <Widget>[
                   const Icon(
                     Icons.insights_rounded,
-                    color: Color(0xFF7BEAFF),
+                    color: Color(0xFF3D7183),
                     size: 42,
                   ),
                   const SizedBox(height: 8),
@@ -417,6 +448,7 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
                     copy.text('skillProfile'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
+                      fontFamily: 'Roboto',
                       fontSize: 20,
                       fontWeight: FontWeight.w900,
                     ),
@@ -426,7 +458,8 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
                     copy.text('profileSubtitle'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      color: Colors.white70,
+                      fontFamily: 'Roboto',
+                      color: StudioVisuals.muted,
                       fontSize: 11,
                       height: 1.35,
                     ),
@@ -438,7 +471,7 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
                     const SizedBox(height: 8),
                     _ProfileHighlight(
                       icon: Icons.bolt_rounded,
-                      color: const Color(0xFFFFD334),
+                      color: const Color(0xFF8B622C),
                       label: copy.text('strongest'),
                       value: copy.skillName(profile.strongest!.skill),
                     ),
@@ -447,7 +480,7 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
                     const SizedBox(height: 8),
                     _ProfileHighlight(
                       icon: Icons.trending_up_rounded,
-                      color: const Color(0xFF6CFF9B),
+                      color: const Color(0xFF34715D),
                       label: copy.text('growthArea'),
                       value: copy.skillName(profile.growthArea!.skill),
                     ),
@@ -457,8 +490,9 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
                     copy.text('notClinical'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 10,
+                      fontFamily: 'Roboto',
+                      color: StudioVisuals.muted,
+                      fontSize: 12,
                       height: 1.35,
                     ),
                   ),
@@ -469,14 +503,17 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
                       onPressed: () => Navigator.pop(dialogContext),
                       style: FilledButton.styleFrom(
                         backgroundColor: _accent,
-                        foregroundColor: const Color(0xFF07162E),
+                        foregroundColor: const Color(0xFFEEF3F0),
                         padding: const EdgeInsets.symmetric(vertical: 13),
                       ),
                       icon: const Icon(Icons.star_rounded),
                       label: Text(
                         copy.text('continueToResult'),
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontWeight: FontWeight.w900),
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                   ),
@@ -505,8 +542,12 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: Text(
-          '${copy.text('visualReasoning')} • ${widget.level.number}/10',
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+          '${copy.text('visualReasoning')} • ${widget.level.number}/${GameContentPolicy.campaignLevels}',
+          style: const TextStyle(
+            fontFamily: 'Roboto',
+            fontWeight: FontWeight.w900,
+            fontSize: 15,
+          ),
         ),
       ),
       body: SafeArea(
@@ -529,8 +570,9 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
                 Text(
                   copy.prompt(_question),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white70,
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
                     height: 1.35,
@@ -556,7 +598,11 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 9,
                       mainAxisSpacing: 9,
-                      mainAxisExtent: compact ? 92 : 108,
+                      // The artwork is the answer, not decoration. Give the
+                      // visual tile enough vertical space to be read at a
+                      // glance, while the list remains scrollable on short
+                      // phones.
+                      mainAxisExtent: compact ? 116 : 132,
                     ),
                     itemBuilder: (BuildContext context, int index) {
                       final bool selected = _selectedIndex == index;
@@ -592,11 +638,7 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
                                 Center(
                                   child: _FigureView(
                                     figure: _question.options[index],
-                                    scene:
-                                        _question.family ==
-                                            ProfessionalIqFamily.shapeTransform
-                                        ? ProfessionalIqScene.symbols
-                                        : _question.scene,
+                                    scene: _question.scene,
                                   ),
                                 ),
                                 Positioned(
@@ -605,6 +647,7 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
                                   child: Text(
                                     String.fromCharCode(65 + index),
                                     style: const TextStyle(
+                                      fontFamily: 'Roboto',
                                       color: Color(0xFF526D82),
                                       fontWeight: FontWeight.w900,
                                     ),
@@ -628,7 +671,7 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
                       onPressed: _nextQuestion,
                       style: FilledButton.styleFrom(
                         backgroundColor: _accent,
-                        foregroundColor: const Color(0xFF07162E),
+                        foregroundColor: const Color(0xFFEEF3F0),
                         padding: const EdgeInsets.symmetric(vertical: 13),
                       ),
                       icon: Icon(
@@ -640,7 +683,10 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
                         _questionIndex + 1 == _questions.length
                             ? copy.text('viewProfile')
                             : copy.text('nextQuestion'),
-                        style: const TextStyle(fontWeight: FontWeight.w900),
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                   ),
@@ -714,8 +760,11 @@ class _QuestionBoard extends StatelessWidget {
         ? question.board[1]
         : null;
     final bool mirror = question.family == ProfessionalIqFamily.mirror;
+    final bool shape = question.family == ProfessionalIqFamily.shapeTransform;
     final String label = mirror
         ? 'AYNA'
+        : shape
+        ? 'ŞEKİL'
         : '${(question.operationCode.clamp(1, 3) * 90)}°';
 
     return Container(
@@ -733,8 +782,10 @@ class _QuestionBoard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Icon(
-                  mirror
-                      ? Icons.compare_arrows_rounded
+                  mirror || shape
+                      ? (shape
+                            ? Icons.swap_horiz_rounded
+                            : Icons.compare_arrows_rounded)
                       : Icons.rotate_right_rounded,
                   color: const Color(0xFF35556E),
                   size: 26,
@@ -743,8 +794,9 @@ class _QuestionBoard extends StatelessWidget {
                 Text(
                   label,
                   style: const TextStyle(
+                    fontFamily: 'Roboto',
                     color: Color(0xFF35556E),
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -764,20 +816,25 @@ class _QuestionBoard extends StatelessWidget {
       decoration: _boardDecoration,
       child: Column(
         children: <Widget>[
-          _analogyLine(items[0], items[1]),
+          _analogyLine(items[0], items[1], 'A', 'B'),
           const SizedBox(height: 8),
           Container(height: 1, color: const Color(0xFFE3EAF0)),
           const SizedBox(height: 8),
-          _analogyLine(items[2], items[3]),
+          _analogyLine(items[2], items[3], 'C', '?'),
         ],
       ),
     );
   }
 
-  Widget _analogyLine(ProfessionalIqFigure? left, ProfessionalIqFigure? right) {
+  Widget _analogyLine(
+    ProfessionalIqFigure? left,
+    ProfessionalIqFigure? right,
+    String leftLabel,
+    String rightLabel,
+  ) {
     return Row(
       children: <Widget>[
-        Expanded(child: _boardCell(left)),
+        Expanded(child: _labeledBoardCell(left, leftLabel)),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
           child: Icon(
@@ -786,7 +843,37 @@ class _QuestionBoard extends StatelessWidget {
             size: 24,
           ),
         ),
-        Expanded(child: _boardCell(right)),
+        Expanded(child: _labeledBoardCell(right, rightLabel)),
+      ],
+    );
+  }
+
+  Widget _labeledBoardCell(ProfessionalIqFigure? figure, String label) {
+    return Stack(
+      children: <Widget>[
+        _boardCell(figure),
+        Positioned(
+          left: 7,
+          top: 5,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF2F8),
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  color: Color(0xFF35556E),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -813,6 +900,7 @@ class _QuestionBoard extends StatelessWidget {
             child: Text(
               operator,
               style: const TextStyle(
+                fontFamily: 'Roboto',
                 color: Color(0xFF35556E),
                 fontSize: 23,
                 fontWeight: FontWeight.w900,
@@ -825,6 +913,7 @@ class _QuestionBoard extends StatelessWidget {
             child: Text(
               '=',
               style: TextStyle(
+                fontFamily: 'Roboto',
                 color: Color(0xFF35556E),
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
@@ -889,9 +978,9 @@ class _FigureCard extends StatelessWidget {
     return Container(
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE0E8EF)),
+        color: const Color(0xFFFCFEFF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD4E2EB), width: 1.2),
       ),
       child: _FigureView(
         figure: figure,
@@ -917,6 +1006,7 @@ class _MissingFigureCard extends StatelessWidget {
       child: const Text(
         '?',
         style: TextStyle(
+          fontFamily: 'Roboto',
           color: Color(0xFF1F6EB7),
           fontSize: 30,
           fontWeight: FontWeight.w900,
@@ -946,62 +1036,83 @@ class _FigureView extends StatelessWidget {
       return _DotPattern(figure: figure);
     }
 
-    final double motifSize = figure.count >= 3
-        ? (figure.size == 1 ? 20 : 17)
-        : figure.count == 2
-        ? (figure.size == 1 ? 25 : 20)
-        : (figure.size == 1 ? 37 : 27);
-    final Alignment alignment = Alignment(
-      (figure.position % 3 - 1) * 0.72,
-      (figure.position ~/ 3 - 1) * 0.62,
-    );
+    return LayoutBuilder(
+      builder: (BuildContext _, BoxConstraints constraints) {
+        final double width = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : 96;
+        final double height = constraints.hasBoundedHeight
+            ? constraints.maxHeight
+            : 96;
+        final double usable = max(20, min(width, height) - 10);
+        final double countFactor = switch (figure.count) {
+          1 => .76,
+          2 => .45,
+          _ => .31,
+        };
+        final double upperBound = switch (figure.count) {
+          1 => 72,
+          2 => 54,
+          _ => 40,
+        };
+        final double lowerBound = figure.count == 1 ? 30 : 20;
+        final double motifSize = min(
+          upperBound,
+          max(lowerBound, usable * countFactor * (figure.size == 1 ? 1 : .78)),
+        );
+        final Alignment alignment = Alignment(
+          (figure.position % 3 - 1) * 0.72,
+          (figure.position ~/ 3 - 1) * 0.62,
+        );
 
-    final Widget motifs = FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          for (int index = 0; index < figure.count; index++)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1.5),
-              child: ProfessionalIqMotif(
-                motif: figure.shape,
-                colorIndex: figure.color,
-                rotation: figure.rotation,
-                mirrored: figure.mirrorMatters && figure.mirrored,
-                size: motifSize,
-              ),
+        final Widget motifs = FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (int index = 0; index < figure.count; index++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                  child: ProfessionalIqMotif(
+                    motif: figure.shape,
+                    colorIndex: figure.color,
+                    rotation: figure.rotation,
+                    mirrored: figure.mirrorMatters && figure.mirrored,
+                    size: motifSize,
+                  ),
+                ),
+            ],
+          ),
+        );
+
+        final Widget renderedMotifs = silhouette
+            ? ColorFiltered(
+                colorFilter: const ColorFilter.mode(
+                  Color(0xFF263E52),
+                  BlendMode.srcIn,
+                ),
+                child: motifs,
+              )
+            : motifs;
+
+        final Widget positioned = Padding(
+          padding: const EdgeInsets.all(5),
+          child: Align(alignment: alignment, child: renderedMotifs),
+        );
+
+        if (scene == ProfessionalIqScene.spatialGrid) {
+          final double gridSize = min(92, max(52, usable));
+          return SizedBox.square(
+            dimension: gridSize,
+            child: CustomPaint(
+              painter: const _SpatialGridPainter(),
+              child: positioned,
             ),
-        ],
-      ),
+          );
+        }
+        return positioned;
+      },
     );
-
-    final Widget renderedMotifs = silhouette
-        ? ColorFiltered(
-            colorFilter: const ColorFilter.mode(
-              Color(0xFF263E52),
-              BlendMode.srcIn,
-            ),
-            child: motifs,
-          )
-        : motifs;
-
-    final Widget positioned = Padding(
-      padding: const EdgeInsets.all(5),
-      child: Align(alignment: alignment, child: renderedMotifs),
-    );
-
-    if (scene == ProfessionalIqScene.spatialGrid) {
-      return SizedBox(
-        width: 72,
-        height: 72,
-        child: CustomPaint(
-          painter: const _SpatialGridPainter(),
-          child: positioned,
-        ),
-      );
-    }
-    return positioned;
   }
 }
 
@@ -1169,31 +1280,43 @@ class _IqHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: const Color(0xFF102B50),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: StudioVisuals.line),
       ),
       child: Row(
         children: <Widget>[
           Expanded(
             child: Text(
               progress,
-              style: const TextStyle(fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
           const Icon(
             Icons.check_circle_rounded,
-            color: Color(0xFF6CFF9B),
+            color: Color(0xFF34715D),
             size: 18,
           ),
           const SizedBox(width: 5),
-          Text('$correct', style: const TextStyle(fontWeight: FontWeight.w900)),
+          Text(
+            '$correct',
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w900,
+            ),
+          ),
           const SizedBox(width: 13),
-          const Icon(Icons.timer_outlined, color: Color(0xFF00D9FF), size: 18),
+          const Icon(Icons.timer_outlined, color: Color(0xFF3D7183), size: 18),
           const SizedBox(width: 5),
           Text(
             '${elapsed}s',
-            style: const TextStyle(fontWeight: FontWeight.w900),
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ],
       ),
@@ -1211,17 +1334,18 @@ class _FamilyChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF7BEAFF).withValues(alpha: 0.10),
+        color: StudioVisuals.tealSoft,
         borderRadius: BorderRadius.circular(99),
         border: Border.all(
-          color: const Color(0xFF7BEAFF).withValues(alpha: 0.28),
+          color: StudioVisuals.teal.withValues(alpha: 0.35),
         ),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          color: Color(0xFF9DEFFF),
-          fontSize: 10,
+          fontFamily: 'Roboto',
+          color: StudioVisuals.tealInk,
+          fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -1240,10 +1364,10 @@ class _ExplanationCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: const Color(0xFFFF4FA3).withValues(alpha: 0.09),
+        color: StudioVisuals.tealSoft,
         borderRadius: BorderRadius.circular(17),
         border: Border.all(
-          color: const Color(0xFFFF4FA3).withValues(alpha: 0.30),
+          color: StudioVisuals.teal.withValues(alpha: 0.35),
         ),
       ),
       child: Column(
@@ -1252,8 +1376,9 @@ class _ExplanationCard extends StatelessWidget {
           Text(
             copy.text('explanation'),
             style: const TextStyle(
-              color: Color(0xFFFFB0D4),
-              fontSize: 10,
+              fontFamily: 'Roboto',
+              color: StudioVisuals.tealInk,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1261,7 +1386,8 @@ class _ExplanationCard extends StatelessWidget {
           Text(
             copy.explanation(question),
             style: const TextStyle(
-              color: Colors.white,
+              fontFamily: 'Roboto',
+              color: StudioVisuals.ink,
               fontSize: 12,
               height: 1.35,
               fontWeight: FontWeight.w700,
@@ -1293,6 +1419,7 @@ class _SkillMeter extends StatelessWidget {
                 child: Text(
                   copy.skillName(result.skill),
                   style: const TextStyle(
+                    fontFamily: 'Roboto',
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1301,8 +1428,11 @@ class _SkillMeter extends StatelessWidget {
               Text(
                 measured ? '${result.performance}%' : copy.text('notMeasured'),
                 style: TextStyle(
-                  color: measured ? const Color(0xFF7BEAFF) : Colors.white38,
-                  fontSize: 10,
+                  fontFamily: 'Roboto',
+                  color: measured
+                      ? const Color(0xFF3D7183)
+                      : StudioVisuals.muted,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -1314,15 +1444,19 @@ class _SkillMeter extends StatelessWidget {
             child: LinearProgressIndicator(
               value: measured ? result.performance / 100 : 0,
               minHeight: 7,
-              backgroundColor: Colors.white10,
-              color: const Color(0xFF7BEAFF),
+              backgroundColor: StudioVisuals.line,
+              color: const Color(0xFF3D7183),
             ),
           ),
           if (measured) ...<Widget>[
             const SizedBox(height: 4),
             Text(
               '${result.correct}/${result.total} • ${copy.averageSeconds(result.averageMillis)}',
-              style: const TextStyle(color: Colors.white38, fontSize: 9),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 9,
+              ),
             ),
           ],
         ],
@@ -1361,7 +1495,11 @@ class _ProfileHighlight extends StatelessWidget {
           Expanded(
             child: Text(
               '$label: $value',
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],

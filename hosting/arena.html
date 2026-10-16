@@ -17,14 +17,32 @@
   <p>Özel bir Zekâ Parkuru grubuna davet edildin.</p>
   <p id="code" class="code"></p>
   <a id="open" class="btn" href="#">ARENA'YI UYGULAMADA AÇ</a>
-  <p class="small">Uygulama kurulu değilse Zekâ Parkuru'nu yükleyip bağlantıyı yeniden aç.</p>
+  <p class="small">Uygulama kurulu değilse otomatik olarak Google Play indirme sayfası açılır.</p>
 </main>
 <script>
   const q=new URLSearchParams(location.search);const g=q.get('g')||'';const code=(q.get('code')||'').toUpperCase();
   const goodG=/^[A-Za-z0-9_-]{1,160}$/.test(g);const goodCode=/^[A-Z0-9]{6}$/.test(code);
   document.getElementById('code').textContent=goodCode?'GRUP KODU: '+code:'';
   const button=document.getElementById('open');
-  if(goodG&&goodCode){button.href='zekaparkuru://arena?g='+encodeURIComponent(g)+'&code='+encodeURIComponent(code);}else{button.textContent='DAVET BAĞLANTISI GEÇERSİZ';button.removeAttribute('href');}
+  const playStore='https://play.google.com/store/apps/details?id=com.mustafapolat.zeka_parkuru';
+  const link=goodG&&goodCode?'zekaparkuru://arena?g='+encodeURIComponent(g)+'&code='+encodeURIComponent(code):'';
+  if(link){
+    const openApp=()=>{
+      let returned=false;
+      let fallback;
+      const onVisibility=()=>{if(document.visibilityState==='hidden'){returned=true;clearTimeout(fallback);window.removeEventListener('visibilitychange',onVisibility);}};
+      window.addEventListener('visibilitychange',onVisibility);
+      fallback=setTimeout(()=>{if(!returned) window.location.replace(playStore);},1400);
+      window.location.href=link;
+    };
+    button.addEventListener('click',(event)=>{event.preventDefault();openApp();});
+    // Mesajdaki bağlantı doğrudan açıldığında da uygulamayı dene; kurulu
+    // değilse zaman aşımı Play Store'a yönlendirir.
+    window.setTimeout(openApp,120);
+  }else{
+    button.textContent='DAVET BAĞLANTISI GEÇERSİZ';
+    button.removeAttribute('href');
+  }
 </script>
 </body>
 </html>

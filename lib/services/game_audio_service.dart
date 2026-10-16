@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'common_level_score_service.dart';
+
 enum GameAudioGroup { ui, logic, numbers, blocks, memory, reflex }
 
 enum GameSound {
@@ -284,7 +286,15 @@ class GameAudioService {
     }
   }
 
-  Future<void> play(GameSound sound, {double gain = 1.0}) async {
+  Future<void> play(
+    GameSound sound, {
+    double gain = 1.0,
+    bool countHintForScoring = true,
+  }) async {
+    if (countHintForScoring &&
+        (sound == GameSound.uiHint || sound == GameSound.logicHint)) {
+      CommonLevelScoreSession.recordHint();
+    }
     try {
       await init();
 
@@ -346,8 +356,32 @@ class GameAudioService {
 
   /// Bütün normal, 3 yıldız ve boss bölümlerinde
   /// tek standart başarı sesi kullanılır.
-  Future<void> playVictory({required int stars, required bool boss}) async {
-    await play(GameSound.levelComplete);
+  Future<void> playVictory({
+    required int stars,
+    required bool boss,
+    int? levelNumber,
+  }) async {
+    if (levelNumber == null) {
+      await play(GameSound.levelComplete);
+      return;
+    }
+    await playLevelComplete(levelNumber: levelNumber);
+  }
+
+  /// Plays the standard success jingle for every completed level and the
+  /// spoken celebration only on the selected milestone levels.
+  Future<void> playLevelComplete({required int levelNumber, double gain = 1}) async {
+    await play(GameSound.levelComplete, gain: gain);
+    if (isMashallahMilestone(levelNumber)) {
+      await playMashallahCelebration();
+    }
+  }
+
+  /// The spoken celebration is intentionally limited to these six levels.
+  /// Replays use the same rule, so a replay of level 5/10/15/20/25/30 gets
+  /// the celebration again while all other levels remain jingle-only.
+  static bool isMashallahMilestone(int levelNumber) {
+    return const <int>{5, 10, 15, 20, 25, 30}.contains(levelNumber);
   }
 
   Future<void> playMashallahCelebration() async {

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/game_audio_service.dart';
 import '../../services/replayability_service.dart';
+import '../reference_games/reference_game_support.dart';
 import '../shared/parkur_game_kit.dart';
 
 class CandySortGamePage extends StatelessWidget {
@@ -143,8 +144,8 @@ class CandySortGamePage extends StatelessWidget {
       titleEn: 'CANDY SORT',
       taglineTr: 'Seç • Taşı • Renkleri Topla',
       taglineEn: 'Pick • Move • Group Colors',
-      accent: const Color(0xFFFF8A3D),
-      icon: Icons.catching_pokemon_rounded,
+      accent: const Color(0xFFC46D32),
+      icon: Icons.cookie_rounded,
       levels: levels,
       dailyCourseMode: dailyCourseMode,
       competitionLevel: competitionLevel,
@@ -174,6 +175,8 @@ class CandySortLevel extends ParkurLevelSpec {
   final int scrambleMoves;
 
   const CandySortLevel({
+    super.sourceNumber,
+    super.poolIndex,
     required super.number,
     required super.titleTr,
     required super.titleEn,
@@ -184,6 +187,32 @@ class CandySortLevel extends ParkurLevelSpec {
     required this.capacity,
     required this.scrambleMoves,
   }) : super(icon: Icons.cookie_rounded);
+
+  // Standard campaigns remap their authored level templates into the visible
+  // 30-chapter list.  Keep the specialised CandySortLevel type during that
+  // remap; ParkurLevelHub otherwise returns a plain ParkurLevelSpec and the
+  // play builder's typed level would throw as soon as a chapter is opened.
+  @override
+  CandySortLevel campaignCopy({
+    required int number,
+    int? sourceNumber,
+    int? poolIndex,
+    String? titleTr,
+    String? titleEn,
+    String? difficulty,
+  }) => CandySortLevel(
+    number: number,
+    sourceNumber: sourceNumber,
+    poolIndex: poolIndex,
+    titleTr: titleTr ?? this.titleTr,
+    titleEn: titleEn ?? this.titleEn,
+    subtitleTr: subtitleTr,
+    subtitleEn: subtitleEn,
+    difficulty: difficulty ?? this.difficulty,
+    colorCount: colorCount,
+    capacity: capacity,
+    scrambleMoves: scrambleMoves,
+  );
 }
 
 class _CandyPuzzle {
@@ -219,15 +248,15 @@ class CandySortPlayPage extends StatefulWidget {
 }
 
 class _CandySortPlayPageState extends State<CandySortPlayPage> {
-  static const Color _accent = Color(0xFFFF8A3D);
+  static const Color _accent = Color(0xFFC46D32);
   static String? _lastGeneratedSignature;
   static const List<Color> _candyColors = <Color>[
-    Color(0xFFFF4F7B),
-    Color(0xFF00D9FF),
-    Color(0xFFFFD334),
-    Color(0xFF6CFF9B),
-    Color(0xFFB06CFF),
-    Color(0xFFFF8A3D),
+    Color(0xFFC74B5B),
+    Color(0xFF2F9A96),
+    Color(0xFFE1A04B),
+    Color(0xFF6B9E77),
+    Color(0xFF8270A9),
+    Color(0xFFD47A45),
   ];
 
   late Random _random;
@@ -265,12 +294,15 @@ class _CandySortPlayPageState extends State<CandySortPlayPage> {
   }
 
   Future<void> _initializeSession() async {
+    final int variant = widget.fixedSessionSeed == null
+        ? await ReferenceRoundStore.reserve(
+            gameId: 'candy_sort',
+            level: widget.level.number,
+          )
+        : widget.fixedSessionSeed! % ReferenceRoundStore.variantsPerLevel;
     final int seed =
         widget.fixedSessionSeed ??
-        await _replayability.newSeed(
-          gameId: 'candy_sort',
-          level: widget.level.number,
-        );
+        ReferenceRoundStore.seed('candy_sort', widget.level.number, variant);
     _random = _replayability.randomFor(sessionSeed: seed, round: 0, salt: 811);
     if (!mounted) return;
     _newPuzzle();
@@ -324,7 +356,7 @@ class _CandySortPlayPageState extends State<CandySortPlayPage> {
           gameId: 'candy_sort',
           level: widget.level.number,
           fingerprint: _puzzleSignature(puzzle),
-          historyLimit: 150,
+          historyLimit: ReferenceRoundStore.variantsPerLevel,
         ),
       );
     }
@@ -637,7 +669,9 @@ class _CandySortPlayPageState extends State<CandySortPlayPage> {
           _hints * 160 -
           _invalidMoves * 35,
     );
-    unawaited(_audio.play(GameSound.levelComplete));
+    unawaited(
+      _audio.playLevelComplete(levelNumber: widget.level.number),
+    );
     _sessionBestScore = max(_sessionBestScore, score);
     _sessionBestStars = max(_sessionBestStars, stars);
     if (!mounted) return;
@@ -738,7 +772,7 @@ class _CandySortPlayPageState extends State<CandySortPlayPage> {
                   ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: <Color>[Color(0xFF183458), Color(0xFF3B2346)],
+                      colors: <Color>[Color(0xFFFFFCF7), Color(0xFFF4EADF)],
                     ),
                     borderRadius: BorderRadius.circular(26),
                     border: Border.all(color: _accent.withValues(alpha: 0.42)),
@@ -802,7 +836,7 @@ class _CandySortPlayPageState extends State<CandySortPlayPage> {
                         onPressed: _hints >= 3 || _finishing ? null : _hint,
                         style: FilledButton.styleFrom(
                           backgroundColor: _accent,
-                          foregroundColor: const Color(0xFF3A1700),
+                          foregroundColor: Colors.white,
                           padding: EdgeInsets.symmetric(
                             horizontal: narrow ? 5 : 12,
                           ),
@@ -820,11 +854,14 @@ class _CandySortPlayPageState extends State<CandySortPlayPage> {
                 Text(
                   context.l10n.gameUi(
                     english
-                        ? 'Move the top candy onto the same color or into an empty jar.'
-                        : 'En üstteki şekeri aynı rengin üzerine veya boş kavanoza taşı.',
+                    ? 'Move the top candy onto the same color or into an empty jar.'
+                    : 'En üstteki şekeri aynı rengin üzerine veya boş kavanoza taşı.',
                   ),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white38, fontSize: 10),
+                  style: const TextStyle(
+                    color: Color(0xFF71837C),
+                    fontSize: 12,
+                  ),
                 ),
               ],
             );
@@ -861,16 +898,18 @@ class _CandyJar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color celebrationColor = candies.isEmpty
-        ? const Color(0xFFFF8A3D)
+        ? const Color(0xFFC46D32)
         : colors[candies.first];
 
     final Color border = celebrating
         ? Color.lerp(celebrationColor, Colors.white, 0.48)!
-        : selected || hintSource
-        ? const Color(0xFFFFD334)
+        : selected
+        ? const Color(0xFFC46D32)
+        : hintSource
+        ? const Color(0xFFE0AA53)
         : hintTarget
-        ? const Color(0xFF6CFF9B)
-        : Colors.white30;
+        ? const Color(0xFF6B9E77)
+        : const Color(0xFFD9C8B6);
 
     return TweenAnimationBuilder<double>(
       key: ValueKey<String>(
@@ -900,8 +939,8 @@ class _CandyJar extends StatelessWidget {
                 color: celebrating
                     ? celebrationColor.withValues(alpha: 0.10 + pulse * 0.07)
                     : selected
-                    ? const Color(0xFFFFD334).withValues(alpha: 0.08)
-                    : Colors.white.withValues(alpha: 0.035),
+                    ? const Color(0xFFFFF4E5)
+                    : Colors.white.withValues(alpha: 0.84),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(25),
                   bottomRight: Radius.circular(25),
@@ -932,7 +971,13 @@ class _CandyJar extends StatelessWidget {
                           blurRadius: 8 + pulse * 10,
                         ),
                       ]
-                    : null,
+                    : <BoxShadow>[
+                        BoxShadow(
+                          color: const Color(0xFF6D4B34).withValues(alpha: .11),
+                          blurRadius: 9,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
               ),
               child: Stack(
                 fit: StackFit.expand,
@@ -991,6 +1036,23 @@ class _CandyJar extends StatelessWidget {
                       ),
                     ),
                   ],
+                  Positioned(
+                    left: 7,
+                    right: 7,
+                    top: 4,
+                    child: IgnorePointer(
+                      child: Container(
+                        height: 7,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(99),
+                          color: Colors.white.withValues(alpha: .34),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: .60),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1010,55 +1072,71 @@ class _Candy extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FractionallySizedBox(
-      widthFactor: 0.82,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: <Color>[
-              Color.lerp(color, Colors.white, 0.38)!,
-              color,
-              Color.lerp(color, Colors.black, 0.20)!,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: Colors.white54),
-          boxShadow: <BoxShadow>[
-            BoxShadow(color: color.withValues(alpha: 0.40), blurRadius: 7),
-          ],
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: <Widget>[
-            Align(
-              alignment: const Alignment(-0.35, -0.45),
-              child: Container(
-                width: 7,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
-            Icon(
-              <IconData>[
-                Icons.circle_outlined,
-                Icons.change_history_rounded,
-                Icons.star_outline_rounded,
-                Icons.add_rounded,
-                Icons.close_rounded,
-                Icons.hexagon_outlined,
-              ][flavor % 6],
-              size: 14,
-              color: Colors.black.withValues(alpha: 0.48),
-            ),
-          ],
-        ),
+      widthFactor: 0.88,
+      child: CustomPaint(
+        painter: _CandyPainter(color: color, flavor: flavor),
+        child: const SizedBox.expand(),
       ),
     );
   }
+}
+
+class _CandyPainter extends CustomPainter {
+  final Color color;
+  final int flavor;
+
+  const _CandyPainter({required this.color, required this.flavor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final double w = size.width;
+    final double h = size.height;
+    final RRect bounds = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * .08, h * .12, w * .84, h * .76),
+      Radius.circular(flavor.isEven ? h * .38 : h * .25),
+    );
+    final Paint shadow = Paint()
+      ..color = const Color(0xFF5B3925).withValues(alpha: .18)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
+    canvas.drawRRect(bounds.shift(const Offset(0, 1.5)), shadow);
+    final Paint body = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: <Color>[
+          Color.lerp(color, Colors.white, .52)!,
+          color,
+          Color.lerp(color, Colors.black, .25)!,
+        ],
+      ).createShader(bounds.outerRect);
+    canvas.drawRRect(bounds, body);
+    final Paint rim = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..color = Colors.white.withValues(alpha: .56);
+    canvas.drawRRect(bounds, rim);
+    final Paint gloss = Paint()
+      ..color = Colors.white.withValues(alpha: .55)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.3);
+    canvas.drawOval(
+      Rect.fromLTWH(w * .24, h * .18, w * .27, h * .16),
+      gloss,
+    );
+    final Paint streak = Paint()
+      ..color = Colors.white.withValues(alpha: .20)
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(w * .23, h * .69),
+      Offset(w * .66, h * .69),
+      streak,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_CandyPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.flavor != flavor;
 }
 
 class _CandyHeader extends StatelessWidget {
@@ -1079,9 +1157,9 @@ class _CandyHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: const Color(0xFF102B50),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: const Color(0xFFE3EBE7)),
       ),
       child: Row(
         children: <Widget>[
@@ -1089,19 +1167,19 @@ class _CandyHeader extends StatelessWidget {
             icon: Icons.swap_horiz_rounded,
             value: '$moves',
             label: context.l10n.gameUi(english ? 'MOVES' : 'HAMLE'),
-            color: const Color(0xFFFF8A3D),
+            color: const Color(0xFFC46D32),
           ),
           _CandyStat(
             icon: Icons.timer_outlined,
             value: '${elapsed}s',
             label: context.l10n.gameUi(english ? 'TIME' : 'SÜRE'),
-            color: const Color(0xFF00D9FF),
+            color: const Color(0xFF2F7E78),
           ),
           _CandyStat(
             icon: Icons.lightbulb_rounded,
             value: '$hints',
             label: context.l10n.gameUi(english ? 'HINTS' : 'İPUCU'),
-            color: const Color(0xFFFFD334),
+            color: const Color(0xFFE0AA53),
           ),
         ],
       ),
@@ -1135,7 +1213,7 @@ class _CandyStat extends StatelessWidget {
           ),
           Text(
             label,
-            style: const TextStyle(color: Colors.white38, fontSize: 7),
+            style: const TextStyle(color: Color(0xFF71837C), fontSize: 9),
           ),
         ],
       ),

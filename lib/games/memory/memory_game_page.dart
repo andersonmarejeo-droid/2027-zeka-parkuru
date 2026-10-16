@@ -3,8 +3,11 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../widgets/studio_chapter_card.dart';
+
 import '../../l10n/app_localizations.dart';
 import '../../widgets/advanced_result_banner.dart';
+import '../../widgets/realistic_game_object.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,7 +15,11 @@ import '../../services/replayability_service.dart';
 import '../../services/daily_challenge_service.dart';
 import '../../services/daily_course_service.dart';
 import '../../services/game_audio_service.dart';
+import '../../services/common_level_score_service.dart';
 import '../../theme/app_visual_theme.dart';
+import '../../theme/studio_visuals.dart';
+import '../shared/game_instruction_catalog.dart';
+import '../shared/studio_game_contracts.dart';
 import 'shape_match_game_page.dart';
 
 class MemoryGamePage extends StatefulWidget {
@@ -37,11 +44,11 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
   bool loading = true;
   int unlockedLevel = 1;
 
-  List<int> stars = List<int>.filled(10, 0);
-  List<int> bestScores = List<int>.filled(10, 0);
+  List<int> stars = List<int>.filled(GameContentPolicy.campaignLevels, 0);
+  List<int> bestScores = List<int>.filled(GameContentPolicy.campaignLevels, 0);
   bool _competitionOpened = false;
 
-  final List<MemoryLevel> levels = const [
+  final List<MemoryLevel> _nativeLevels = const [
     MemoryLevel(
       number: 1,
       title: 'İlk Işık',
@@ -165,6 +172,32 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
     ),
   ];
 
+  late final List<MemoryLevel> levels = List.generate(
+    GameContentPolicy.campaignLevels,
+    (index) {
+      final chapter = index + 1;
+      final base = _nativeLevels[GameContentPolicy.nativeLevel(chapter) - 1];
+      return MemoryLevel(
+        number: chapter,
+        sourceNumber: base.number,
+        difficulty: GameContentPolicy.difficulty(chapter),
+        title: base.title,
+        titleEn: base.titleEn,
+        subtitle: base.subtitle,
+        subtitleEn: base.subtitleEn,
+        gridSize: base.gridSize,
+        sequenceLength: base.sequenceLength,
+        previewMs: base.previewMs,
+        rounds: base.rounds,
+        lives: base.lives,
+        reverseRecall: base.reverseRecall,
+        decoys: base.decoys,
+        matchCardCount: base.matchCardCount,
+      );
+    },
+    growable: false,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -183,8 +216,8 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
     if (!mounted) return;
 
     setState(() {
-      unlockedLevel = savedLevel.clamp(1, 10);
       stars = _decodeList(savedStars);
+      unlockedLevel = GameContentPolicy.safeUnlocked(savedLevel, stars);
       bestScores = _decodeList(savedScores);
       loading = false;
     });
@@ -203,7 +236,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
   }
 
   List<int> _decodeList(List<String>? source) {
-    return List<int>.generate(10, (index) {
+    return List<int>.generate(GameContentPolicy.campaignLevels, (index) {
       if (source == null || index >= source.length) return 0;
       return int.tryParse(source[index]) ?? 0;
     });
@@ -229,54 +262,59 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
     GameAudioService.instance.play(GameSound.uiClick);
 
     final MemoryLevel level = levels[index];
-    final MemoryLevelResult? result;
-
-    if (level.isShapeMatch) {
-      final ShapeMatchResult? matchResult =
-          await Navigator.push<ShapeMatchResult>(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ShapeMatchGamePage(
-                levelNumber: level.number,
-                totalLevels: levels.length,
-                cardCount: level.matchCardCount,
-                stageCount: level.rounds,
-                previousBestScore: bestScores[index],
-                fixedSessionSeed: widget.competitionLayoutCode,
-                competitionMode: widget.competitionLevel != null,
+    final List<int> previousStars = List<int>.from(stars);
+    final CommonLevelScoreSession scoring = CommonLevelScoreSession.begin();
+    final MemoryLevelResult? rawResult;
+    try {
+      if (level.isShapeMatch) {
+        final ShapeMatchResult? matchResult =
+            await Navigator.push<ShapeMatchResult>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ShapeMatchGamePage(
+                  levelNumber: level.number,
+                  totalLevels: levels.length,
+                  cardCount: level.matchCardCount,
+                  stageCount: level.rounds,
+                  previousBestScore: bestScores[index],
+                  fixedSessionSeed: widget.competitionLayoutCode,
+                  competitionMode: widget.competitionLevel != null,
+                ),
               ),
-            ),
-          );
-
-      result = matchResult == null
-          ? null
-          : MemoryLevelResult(
-              completed: matchResult.completed,
-              stars: matchResult.stars,
-              score: matchResult.score,
-              nextLevel: matchResult.nextLevel,
             );
-    } else {
-      result = await Navigator.push<MemoryLevelResult>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => MemoryPlayPage(
-            level: level,
-            totalLevels: levels.length,
-            previousBestScore: bestScores[index],
-            fixedSessionSeed: widget.competitionLayoutCode,
-            competitionMode: widget.competitionLevel != null,
+
+        rawResult = matchResult == null
+            ? null
+            : MemoryLevelResult(
+                completed: matchResult.completed,
+                stars: matchResult.stars,
+                score: matchResult.score,
+                nextLevel: matchResult.nextLevel,
+              );
+      } else {
+        rawResult = await Navigator.push<MemoryLevelResult>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MemoryPlayPage(
+              level: level,
+              totalLevels: levels.length,
+              previousBestScore: bestScores[index],
+              fixedSessionSeed: widget.competitionLayoutCode,
+              competitionMode: widget.competitionLevel != null,
+            ),
           ),
-        ),
-      );
+        );
+      }
+    } finally {
+      scoring.finish();
     }
+    final int commonPoints = scoring.points;
+    final MemoryLevelResult? result = rawResult;
 
     if (!mounted) return;
 
     if (widget.dailyCourseMode) {
-      final bool failed =
-          result != null &&
-          (!result.completed || (result.stars == 0 && result.score == 0));
+      final bool failed = result != null && !result.completed;
       Navigator.pop(
         context,
         result == null
@@ -286,7 +324,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
             : DailyStageResult.completed(
                 gameId: 'memory',
                 stars: result.stars,
-                rawScore: result.score,
+                rawScore: commonPoints,
               ),
       );
       return;
@@ -305,7 +343,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
         DailyCourseGameResult(
           gameId: 'memory',
           stars: completedResult.stars,
-          score: completedResult.score,
+          score: commonPoints,
         ),
       );
       return;
@@ -321,16 +359,19 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
     });
 
     await _saveProgress();
+    await CommonLevelScoreStore.recordBest(
+      gameId: 'memory',
+      levelIndex: index,
+      points: commonPoints,
+      levelCount: levels.length,
+      completedStars: previousStars,
+    );
 
     await DailyChallengeService.instance.recordLevelCompleted(
       gameId: 'memory',
       stars: completedResult.stars,
-      score: completedResult.score,
+      score: commonPoints,
     );
-
-    if (!widget.dailyCourseMode && index + 1 == levels.length) {
-      await GameAudioService.instance.playMashallahCelebration();
-    }
 
     if (completedResult.nextLevel && index + 1 < levels.length && mounted) {
       await Future.delayed(const Duration(milliseconds: 180));
@@ -345,63 +386,86 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
   Widget build(BuildContext context) {
     if (loading || widget.competitionLevel != null) {
       return Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: StudioVisuals.canvas,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LText(
               'HAFIZA LABİRENTİ',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+              ),
             ),
             LText(
               'Gör • Hatırla • Tekrarla',
-              style: TextStyle(color: Colors.white60, fontSize: 12),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 12,
+              ),
             ),
           ],
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(18),
-              child: _MemoryProgressPanel(
-                totalScore: totalScore,
-                totalStars: totalStars,
-                unlockedLevel: unlockedLevel,
-              ),
-            ),
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
-                itemCount: levels.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                  mainAxisExtent: 172,
+        top: false,
+        child: ResponsiveGameFrame(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: _MemoryProgressPanel(
+                  totalScore: totalScore,
+                  totalStars: totalStars,
+                  unlockedLevel: unlockedLevel,
                 ),
-                itemBuilder: (context, index) {
-                  return _MemoryLevelCard(
-                    level: levels[index],
-                    unlocked: index + 1 <= unlockedLevel,
-                    stars: stars[index],
-                    bestScore: bestScores[index],
-                    onTap: () => _openLevel(index),
-                  );
-                },
               ),
-            ),
-          ],
+              GameInstructionCard(
+                gameId: 'memory',
+                english: context.l10n.isEnglish,
+                initiallyExpanded: MediaQuery.sizeOf(context).height >= 650,
+              ),
+              Expanded(
+                child: GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
+                  itemCount: levels.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 1,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    mainAxisExtent:
+                        104 *
+                        MediaQuery.textScalerOf(context)
+                            .scale(1)
+                            .clamp(1.0, 1.6),
+                  ),
+                  itemBuilder: (context, index) {
+                    return _MemoryLevelCard(
+                      level: levels[index],
+                      unlocked: index + 1 <= unlockedLevel,
+                      stars: stars[index],
+                      bestScore: bestScores[index],
+                      onTap: () => _openLevel(index),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -464,19 +528,19 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
   int confettiSeed = 0;
   bool showConfetti = false;
 
-  final List<Color> neonColors = const [
-    Color(0xFF00D9FF),
-    Color(0xFF745CFF),
-    Color(0xFFFF4F9A),
-    Color(0xFFFF9F1C),
-    Color(0xFFFFD93D),
-    Color(0xFF52E86B),
-    Color(0xFFFF5E57),
+  final List<Color> memoryColors = const [
+    Color(0xFF3D7183),
+    Color(0xFF665AA2),
+    Color(0xFF9C5471),
+    Color(0xFFB98548),
+    Color(0xFF8B622C),
+    Color(0xFF34715D),
+    Color(0xFFA84640),
   ];
 
   bool get _reverseThisRound {
     if (!widget.level.reverseRecall) return false;
-    return widget.level.number < 10 || round.isOdd;
+    return widget.level.contentLevel < 10 || round.isOdd;
   }
 
   @override
@@ -487,7 +551,7 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
     _audio.preload(GameAudioGroup.memory);
     _audio.playMusic(GameMusic.calm);
 
-    if (widget.level.difficulty == 'BOSS') {
+    if (widget.level.contentLevel == 10) {
       _audio.play(GameSound.bossIntro);
     }
 
@@ -604,7 +668,7 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
 
     final int cellCount = widget.level.gridSize * widget.level.gridSize;
 
-    final int extra = min(round, widget.level.number >= 7 ? 2 : 1);
+    final int extra = min(round, widget.level.contentLevel >= 7 ? 2 : 1);
 
     final int length = min(widget.level.sequenceLength + extra, cellCount - 1);
 
@@ -615,7 +679,7 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
     while (sequence.length < length) {
       final int candidate =
           previous != null &&
-              (widget.level.number == 3 || widget.level.number == 6)
+              (widget.level.contentLevel == 3 || widget.level.contentLevel == 6)
           ? _adjacentCell(previous, random)
           : random.nextInt(cellCount);
 
@@ -861,7 +925,11 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
 
     _audio.hapticHeavy();
 
-    _audio.playVictory(stars: stars, boss: widget.level.difficulty == 'BOSS');
+    _audio.playVictory(
+      stars: stars,
+      boss: widget.level.contentLevel == 10,
+      levelNumber: widget.level.number,
+    );
 
     await Future.delayed(const Duration(milliseconds: 1000));
 
@@ -897,13 +965,13 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF123D73), Color(0xFF522C83)],
+                  colors: [Color(0xFFF6F8F6), Color(0xFFE8EFEB)],
                 ),
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: const Color(0xFFFFD93D), width: 2),
+                border: Border.all(color: const Color(0xFF8B622C), width: 2),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF745CFF).withValues(alpha: 0.32),
+                    color: const Color(0xFF665AA2).withValues(alpha: 0.32),
                     blurRadius: 30,
                     spreadRadius: 3,
                   ),
@@ -915,15 +983,16 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
                   const Icon(
                     Icons.psychology_alt_rounded,
                     size: 66,
-                    color: Color(0xFFFFD93D),
+                    color: Color(0xFF8B622C),
                   ),
                   const SizedBox(height: 8),
                   LText(
-                    widget.level.difficulty == 'BOSS'
+                    widget.level.contentLevel == 10
                         ? '👑 HAFIZA BOSS YENİLDİ!'
                         : '🎉 HAFIZA USTASI!',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
+                      fontFamily: 'Roboto',
                       fontWeight: FontWeight.w900,
                       fontSize: 23,
                     ),
@@ -933,7 +1002,7 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
                     score: finalScore,
                     previousBestScore: widget.previousBestScore,
                     english: context.l10n.isEnglish,
-                    accentColor: const Color(0xFFE748CF),
+                    accentColor: const Color(0xFF9C5471),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -944,7 +1013,7 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
                         index < stars
                             ? Icons.star_rounded
                             : Icons.star_border_rounded,
-                        color: const Color(0xFFFFD93D),
+                        color: const Color(0xFF8B622C),
                         size: 48,
                       ),
                     ),
@@ -976,7 +1045,7 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
                     width: double.infinity,
                     child: FilledButton.icon(
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF745CFF),
+                        backgroundColor: const Color(0xFF665AA2),
                         padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
                       onPressed: () {
@@ -1042,13 +1111,16 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
             children: [
               Icon(
                 Icons.favorite_border_rounded,
-                color: Color(0xFFFF5E57),
+                color: Color(0xFFA84640),
                 size: 52,
               ),
               SizedBox(height: 8),
               LText(
                 'CANLAR TÜKENDİ',
-                style: TextStyle(fontWeight: FontWeight.w900),
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ],
           ),
@@ -1116,7 +1188,7 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
     final double progress = (round / widget.level.rounds).clamp(0.0, 1.0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF06152B),
+      backgroundColor: const Color(0xFFF6F8F6),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -1125,11 +1197,19 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
           children: [
             LText(
               widget.level.title.toUpperCase(),
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w900,
+                fontSize: 17,
+              ),
             ),
             LText(
               'Seviye ${widget.level.number} / ${widget.totalLevels}',
-              style: const TextStyle(color: Colors.white60, fontSize: 11),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 11,
+              ),
             ),
           ],
         ),
@@ -1166,9 +1246,9 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 8,
-                      backgroundColor: Colors.white12,
+                      backgroundColor: StudioVisuals.line,
                       valueColor: const AlwaysStoppedAnimation<Color>(
-                        Color(0xFF52E86B),
+                        Color(0xFF34715D),
                       ),
                     ),
                   ),
@@ -1182,12 +1262,13 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
                           headline,
                           textAlign: TextAlign.center,
                           style: TextStyle(
+                            fontFamily: 'Roboto',
                             fontWeight: FontWeight.w900,
                             fontSize: 23,
                             letterSpacing: 1.2,
                             color: showingSequence
-                                ? const Color(0xFF00D9FF)
-                                : const Color(0xFFFFD93D),
+                                ? const Color(0xFF3D7183)
+                                : const Color(0xFF8B622C),
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -1195,7 +1276,8 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
                           subline,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            color: Colors.white60,
+                            fontFamily: 'Roboto',
+                            color: StudioVisuals.muted,
                             fontSize: 11,
                           ),
                         ),
@@ -1237,12 +1319,12 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
                                       .withValues(alpha: 0.94),
                                   borderRadius: BorderRadius.circular(18),
                                   border: Border.all(
-                                    color: const Color(0xFFFFD93D),
+                                    color: const Color(0xFF8B622C),
                                     width: 2,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFFFFD93D)
+                                      color: const Color(0xFF8B622C)
                                           .withValues(alpha: 0.24),
                                       blurRadius: 18,
                                     ),
@@ -1251,7 +1333,8 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
                                 child: LText(
                                   floatingText,
                                   style: const TextStyle(
-                                    color: Color(0xFFFFD93D),
+                                    fontFamily: 'Roboto',
+                                    color: Color(0xFF8B622C),
                                     fontWeight: FontWeight.w900,
                                     fontSize: 20,
                                   ),
@@ -1279,7 +1362,11 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
                         ? '⚠ Bazı kısa flaşlar dikkat dağıtıcıdır'
                         : '🧠 Işıkların sırasını zihninde tut',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white38, fontSize: 10),
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      color: StudioVisuals.muted,
+                      fontSize: 10,
+                    ),
                   ),
                 ],
               ),
@@ -1330,7 +1417,7 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
                 final bool wrong = wrongCell == index;
                 final bool correct = correctCell == index;
 
-                final Color color = neonColors[index % neonColors.length];
+                final Color color = memoryColors[index % memoryColors.length];
 
                 return _MemoryCell(
                   index: index,
@@ -1371,8 +1458,8 @@ class _MemoryCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color borderColor = Colors.white10;
-    Color fillColor = const Color(0xFF102949);
+    Color borderColor = StudioVisuals.line;
+    Color fillColor = const Color(0xFFEEF3F0);
 
     if (active) {
       borderColor = color;
@@ -1380,13 +1467,13 @@ class _MemoryCell extends StatelessWidget {
     }
 
     if (correct) {
-      borderColor = const Color(0xFF76FF03);
-      fillColor = const Color(0xFF52E86B);
+      borderColor = const Color(0xFF176D62);
+      fillColor = const Color(0xFF34715D);
     }
 
     if (wrong) {
-      borderColor = const Color(0xFFFF5E57);
-      fillColor = const Color(0xFFFF5E57);
+      borderColor = const Color(0xFFA84640);
+      fillColor = const Color(0xFFA84640);
     }
 
     return GestureDetector(
@@ -1416,7 +1503,7 @@ class _MemoryCell extends StatelessWidget {
                     ],
                   )
                 : const LinearGradient(
-                    colors: [Color(0xFF132F52), Color(0xFF0E2341)],
+                    colors: [Color(0xFFF9FAF6), Color(0xFFEEF3F0)],
                   ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
@@ -1457,19 +1544,28 @@ class _MemoryCell extends StatelessWidget {
                       size: 29,
                     )
                   : active
-                  ? Icon(
-                      Icons.auto_awesome_rounded,
+                  ? SizedBox(
                       key: const ValueKey('active'),
-                      color: Colors.white.withValues(alpha: 0.90),
-                      size: 28,
+                      width: 52,
+                      height: 52,
+                      child: RealisticGameObject(
+                        sheet: RealisticObjectSheet.tokens,
+                        index: index,
+                        borderRadius: 14,
+                        overlayColor: color.withValues(alpha: .18),
+                      ),
                     )
-                  : Container(
+                  : Opacity(
                       key: const ValueKey('idle'),
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.07),
-                        shape: BoxShape.circle,
+                      opacity: .25,
+                      child: SizedBox(
+                        width: 38,
+                        height: 38,
+                        child: RealisticGameObject(
+                          sheet: RealisticObjectSheet.tokens,
+                          index: index,
+                          borderRadius: 12,
+                        ),
                       ),
                     ),
             ),
@@ -1503,7 +1599,7 @@ class _MemoryGameHeader extends StatelessWidget {
           child: _MemoryTopStat(
             title: 'PUAN',
             value: '$score',
-            color: const Color(0xFFFFD93D),
+            color: const Color(0xFF8B622C),
           ),
         ),
         const SizedBox(width: 6),
@@ -1511,7 +1607,7 @@ class _MemoryGameHeader extends StatelessWidget {
           child: _MemoryTopStat(
             title: 'TUR',
             value: '$round/$totalRounds',
-            color: const Color(0xFF00D9FF),
+            color: const Color(0xFF3D7183),
           ),
         ),
         const SizedBox(width: 6),
@@ -1519,7 +1615,7 @@ class _MemoryGameHeader extends StatelessWidget {
           child: _MemoryTopStat(
             title: 'CAN',
             value: '♥ $lives',
-            color: const Color(0xFFFF5E57),
+            color: const Color(0xFFA84640),
           ),
         ),
         const SizedBox(width: 6),
@@ -1527,7 +1623,7 @@ class _MemoryGameHeader extends StatelessWidget {
           child: _MemoryTopStat(
             title: 'COMBO',
             value: 'x$combo',
-            color: const Color(0xFF52E86B),
+            color: const Color(0xFF34715D),
           ),
         ),
       ],
@@ -1559,6 +1655,7 @@ class _MemoryTopStat extends StatelessWidget {
           LText(
             value,
             style: TextStyle(
+              fontFamily: 'Roboto',
               color: color,
               fontWeight: FontWeight.w900,
               fontSize: 13,
@@ -1566,7 +1663,11 @@ class _MemoryTopStat extends StatelessWidget {
           ),
           LText(
             title,
-            style: const TextStyle(color: Colors.white38, fontSize: 7),
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              color: StudioVisuals.muted,
+              fontSize: 10,
+            ),
           ),
         ],
       ),
@@ -1601,15 +1702,15 @@ class _MemoryInputProgress extends StatelessWidget {
           height: 9,
           decoration: BoxDecoration(
             color: done
-                ? const Color(0xFF52E86B)
+                ? const Color(0xFF34715D)
                 : active
-                ? const Color(0xFF00D9FF).withValues(alpha: 0.30)
-                : Colors.white12,
+                ? const Color(0xFF3D7183).withValues(alpha: 0.30)
+                : StudioVisuals.line,
             borderRadius: BorderRadius.circular(20),
             boxShadow: done
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF52E86B).withValues(alpha: 0.35),
+                      color: const Color(0xFF34715D).withValues(alpha: 0.35),
                       blurRadius: 6,
                     ),
                   ]
@@ -1637,31 +1738,25 @@ class _MemoryProgressPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF6D2C91), Color(0xFF173E9A)],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFE748CF).withValues(alpha: 0.16),
-            blurRadius: 24,
-          ),
-        ],
+        color: StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         children: [
           Container(
             width: 58,
             height: 58,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFF4F9A), Color(0xFF745CFF)],
-              ),
-              borderRadius: BorderRadius.circular(19),
+            decoration: const BoxDecoration(
+              color: StudioVisuals.amberSoft,
+              shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.psychology_alt_rounded, size: 36),
+            child: const Icon(
+              Icons.psychology_alt_rounded,
+              size: 31,
+              color: StudioVisuals.amber,
+            ),
           ),
           const SizedBox(width: 13),
           Expanded(
@@ -1670,12 +1765,21 @@ class _MemoryProgressPanel extends StatelessWidget {
               children: [
                 const LText(
                   'HAFIZA USTALIĞI',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 17,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 LText(
-                  'Seviye $unlockedLevel / 10   •   ⭐ $totalStars / 30',
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  'Seviye $unlockedLevel / ${GameContentPolicy.campaignLevels}   •   ⭐ $totalStars / ${GameContentPolicy.campaignLevels * 3}',
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.muted,
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -1686,14 +1790,19 @@ class _MemoryProgressPanel extends StatelessWidget {
               LText(
                 '$totalScore',
                 style: const TextStyle(
-                  color: Color(0xFFFFD93D),
+                  fontFamily: 'Roboto',
+                  color: StudioVisuals.amber,
                   fontWeight: FontWeight.w900,
                   fontSize: 21,
                 ),
               ),
               const LText(
                 'PUAN',
-                style: TextStyle(color: Colors.white54, fontSize: 9),
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  color: StudioVisuals.muted,
+                  fontSize: 9,
+                ),
               ),
             ],
           ),
@@ -1721,141 +1830,30 @@ class _MemoryLevelCard extends StatelessWidget {
   Color get color {
     switch (level.difficulty) {
       case 'KOLAY':
-        return const Color(0xFF52E86B);
+        return const Color(0xFF34715D);
       case 'ORTA':
         return const Color(0xFFFF9F1C);
       case 'ZOR':
-        return const Color(0xFFFF5E57);
+        return const Color(0xFFA84640);
       case 'BOSS':
         return const Color(0xFFFF4F9A);
       default:
-        return const Color(0xFF00D9FF);
+        return const Color(0xFF3D7183);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: unlocked ? onTap : null,
-        borderRadius: BorderRadius.circular(22),
-        child: Ink(
-          padding: const EdgeInsets.all(11),
-          decoration: BoxDecoration(
-            gradient: unlocked
-                ? const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF122B50), Color(0xFF102340)],
-                  )
-                : const LinearGradient(
-                    colors: [Color(0xFF0B1A31), Color(0xFF091526)],
-                  ),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: unlocked ? color.withValues(alpha: 0.60) : Colors.white12,
-            ),
-            boxShadow: unlocked
-                ? [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.07),
-                      blurRadius: 14,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: unlocked ? color : Colors.white12,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: unlocked
-                        ? LText(
-                            '${level.number}',
-                            style: const TextStyle(fontWeight: FontWeight.w900),
-                          )
-                        : const Icon(
-                            Icons.lock_rounded,
-                            size: 18,
-                            color: Colors.white30,
-                          ),
-                  ),
-                  const Spacer(),
-                  if (unlocked)
-                    LText(
-                      level.difficulty,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                ],
-              ),
-              const Spacer(),
-              Icon(
-                level.difficulty == 'BOSS'
-                    ? Icons.psychology_alt_rounded
-                    : level.isShapeMatch
-                    ? Icons.style_rounded
-                    : level.reverseRecall
-                    ? Icons.u_turn_left_rounded
-                    : level.decoys > 0
-                    ? Icons.flash_on_rounded
-                    : Icons.auto_awesome_rounded,
-                color: unlocked ? color : Colors.white12,
-                size: 34,
-              ),
-              const SizedBox(height: 5),
-              Text(
-                level.localizedTitle(context),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
-                  color: unlocked ? Colors.white : Colors.white24,
-                ),
-              ),
-              Text(
-                level.localizedSubtitle(context),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white38, fontSize: 8),
-              ),
-              const Spacer(),
-              if (bestScore > 0)
-                LText(
-                  'En iyi: $bestScore',
-                  style: const TextStyle(color: Colors.white54, fontSize: 9),
-                ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  3,
-                  (index) => Icon(
-                    index < stars
-                        ? Icons.star_rounded
-                        : Icons.star_border_rounded,
-                    color: unlocked ? const Color(0xFFFFD93D) : Colors.white12,
-                    size: 18,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => StudioChapterCard(
+    gameId: 'memory',
+    number: level.number,
+    title: level.localizedTitle(context),
+    detail: level.localizedSubtitle(context),
+    difficulty: GameContentPolicy.difficulty(level.number),
+    unlocked: unlocked,
+    stars: stars,
+    best: bestScore,
+    onTap: onTap,
+  );
 }
 
 class _MemoryResultBox extends StatelessWidget {
@@ -1876,11 +1874,19 @@ class _MemoryResultBox extends StatelessWidget {
         children: [
           LText(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w900,
+              fontSize: 17,
+            ),
           ),
           LText(
             title,
-            style: const TextStyle(color: Colors.white54, fontSize: 8),
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              color: StudioVisuals.muted,
+              fontSize: 8,
+            ),
           ),
         ],
       ),
@@ -1895,7 +1901,7 @@ class _MemoryBackgroundPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Paint glow = Paint()
       ..shader =
-          const RadialGradient(colors: [Color(0x28745CFF), Color(0x00000000)])
+          const RadialGradient(colors: [Color(0x28665AA2), Color(0x00000000)])
               .createShader(
                 Rect.fromCircle(
                   center: Offset(size.width * 0.18, size.height * 0.20),
@@ -1907,7 +1913,7 @@ class _MemoryBackgroundPainter extends CustomPainter {
 
     final Paint glow2 = Paint()
       ..shader =
-          const RadialGradient(colors: [Color(0x1A00D9FF), Color(0x00000000)])
+          const RadialGradient(colors: [Color(0x1A3D7183), Color(0x00000000)])
               .createShader(
                 Rect.fromCircle(
                   center: Offset(size.width * 0.85, size.height * 0.70),
@@ -1950,13 +1956,13 @@ class _MemoryConfettiPainter extends CustomPainter {
     final Random random = Random(seed);
 
     const List<Color> colors = [
-      Color(0xFF00D9FF),
-      Color(0xFF745CFF),
+      Color(0xFF3D7183),
+      Color(0xFF665AA2),
       Color(0xFFFF4F9A),
       Color(0xFFFF9F1C),
-      Color(0xFFFFD93D),
-      Color(0xFF52E86B),
-      Color(0xFFFF5E57),
+      Color(0xFF8B622C),
+      Color(0xFF34715D),
+      Color(0xFFA84640),
     ];
 
     for (int i = 0; i < 80; i++) {
@@ -2004,6 +2010,8 @@ class _MemoryConfettiPainter extends CustomPainter {
 
 class MemoryLevel {
   final int number;
+  final int? sourceNumber;
+  int get contentLevel => sourceNumber ?? number;
   final String title;
   final String? titleEn;
   final String subtitle;
@@ -2022,6 +2030,7 @@ class MemoryLevel {
 
   const MemoryLevel({
     required this.number,
+    this.sourceNumber,
     required this.title,
     this.titleEn,
     required this.subtitle,

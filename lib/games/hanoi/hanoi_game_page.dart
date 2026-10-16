@@ -3,14 +3,46 @@ import 'dart:collection';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+
+import '../../widgets/studio_chapter_card.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../services/daily_challenge_service.dart';
 import '../../services/daily_course_service.dart';
 import '../../services/game_audio_service.dart';
+import '../../services/common_level_score_service.dart';
 import '../../services/replayability_service.dart';
+import '../../theme/studio_visuals.dart';
 import '../../widgets/advanced_result_banner.dart';
+import '../shared/studio_game_contracts.dart';
+import '../shared/campaign_round_store.dart';
+import '../shared/studio_game_session.dart';
+
+abstract final class HanoiVisuals {
+  static const List<Color> rings = <Color>[
+    Color(0xFFFF4D6D),
+    Color(0xFFFF9F1C),
+    Color(0xFFFFD60A),
+    Color(0xFF2EE6A6),
+    Color(0xFF21C9F5),
+    Color(0xFF5574FF),
+    Color(0xFFA855F7),
+    Color(0xFFFF4FD8),
+  ];
+
+  static const Color boardTop = Color(0xFF1A3153);
+  static const Color boardBottom = Color(0xFF0D1930);
+  static const Color towerLine = Color(0xFF476986);
+  static const Color cyan = Color(0xFF21C9F5);
+  static const Color mint = Color(0xFF2EE6A6);
+  static const Color mintInk = Color(0xFF65FFD0);
+  static const Color rodTop = Color(0xFFD9FBFF);
+  static const Color rodBottom = Color(0xFF50A8D4);
+  static const Color baseTop = Color(0xFF32E3D0);
+  static const Color baseBottom = Color(0xFF167A9C);
+}
 
 class HanoiGamePage extends StatefulWidget {
   final bool dailyCourseMode;
@@ -36,12 +68,12 @@ class _HanoiGamePageState extends State<HanoiGamePage> {
   // Safe defaults are shown immediately and saved progress hydrates in background.
   bool loading = false;
   int unlockedLevel = 1;
-  List<int> stars = List<int>.filled(10, 0);
-  List<int> bestScores = List<int>.filled(10, 0);
-  List<int> bestMoves = List<int>.filled(10, 0);
+  List<int> stars = List<int>.filled(GameContentPolicy.campaignLevels, 0);
+  List<int> bestScores = List<int>.filled(GameContentPolicy.campaignLevels, 0);
+  List<int> bestMoves = List<int>.filled(GameContentPolicy.campaignLevels, 0);
   bool _competitionOpened = false;
 
-  static const List<HanoiLevel> levels = <HanoiLevel>[
+  static const List<HanoiLevel> _nativeLevels = <HanoiLevel>[
     HanoiLevel(
       number: 1,
       titleTr: 'İlk Taşıma',
@@ -166,6 +198,34 @@ class _HanoiGamePageState extends State<HanoiGamePage> {
     ),
   ];
 
+  static final List<HanoiLevel> levels = List.generate(
+    GameContentPolicy.campaignLevels,
+    (index) {
+      final chapter = index + 1;
+      final base = _nativeLevels[GameContentPolicy.nativeLevel(chapter) - 1];
+      return HanoiLevel(
+        number: chapter,
+        sourceNumber: base.number,
+        difficulty: GameContentPolicy.difficulty(chapter),
+        titleTr: chapter == 1
+            ? base.titleTr
+            : 'Kule Planı ${chapter.toString().padLeft(2, '0')}',
+        titleEn: chapter == 1
+            ? base.titleEn
+            : 'Tower Plan ${chapter.toString().padLeft(2, '0')}',
+        subtitleTr: 'Halkaları en kısa hamle planıyla hedefe taşı',
+        subtitleEn: 'Plan the shortest route to the target tower',
+        diskCount: base.diskCount,
+        startPeg: base.startPeg,
+        targetPeg: base.targetPeg,
+        twoStarLimit: base.twoStarLimit,
+        tutorial: base.tutorial,
+        boss: base.boss,
+      );
+    },
+    growable: false,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -197,8 +257,8 @@ class _HanoiGamePageState extends State<HanoiGamePage> {
       final List<String>? savedMoves = values[3] as List<String>?;
 
       setState(() {
-        unlockedLevel = savedLevel.clamp(1, levels.length).toInt();
         stars = _decodeList(savedStars);
+        unlockedLevel = GameContentPolicy.safeUnlocked(savedLevel, stars);
         bestScores = _decodeList(savedScores);
         bestMoves = _decodeList(savedMoves);
         loading = false;
@@ -288,19 +348,38 @@ class _HanoiGamePageState extends State<HanoiGamePage> {
 
     unawaited(_audio.play(GameSound.uiClick));
 
-    final HanoiLevelResult? result = await Navigator.push<HanoiLevelResult>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => HanoiPlayPage(
-          level: levels[index],
-          totalLevels: levels.length,
-          savedBestMoves: bestMoves[index],
-          previousBestScore: bestScores[index],
-          fixedSessionSeed: widget.competitionLayoutCode,
-          competitionMode: widget.competitionLevel != null,
-        ),
-      ),
+    final int poolIndex = widget.competitionLayoutCode != null
+        ? GameContentPolicy.poolIndex(
+            index + 1,
+            widget.competitionLayoutCode!.abs() % 10,
+            stages: 300,
+          )
+        : await CampaignRoundStore.reserve('hanoi', index + 1);
+    if (!mounted) return;
+    final playable = levels[index].withBoard(
+      HanoiCampaignBoard.forPool(poolIndex),
     );
+    final List<int> previousStars = List<int>.from(stars);
+    final CommonLevelScoreSession scoring = CommonLevelScoreSession.begin();
+    final HanoiLevelResult? result;
+    try {
+      result = await Navigator.push<HanoiLevelResult>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HanoiPlayPage(
+            level: playable,
+            totalLevels: levels.length,
+            savedBestMoves: bestMoves[index],
+            previousBestScore: bestScores[index],
+            fixedSessionSeed: widget.competitionLayoutCode,
+            competitionMode: widget.competitionLevel != null,
+          ),
+        ),
+      );
+    } finally {
+      scoring.finish();
+    }
+    final int commonPoints = scoring.points;
 
     if (!mounted) return;
 
@@ -313,7 +392,7 @@ class _HanoiGamePageState extends State<HanoiGamePage> {
             ? DailyStageResult.completed(
                 gameId: 'hanoi',
                 stars: result.stars,
-                rawScore: result.score,
+                rawScore: commonPoints,
               )
             : const DailyStageResult.failed(gameId: 'hanoi'),
       );
@@ -326,25 +405,26 @@ class _HanoiGamePageState extends State<HanoiGamePage> {
       }
       return;
     }
+    final HanoiLevelResult completedResult = result;
 
     if (widget.competitionLevel != null) {
       Navigator.pop(
         context,
         DailyCourseGameResult(
           gameId: 'hanoi',
-          stars: result.stars,
-          score: result.score,
+          stars: completedResult.stars,
+          score: commonPoints,
         ),
       );
       return;
     }
 
     setState(() {
-      stars[index] = max(stars[index], result.stars);
-      bestScores[index] = max(bestScores[index], result.score);
+      stars[index] = max(stars[index], completedResult.stars);
+      bestScores[index] = max(bestScores[index], completedResult.score);
 
-      if (bestMoves[index] == 0 || result.moves < bestMoves[index]) {
-        bestMoves[index] = result.moves;
+      if (bestMoves[index] == 0 || completedResult.moves < bestMoves[index]) {
+        bestMoves[index] = completedResult.moves;
       }
 
       if (index + 1 == unlockedLevel && unlockedLevel < levels.length) {
@@ -352,20 +432,24 @@ class _HanoiGamePageState extends State<HanoiGamePage> {
       }
     });
 
+    await CommonLevelScoreStore.recordBest(
+      gameId: 'hanoi',
+      levelIndex: index,
+      points: commonPoints,
+      levelCount: levels.length,
+      completedStars: previousStars,
+    );
+
     // Persistence must not block the result flow or the next level.
     unawaited(_saveProgress());
 
     await DailyChallengeService.instance.recordLevelCompleted(
       gameId: 'hanoi',
-      stars: result.stars,
-      score: result.score,
+      stars: completedResult.stars,
+      score: commonPoints,
     );
 
-    if (!widget.dailyCourseMode && index + 1 == levels.length) {
-      await GameAudioService.instance.playMashallahCelebration();
-    }
-
-    if (result.nextLevel && index + 1 < levels.length && mounted) {
+    if (completedResult.nextLevel && index + 1 < levels.length && mounted) {
       await Future<void>.delayed(const Duration(milliseconds: 160));
       if (mounted) await _openLevel(index + 1);
     }
@@ -376,9 +460,11 @@ class _HanoiGamePageState extends State<HanoiGamePage> {
     final bool english = context.l10n.isEnglish;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -386,6 +472,8 @@ class _HanoiGamePageState extends State<HanoiGamePage> {
             Text(
               context.l10n.gameUi(english ? 'TOWER OF HANOI' : 'HANOİ KULESİ'),
               style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.ink,
                 fontWeight: FontWeight.w900,
                 fontSize: 18,
                 letterSpacing: 0.4,
@@ -395,50 +483,60 @@ class _HanoiGamePageState extends State<HanoiGamePage> {
               context.l10n.gameUi(
                 english ? 'Plan • Move • Complete' : 'Planla • Taşı • Tamamla',
               ),
-              style: const TextStyle(color: Colors.white60, fontSize: 11),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 11,
+              ),
             ),
           ],
         ),
       ),
       body: SafeArea(
-        child: loading || widget.competitionLevel != null
-            ? const _HanoiLoadingView()
-            : Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
-                    child: _HanoiProgressPanel(
-                      totalScore: totalScore,
-                      totalStars: totalStars,
-                      unlockedLevel: unlockedLevel,
-                      english: english,
+        top: false,
+        child: ResponsiveGameFrame(
+          child: loading || widget.competitionLevel != null
+              ? const _HanoiLoadingView()
+              : Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
+                      child: _HanoiProgressPanel(
+                        totalScore: totalScore,
+                        totalStars: totalStars,
+                        unlockedLevel: unlockedLevel,
+                        english: english,
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: GridView.builder(
-                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
-                      itemCount: levels.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 14,
-                            mainAxisSpacing: 14,
-                            mainAxisExtent: 184,
-                          ),
-                      itemBuilder: (context, index) {
-                        return _HanoiLevelCard(
-                          level: levels[index],
-                          unlocked: index + 1 <= unlockedLevel,
-                          stars: stars[index],
-                          bestMoves: bestMoves[index],
-                          english: english,
-                          onTap: () => _openLevel(index),
-                        );
-                      },
+                    Expanded(
+                      child: GridView.builder(
+                        padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
+                        itemCount: levels.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 1,
+                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 14,
+                          mainAxisExtent:
+                              104 *
+                              MediaQuery.textScalerOf(context)
+                                  .scale(1)
+                                  .clamp(1.0, 1.6),
+                        ),
+                        itemBuilder: (context, index) {
+                          return _HanoiLevelCard(
+                            level: levels[index],
+                            unlocked: index + 1 <= unlockedLevel,
+                            stars: stars[index],
+                            bestMoves: bestMoves[index],
+                            english: english,
+                            onTap: () => _openLevel(index),
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -474,7 +572,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
   late List<List<int>> _initialPegs;
   final List<HanoiMove> history = <HanoiMove>[];
 
-  static const int _maxHintsPerLevel = 4;
+  static const int _maxHintsPerLevel = StudioGameSession.defaultMaxHints;
 
   int moveCount = 0;
   int _hintsUsed = 0;
@@ -521,7 +619,9 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
       salt: 709,
     );
 
-    final List<List<int>> initial = level.number <= 4
+    final List<List<int>> initial = level.initialPegs != null
+        ? _copyPegs(level.initialPegs!)
+        : level.contentLevel <= 4
         ? _classicStart()
         : _randomizedLegalStart(random);
 
@@ -572,7 +672,8 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
   List<List<int>> _randomizedLegalStart(Random random) {
     final List<List<int>> result = _classicStart();
     HanoiMove? previous;
-    final int steps = level.number * 2 + random.nextInt(level.number + 3);
+    final int steps =
+        level.contentLevel * 2 + random.nextInt(level.contentLevel + 3);
     for (int step = 0; step < steps; step++) {
       final List<HanoiMove> legal = HanoiSolver.legalMoves(result)
           .where(
@@ -622,12 +723,12 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
     completed = false;
     statusTr = level.tutorial
         ? 'İlk halkayı seçmek için bir kuleye dokun.'
-        : level.number >= 5
+        : level.contentLevel >= 5
         ? 'Dağıtılmış halkaları hedef kulede topla.'
         : 'Bütün halkaları hedef kulede topla.';
     statusEn = level.tutorial
         ? 'Tap a tower to select its top ring.'
-        : level.number >= 5
+        : level.contentLevel >= 5
         ? 'Collect the distributed rings on the target tower.'
         : 'Collect every ring on the target tower.';
 
@@ -824,7 +925,13 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
     final int score = _scoreForResult(earnedStars);
     final bool english = context.l10n.isEnglish;
 
-    unawaited(_audio.playVictory(stars: earnedStars, boss: level.boss));
+    unawaited(
+      _audio.playVictory(
+        stars: earnedStars,
+        boss: level.boss,
+        levelNumber: level.number,
+      ),
+    );
 
     if (widget.competitionMode) {
       Navigator.pop(
@@ -857,17 +964,17 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: <Color>[Color(0xFF12365E), Color(0xFF0A203D)],
+                  colors: <Color>[Color(0xFFFFFFFF), Color(0xFFEEF3F0)],
                 ),
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
                   color: level.boss
-                      ? const Color(0xFFFFD334)
-                      : const Color(0xFF54E56B),
+                      ? const Color(0xFF9A5C00)
+                      : const Color(0xFF087B67),
                   width: 2,
                 ),
                 boxShadow: const <BoxShadow>[
-                  BoxShadow(color: Color(0x5500D9FF), blurRadius: 26),
+                  BoxShadow(color: Color(0x554DCFFF), blurRadius: 26),
                 ],
               ),
               child: Column(
@@ -877,7 +984,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                     level.boss
                         ? Icons.emoji_events_rounded
                         : Icons.account_tree_rounded,
-                    color: const Color(0xFFFFD334),
+                    color: const Color(0xFF9A5C00),
                     size: 48,
                   ),
                   const SizedBox(height: 10),
@@ -891,6 +998,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                         : 'KULE TAMAMLANDI!',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
+                      fontFamily: 'Roboto',
                       fontWeight: FontWeight.w900,
                       fontSize: 20,
                     ),
@@ -900,7 +1008,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                     score: score,
                     previousBestScore: widget.previousBestScore,
                     english: english,
-                    accentColor: const Color(0xFF00D9FF),
+                    accentColor: const Color(0xFF087FA8),
                   ),
                   const SizedBox(height: 11),
                   Row(
@@ -911,7 +1019,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                         index < earnedStars
                             ? Icons.star_rounded
                             : Icons.star_border_rounded,
-                        color: const Color(0xFFFFD334),
+                        color: const Color(0xFF9A5C00),
                         size: 32,
                       ),
                     ),
@@ -1020,7 +1128,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF102A4A),
+        backgroundColor: const Color(0xFFFFFFFF),
         title: Text(
           context.l10n.gameUi(english ? 'HOW TO PLAY' : 'NASIL OYNANIR?'),
         ),
@@ -1036,7 +1144,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                     '3. Her hamlede yalnızca bir halka taşı.\n'
                     '4. Büyük halkayı küçük halkanın üzerine koyma.\n'
                     '5. Bütün halkaları parlayan hedef kulede topla.',
-          style: const TextStyle(height: 1.55),
+          style: const TextStyle(fontFamily: 'Roboto', height: 1.55),
         ),
         actions: <Widget>[
           FilledButton(
@@ -1054,15 +1162,15 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
 
     if (!_ready) {
       return const Scaffold(
-        backgroundColor: Color(0xFF06142A),
+        backgroundColor: Color(0xFFF6F8F6),
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF54E56B)),
+          child: CircularProgressIndicator(color: Color(0xFF087B67)),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF06142A),
+      backgroundColor: const Color(0xFFF6F8F6),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -1073,13 +1181,21 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
               level.title(english).toUpperCase(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+              ),
             ),
             Text(
               english
                   ? 'Level ${level.number} / ${widget.totalLevels}'
                   : 'Seviye ${level.number} / ${widget.totalLevels}',
-              style: const TextStyle(color: Colors.white54, fontSize: 10),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 10,
+              ),
             ),
           ],
         ),
@@ -1100,8 +1216,8 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
             end: Alignment.bottomCenter,
             colors: <Color>[
               Theme.of(context).scaffoldBackgroundColor,
-              const Color(0xFF081C35),
-              const Color(0xFF06142A),
+              const Color(0xFFEEF3F0),
+              const Color(0xFFF6F8F6),
             ],
           ),
         ),
@@ -1130,7 +1246,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                               ),
                               value: '$moveCount',
                               icon: Icons.swap_horiz_rounded,
-                              color: const Color(0xFF00D9FF),
+                              color: const Color(0xFF087FA8),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -1141,7 +1257,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                               ),
                               value: '$optimalMoves',
                               icon: Icons.auto_awesome_rounded,
-                              color: const Color(0xFFFFD334),
+                              color: const Color(0xFF9A5C00),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -1154,7 +1270,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                                   ? '-'
                                   : '${widget.savedBestMoves}',
                               icon: Icons.emoji_events_rounded,
-                              color: const Color(0xFF54E56B),
+                              color: const Color(0xFF087B67),
                             ),
                           ),
                         ],
@@ -1167,16 +1283,16 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                           vertical: 9,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF102A4A),
+                          color: const Color(0xFFFFFFFF),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0x6654E56B)),
+                          border: Border.all(color: const Color(0x6600A987)),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: <Widget>[
                             const Icon(
                               Icons.flag_rounded,
-                              color: Color(0xFF54E56B),
+                              color: Color(0xFF087B67),
                               size: 18,
                             ),
                             const SizedBox(width: 7),
@@ -1188,6 +1304,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
+                                  fontFamily: 'Roboto',
                                   fontWeight: FontWeight.w900,
                                   fontSize: 11,
                                   letterSpacing: 0.8,
@@ -1224,17 +1341,17 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                         ),
                         decoration: BoxDecoration(
                           color: invalidPeg != null
-                              ? const Color(0x33FF5E57)
+                              ? const Color(0x33A84640)
                               : selectedPeg != null
-                              ? const Color(0x3300D9FF)
+                              ? const Color(0x333D7183)
                               : Colors.white.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(15),
                           border: Border.all(
                             color: invalidPeg != null
-                                ? const Color(0x99FF5E57)
+                                ? const Color(0x99A84640)
                                 : selectedPeg != null
-                                ? const Color(0x9900D9FF)
-                                : Colors.white12,
+                                ? const Color(0x993D7183)
+                                : StudioVisuals.line,
                           ),
                         ),
                         child: Row(
@@ -1246,10 +1363,10 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                                   ? Icons.touch_app_rounded
                                   : Icons.lightbulb_outline_rounded,
                               color: invalidPeg != null
-                                  ? const Color(0xFFFF7474)
+                                  ? const Color(0xFFA84640)
                                   : selectedPeg != null
-                                  ? const Color(0xFF00D9FF)
-                                  : const Color(0xFFFFD334),
+                                  ? const Color(0xFF087FA8)
+                                  : const Color(0xFF9A5C00),
                               size: 20,
                             ),
                             const SizedBox(width: 9),
@@ -1257,7 +1374,8 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                               child: Text(
                                 english ? statusEn : statusTr,
                                 style: const TextStyle(
-                                  color: Colors.white70,
+                                  fontFamily: 'Roboto',
+                                  color: StudioVisuals.muted,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 11,
                                 ),
@@ -1276,7 +1394,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                               ),
                               icon: Icons.undo_rounded,
                               enabled: history.isNotEmpty && !completed,
-                              color: const Color(0xFF00D9FF),
+                              color: const Color(0xFF087FA8),
                               onTap: _undoMove,
                             ),
                           ),
@@ -1288,7 +1406,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                                   : 'İPUCU $_remainingHints/$_maxHintsPerLevel',
                               icon: Icons.lightbulb_rounded,
                               enabled: !completed && _remainingHints > 0,
-                              color: const Color(0xFFFFD334),
+                              color: const Color(0xFF9A5C00),
                               onTap: _showHint,
                             ),
                           ),
@@ -1300,7 +1418,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
                               ),
                               icon: Icons.refresh_rounded,
                               enabled: !completed,
-                              color: const Color(0xFFFF8A65),
+                              color: const Color(0xFFD94367),
                               onTap: () => _resetBoard(),
                             ),
                           ),
@@ -1351,15 +1469,15 @@ class _HanoiBoard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: <Color>[Color(0xFF102B4D), Color(0xFF081B34)],
+          colors: <Color>[HanoiVisuals.boardTop, HanoiVisuals.boardBottom],
         ),
         borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: const Color(0x3349CFFF)),
+        border: Border.all(color: const Color(0xFF3C7796), width: 1.5),
         boxShadow: const <BoxShadow>[
           BoxShadow(
-            color: Color(0x4400AEEF),
+            color: Color(0x303366FF),
             blurRadius: 22,
-            offset: Offset(0, 9),
+            offset: Offset(0, 8),
           ),
         ],
       ),
@@ -1397,13 +1515,7 @@ class _HanoiBoard extends StatelessWidget {
 }
 
 class _HanoiTower extends StatelessWidget {
-  static const List<Color> _diskColors = <Color>[
-    Color(0xFFFFD334),
-    Color(0xFFFF6B6B),
-    Color(0xFFB06CFF),
-    Color(0xFF00D9FF),
-    Color(0xFF54E56B),
-  ];
+  static const List<Color> _diskColors = HanoiVisuals.rings;
 
   final int index;
   final List<int> disks;
@@ -1434,24 +1546,24 @@ class _HanoiTower extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color borderColor = target
-        ? const Color(0x8854E56B)
-        : Colors.white.withValues(alpha: 0.08);
+        ? const Color(0xAA2EE6A6)
+        : HanoiVisuals.towerLine;
     Color backgroundColor = target
-        ? const Color(0x1254E56B)
-        : Colors.transparent;
+        ? const Color(0x182EE6A6)
+        : const Color(0x0D8BD8FF);
 
-    if (recentlyMoved) borderColor = const Color(0x6600D9FF);
+    if (recentlyMoved) borderColor = HanoiVisuals.cyan.withValues(alpha: .8);
     if (hintTarget) {
-      borderColor = const Color(0xFF54E56B);
-      backgroundColor = const Color(0x2454E56B);
+      borderColor = HanoiVisuals.mint;
+      backgroundColor = const Color(0x282EE6A6);
     }
     if (selected) {
-      borderColor = const Color(0xFF00D9FF);
-      backgroundColor = const Color(0x2400D9FF);
+      borderColor = HanoiVisuals.cyan;
+      backgroundColor = const Color(0x2821C9F5);
     }
     if (invalid) {
-      borderColor = const Color(0xFFFF5E57);
-      backgroundColor = const Color(0x30FF5E57);
+      borderColor = const Color(0xFFA84640);
+      backgroundColor = const Color(0x30FF4D6D);
     }
 
     return Semantics(
@@ -1488,15 +1600,16 @@ class _HanoiTower extends StatelessWidget {
                           child: Icon(
                             Icons.flag_rounded,
                             size: 12,
-                            color: Color(0xFF54E56B),
+                            color: HanoiVisuals.mint,
                           ),
                         ),
                       Text(
                         HanoiLevel.pegName(index),
                         style: TextStyle(
+                          fontFamily: 'Roboto',
                           color: target
-                              ? const Color(0xFF8CFF9D)
-                              : Colors.white70,
+                              ? HanoiVisuals.mintInk
+                              : const Color(0xFFD8E9FF),
                           fontWeight: FontWeight.w900,
                           fontSize: 11,
                         ),
@@ -1516,8 +1629,11 @@ class _HanoiTower extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: target ? const Color(0xAA54E56B) : Colors.white38,
-                      fontSize: 7,
+                      fontFamily: 'Roboto',
+                      color: target
+                          ? HanoiVisuals.mintInk
+                          : const Color(0xFFB6D0E8),
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.4,
                     ),
@@ -1544,15 +1660,15 @@ class _HanoiTower extends StatelessWidget {
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: <Color>[
-                                    Color(0xFF8FB5D8),
-                                    Color(0xFF345A7D),
+                                    HanoiVisuals.rodTop,
+                                    HanoiVisuals.rodBottom,
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(8),
                                 boxShadow: const <BoxShadow>[
                                   BoxShadow(
-                                    color: Color(0x5500D9FF),
-                                    blurRadius: 7,
+                                    color: Color(0x664DCFFF),
+                                    blurRadius: 10,
                                   ),
                                 ],
                               ),
@@ -1567,12 +1683,15 @@ class _HanoiTower extends StatelessWidget {
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: <Color>[
-                                    Color(0xFF52789A),
-                                    Color(0xFF1B3C5D),
+                                    HanoiVisuals.baseTop,
+                                    HanoiVisuals.baseBottom,
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(9),
-                                border: Border.all(color: Colors.white12),
+                                border: Border.all(
+                                  color: const Color(0xFF8CFFF1),
+                                  width: 1.1,
+                                ),
                               ),
                             ),
                           ),
@@ -1613,30 +1732,39 @@ class _HanoiTower extends StatelessWidget {
                                             Color.lerp(
                                               color,
                                               Colors.white,
-                                              0.30,
+                                              0.24,
                                             )!,
                                             color,
                                             Color.lerp(
                                               color,
                                               Colors.black,
-                                              0.28,
+                                              0.18,
                                             )!,
                                           ],
                                         ),
                                         borderRadius: BorderRadius.circular(99),
                                         border: Border.all(
                                           color: selectedDisk
-                                              ? Colors.white
-                                              : color.withValues(alpha: 0.92),
-                                          width: selectedDisk ? 2.2 : 1.2,
+                                              ? const Color(0xFFE8FFFF)
+                                              : Color.lerp(
+                                                  color,
+                                                  Colors.white,
+                                                  0.45,
+                                                )!,
+                                          width: selectedDisk ? 2.4 : 1.3,
                                         ),
                                         boxShadow: <BoxShadow>[
                                           BoxShadow(
                                             color: color.withValues(
-                                              alpha: selectedDisk ? 0.72 : 0.35,
+                                              alpha: selectedDisk ? 0.55 : 0.32,
                                             ),
-                                            blurRadius: selectedDisk ? 14 : 7,
+                                            blurRadius: selectedDisk ? 16 : 9,
                                             offset: const Offset(0, 3),
+                                          ),
+                                          const BoxShadow(
+                                            color: Color(0x66061120),
+                                            blurRadius: 4,
+                                            offset: Offset(0, 3),
                                           ),
                                         ],
                                       ),
@@ -1645,12 +1773,12 @@ class _HanoiTower extends StatelessWidget {
                                           width: 15,
                                           height: 7,
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFF07162E),
+                                            color: const Color(0xFFEEF3F0),
                                             borderRadius: BorderRadius.circular(
                                               99,
                                             ),
                                             border: Border.all(
-                                              color: Colors.white24,
+                                              color: StudioVisuals.line,
                                             ),
                                           ),
                                         ),
@@ -1705,7 +1833,9 @@ class _HanoiControlButton extends StatelessWidget {
                   : Colors.white.withValues(alpha: 0.03),
               borderRadius: BorderRadius.circular(15),
               border: Border.all(
-                color: enabled ? color.withValues(alpha: 0.55) : Colors.white10,
+                color: enabled
+                    ? color.withValues(alpha: 0.55)
+                    : StudioVisuals.line,
               ),
             ),
             child: FittedBox(
@@ -1718,14 +1848,17 @@ class _HanoiControlButton extends StatelessWidget {
                     Icon(
                       icon,
                       size: 18,
-                      color: enabled ? color : Colors.white24,
+                      color: enabled ? color : StudioVisuals.line,
                     ),
                     const SizedBox(width: 5),
                     Text(
                       label,
                       style: TextStyle(
-                        color: enabled ? Colors.white : Colors.white30,
-                        fontSize: 10,
+                        fontFamily: 'Roboto',
+                        color: enabled
+                            ? StudioVisuals.ink
+                            : StudioVisuals.muted,
+                        fontSize: 12,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -1759,7 +1892,7 @@ class _HanoiTopStat extends StatelessWidget {
       height: 61,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFF102A4A),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withValues(alpha: 0.30)),
       ),
@@ -1777,6 +1910,7 @@ class _HanoiTopStat extends StatelessWidget {
                   value,
                   maxLines: 1,
                   style: const TextStyle(
+                    fontFamily: 'Roboto',
                     fontWeight: FontWeight.w900,
                     fontSize: 16,
                     height: 1,
@@ -1788,9 +1922,10 @@ class _HanoiTopStat extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white38,
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.muted,
                     fontWeight: FontWeight.w800,
-                    fontSize: 7,
+                    fontSize: 10,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -1824,12 +1959,16 @@ class _HanoiResultBox extends StatelessWidget {
       ),
       child: Column(
         children: <Widget>[
-          Icon(icon, color: const Color(0xFF00D9FF), size: 20),
+          Icon(icon, color: const Color(0xFF3D7183), size: 20),
           const SizedBox(height: 4),
           FittedBox(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+              ),
             ),
           ),
           const SizedBox(height: 2),
@@ -1838,8 +1977,9 @@ class _HanoiResultBox extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Colors.white38,
-              fontSize: 7,
+              fontFamily: 'Roboto',
+              color: StudioVisuals.muted,
+              fontSize: 10,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1867,28 +2007,19 @@ class _HanoiProgressPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: <Color>[Color(0xFF173A63), Color(0xFF10254A)],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0x5554E56B)),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(
-            color: Color(0x3300D9FF),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-        ],
+        color: StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         children: <Widget>[
           Container(
             width: 58,
             height: 58,
-            decoration: BoxDecoration(
-              color: const Color(0x2200D9FF),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0x6600D9FF)),
+            decoration: const BoxDecoration(
+              color: StudioVisuals.tealSoft,
+              shape: BoxShape.circle,
             ),
             child: const _MiniHanoiIcon(diskCount: 4),
           ),
@@ -1900,6 +2031,8 @@ class _HanoiProgressPanel extends StatelessWidget {
                 Text(
                   english ? 'HANOI MASTERY' : 'HANOİ USTALIĞI',
                   style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.ink,
                     fontWeight: FontWeight.w900,
                     fontSize: 13,
                   ),
@@ -1907,11 +2040,12 @@ class _HanoiProgressPanel extends StatelessWidget {
                 const SizedBox(height: 5),
                 Text(
                   english
-                      ? 'Level $unlockedLevel / 10  •  ⭐ $totalStars / 30'
-                      : 'Seviye $unlockedLevel / 10  •  ⭐ $totalStars / 30',
+                      ? 'Level $unlockedLevel / ${GameContentPolicy.campaignLevels}  •  ⭐ $totalStars / ${GameContentPolicy.campaignLevels * 3}'
+                      : 'Seviye $unlockedLevel / ${GameContentPolicy.campaignLevels}  •  ⭐ $totalStars / ${GameContentPolicy.campaignLevels * 3}',
                   style: const TextStyle(
-                    color: Colors.white60,
-                    fontSize: 10,
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.muted,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1919,11 +2053,12 @@ class _HanoiProgressPanel extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(99),
                   child: LinearProgressIndicator(
-                    value: totalStars / 30,
+                    value: (totalStars / (GameContentPolicy.campaignLevels * 3))
+                        .clamp(0.0, 1.0),
                     minHeight: 7,
-                    backgroundColor: Colors.white10,
+                    backgroundColor: StudioVisuals.surfaceSoft,
                     valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF54E56B),
+                      StudioVisuals.teal,
                     ),
                   ),
                 ),
@@ -1935,13 +2070,15 @@ class _HanoiProgressPanel extends StatelessWidget {
             children: <Widget>[
               const Icon(
                 Icons.bolt_rounded,
-                color: Color(0xFFFFD334),
+                color: StudioVisuals.amber,
                 size: 21,
               ),
               FittedBox(
                 child: Text(
                   '$totalScore',
                   style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.ink,
                     fontWeight: FontWeight.w900,
                     fontSize: 13,
                   ),
@@ -1973,168 +2110,17 @@ class _HanoiLevelCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final Color accent = level.boss
-        ? const Color(0xFFFFD334)
-        : level.diskCount == 5
-        ? const Color(0xFFB06CFF)
-        : const Color(0xFF00D9FF);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: unlocked ? onTap : null,
-        borderRadius: BorderRadius.circular(22),
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: unlocked
-                  ? <Color>[
-                      const Color(0xFF14365B),
-                      Color.lerp(const Color(0xFF0B2442), accent, 0.07)!,
-                    ]
-                  : const <Color>[Color(0xFF132238), Color(0xFF0D192B)],
-            ),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: unlocked ? accent.withValues(alpha: 0.46) : Colors.white10,
-            ),
-            boxShadow: unlocked
-                ? <BoxShadow>[
-                    BoxShadow(
-                      color: accent.withValues(alpha: 0.12),
-                      blurRadius: 13,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Stack(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Container(
-                          width: 28,
-                          height: 28,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: accent.withValues(alpha: 0.45),
-                            ),
-                          ),
-                          child: Text(
-                            '${level.number}',
-                            style: TextStyle(
-                              color: accent,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          english ? level.difficultyEn : level.difficulty,
-                          style: TextStyle(
-                            color: accent.withValues(alpha: 0.9),
-                            fontWeight: FontWeight.w900,
-                            fontSize: 8,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    SizedBox(
-                      height: 48,
-                      child: Opacity(
-                        opacity: unlocked ? 1 : 0.35,
-                        child: _MiniHanoiIcon(diskCount: level.diskCount),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      level.title(english),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      level.subtitle(english),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 8,
-                        height: 1.15,
-                      ),
-                    ),
-                    const Spacer(),
-                    Row(
-                      children: <Widget>[
-                        for (int index = 0; index < 3; index++)
-                          Icon(
-                            index < stars
-                                ? Icons.star_rounded
-                                : Icons.star_border_rounded,
-                            color: const Color(0xFFFFD334),
-                            size: 16,
-                          ),
-                        const Spacer(),
-                        Icon(
-                          Icons.swap_horiz_rounded,
-                          color: Colors.white38,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          bestMoves == 0 ? '-' : '$bestMoves',
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 9,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              if (!unlocked)
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: const Color(0x8807162E),
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.lock_rounded,
-                        color: Colors.white38,
-                        size: 31,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => StudioChapterCard(
+    gameId: 'hanoi',
+    number: level.number,
+    title: level.title(english),
+    detail: level.subtitle(english),
+    difficulty: english ? level.difficultyEn : level.difficulty,
+    unlocked: unlocked,
+    stars: stars,
+    best: bestMoves,
+    onTap: onTap,
+  );
 }
 
 class _MiniHanoiIcon extends StatelessWidget {
@@ -2144,13 +2130,7 @@ class _MiniHanoiIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const List<Color> colors = <Color>[
-      Color(0xFFFFD334),
-      Color(0xFFFF6B6B),
-      Color(0xFFB06CFF),
-      Color(0xFF00D9FF),
-      Color(0xFF54E56B),
-    ];
+    const List<Color> colors = HanoiVisuals.rings;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -2163,7 +2143,9 @@ class _MiniHanoiIcon extends StatelessWidget {
             child: Container(
               width: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFF7FA6C8),
+                gradient: const LinearGradient(
+                  colors: <Color>[HanoiVisuals.rodTop, HanoiVisuals.rodBottom],
+                ),
                 borderRadius: BorderRadius.circular(5),
               ),
             ),
@@ -2175,7 +2157,12 @@ class _MiniHanoiIcon extends StatelessWidget {
             child: Container(
               height: 5,
               decoration: BoxDecoration(
-                color: const Color(0xFF52789A),
+                gradient: const LinearGradient(
+                  colors: <Color>[
+                    HanoiVisuals.baseTop,
+                    HanoiVisuals.baseBottom,
+                  ],
+                ),
                 borderRadius: BorderRadius.circular(6),
               ),
             ),
@@ -2192,8 +2179,8 @@ class _MiniHanoiIcon extends StatelessWidget {
                   boxShadow: <BoxShadow>[
                     BoxShadow(
                       color: colors[(diskCount - index - 1) % colors.length]
-                          .withValues(alpha: 0.35),
-                      blurRadius: 4,
+                          .withValues(alpha: 0.65),
+                      blurRadius: 7,
                     ),
                   ],
                 ),
@@ -2225,27 +2212,17 @@ class _HanoiBoardPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint dotPaint = Paint()..color = const Color(0x1200D9FF);
-    const double step = 24;
-
-    for (double x = 8; x < size.width; x += step) {
-      for (double y = 8; y < size.height; y += step) {
-        canvas.drawCircle(Offset(x, y), 1.2, dotPaint);
+    final Paint grain = Paint()
+      ..color = const Color(0xFF66DDF7).withValues(alpha: .12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = .8;
+    for (double y = 12; y < size.height; y += 16) {
+      final Path line = Path()..moveTo(0, y);
+      for (double x = 8; x <= size.width; x += 8) {
+        line.lineTo(x, y + sin(x / 43 + y / 30) * 1.7);
       }
+      canvas.drawPath(line, grain);
     }
-
-    final Paint glowPaint = Paint()
-      ..shader =
-          const RadialGradient(
-            colors: <Color>[Color(0x2200D9FF), Color(0x0000D9FF)],
-          ).createShader(
-            Rect.fromCircle(
-              center: Offset(size.width / 2, size.height * 0.72),
-              radius: size.width * 0.55,
-            ),
-          );
-
-    canvas.drawRect(Offset.zero & size, glowPaint);
   }
 
   @override
@@ -2413,8 +2390,81 @@ class HanoiSolver {
   }
 }
 
+/// A finite, verified bank: every legal state is reached by BFS from the goal.
+/// Sampling the sorted distances gives 300 distinct, progressively harder
+/// boards without asking the storage service to generate content.
+class HanoiCampaignBoard {
+  const HanoiCampaignBoard({
+    required this.pegs,
+    required this.diskCount,
+    required this.optimalMoves,
+    this.targetPeg = 2,
+  });
+  final List<List<int>> pegs;
+  final int diskCount;
+  final int optimalMoves;
+  final int targetPeg;
+  String get signature =>
+      '$diskCount:${pegs.map((peg) => peg.join(',')).join('/')}';
+  static final List<HanoiCampaignBoard> _pool = _build();
+  static HanoiCampaignBoard forPool(int index) {
+    RangeError.checkValueInInterval(index, 1, 300, 'index');
+    return _pool[index - 1];
+  }
+
+  static List<HanoiCampaignBoard> _build() {
+    final candidates = <HanoiCampaignBoard>[];
+    for (int disks = 3; disks <= 6; disks++) {
+      final goal = <List<int>>[
+        [],
+        [],
+        List.generate(disks, (i) => disks - i - 1),
+      ];
+      String key(List<List<int>> pegs) =>
+          pegs.map((peg) => peg.join(',')).join('/');
+      final distances = <String, int>{key(goal): 0};
+      final queue = Queue<List<List<int>>>()..add(goal);
+      while (queue.isNotEmpty) {
+        final state = queue.removeFirst();
+        final distance = distances[key(state)]!;
+        if (distance >= 3) {
+          candidates.add(
+            HanoiCampaignBoard(
+              pegs: List.unmodifiable(
+                state.map((peg) => List<int>.unmodifiable(peg)),
+              ),
+              diskCount: disks,
+              optimalMoves: distance,
+            ),
+          );
+        }
+        for (final move in HanoiSolver.legalMoves(state)) {
+          final next = state.map((peg) => List<int>.from(peg)).toList();
+          next[move.to].add(next[move.from].removeLast());
+          final signature = key(next);
+          if (distances.containsKey(signature)) continue;
+          distances[signature] = distance + 1;
+          queue.add(next);
+        }
+      }
+    }
+    candidates.sort((a, b) {
+      final distance = a.optimalMoves.compareTo(b.optimalMoves);
+      if (distance != 0) return distance;
+      final disks = a.diskCount.compareTo(b.diskCount);
+      return disks != 0 ? disks : a.signature.compareTo(b.signature);
+    });
+    return List.unmodifiable(
+      List.generate(300, (i) => candidates[i * (candidates.length - 1) ~/ 299]),
+    );
+  }
+}
+
 class HanoiLevel {
+  final List<List<int>>? initialPegs;
   final int number;
+  final int? sourceNumber;
+  int get contentLevel => sourceNumber ?? number;
   final String titleTr;
   final String titleEn;
   final String subtitleTr;
@@ -2429,6 +2479,8 @@ class HanoiLevel {
 
   const HanoiLevel({
     required this.number,
+    this.sourceNumber,
+    this.initialPegs,
     required this.titleTr,
     required this.titleEn,
     required this.subtitleTr,
@@ -2441,6 +2493,23 @@ class HanoiLevel {
     this.tutorial = false,
     this.boss = false,
   });
+
+  HanoiLevel withBoard(HanoiCampaignBoard board) => HanoiLevel(
+    number: number,
+    sourceNumber: sourceNumber,
+    initialPegs: board.pegs,
+    titleTr: titleTr,
+    titleEn: titleEn,
+    subtitleTr: subtitleTr,
+    subtitleEn: subtitleEn,
+    difficulty: difficulty,
+    diskCount: board.diskCount,
+    startPeg: startPeg,
+    targetPeg: board.targetPeg,
+    twoStarLimit: board.optimalMoves + max(2, board.optimalMoves ~/ 3),
+    tutorial: number == 1,
+    boss: number == GameContentPolicy.campaignLevels,
+  );
 
   String title(bool english) => english ? titleEn : titleTr;
   String subtitle(bool english) => english ? subtitleEn : subtitleTr;

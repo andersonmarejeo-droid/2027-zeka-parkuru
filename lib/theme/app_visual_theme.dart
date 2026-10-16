@@ -1,19 +1,14 @@
 import 'package:flutter/material.dart';
 
 enum AppVisualTheme {
-  classicNeon('classic_neon'),
-  pinkNeon('pink_neon');
+  studioGarden('studio_garden');
 
   const AppVisualTheme(this.storageValue);
 
   final String storageValue;
 
-  static AppVisualTheme fromStorage(String? value) {
-    for (final AppVisualTheme theme in values) {
-      if (theme.storageValue == value) return theme;
-    }
-    return AppVisualTheme.classicNeon;
-  }
+  static AppVisualTheme fromStorage(String? value) =>
+      AppVisualTheme.studioGarden;
 }
 
 @immutable
@@ -33,7 +28,22 @@ class ZpVisualPalette extends ThemeExtension<ZpVisualPalette> {
     required this.gamePanelGradientEnd,
   });
 
-  static const ZpVisualPalette classic = ZpVisualPalette(
+  static const ZpVisualPalette garden = ZpVisualPalette(
+    background: Color(0xFFF6F8F6),
+    surface: Color(0xFFFFFFFF),
+    surfaceAlternative: Color(0xFFF0F5F2),
+    primary: Color(0xFF238F81),
+    secondary: Color(0xFFD69A43),
+    onboardingBackground: Color(0xFFF6F8F6),
+    onboardingSurface: Color(0xFFFFFFFF),
+    onboardingAccent: Color(0xFF238F81),
+    headerGradientEnd: Color(0xFFE5F4F1),
+    homeHeaderGradientEnd: Color(0xFFEDF5F1),
+    arenaGradientEnd: Color(0xFFC5E7DE),
+    gamePanelGradientEnd: Color(0xFFE7F0EC),
+  );
+
+  static const ZpVisualPalette highContrast = ZpVisualPalette(
     background: Color(0xFF07162E),
     surface: Color(0xFF10274B),
     surfaceAlternative: Color(0xFF0B1A31),
@@ -48,30 +58,10 @@ class ZpVisualPalette extends ThemeExtension<ZpVisualPalette> {
     gamePanelGradientEnd: Color(0xFF0D3353),
   );
 
-  static const ZpVisualPalette pink = ZpVisualPalette(
-    background: Color(0xFF250C22),
-    surface: Color(0xFF431A3A),
-    surfaceAlternative: Color(0xFF32132D),
-    primary: Color(0xFFFF4FA3),
-    secondary: Color(0xFFFF91C8),
-    onboardingBackground: Color(0xFF1B0619),
-    onboardingSurface: Color(0xFF35102F),
-    onboardingAccent: Color(0xFFFF4FA3),
-    headerGradientEnd: Color(0xFF6B1D53),
-    homeHeaderGradientEnd: Color(0xFF641B55),
-    arenaGradientEnd: Color(0xFFC92C79),
-    gamePanelGradientEnd: Color(0xFF5C1B48),
-  );
-
-  static ZpVisualPalette forTheme(AppVisualTheme theme) {
-    return switch (theme) {
-      AppVisualTheme.classicNeon => classic,
-      AppVisualTheme.pinkNeon => pink,
-    };
-  }
+  static ZpVisualPalette forTheme(AppVisualTheme theme) => garden;
 
   static ZpVisualPalette of(BuildContext context) {
-    return Theme.of(context).extension<ZpVisualPalette>() ?? classic;
+    return Theme.of(context).extension<ZpVisualPalette>() ?? garden;
   }
 
   final Color background;

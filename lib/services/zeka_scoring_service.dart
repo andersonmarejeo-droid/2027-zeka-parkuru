@@ -3,9 +3,7 @@ import 'unified_progress_service.dart';
 /// Zeka Parkuru'nun tek ve adil puanlama kaynağıdır.
 ///
 /// Oyunların kendi ham skorları yalnızca o oyundaki kişisel rekor için
-/// saklanır. Lig, seviye, rozet ve dünya sıralaması ise burada hesaplanan
-/// Zeka Puanı'nı kullanır. Böylece yüksek ham skor üreten bir oyun diğer
-/// parkurlara karşı avantaj sağlamaz.
+/// saklanır. Genel puan yalnızca ortak bölüm puanlarının toplamıdır.
 class ZekaScoreBreakdown {
   final int levelPoints;
   final int starPoints;
@@ -38,60 +36,23 @@ class ZekaScoreBreakdown {
 class ZekaScoringService {
   ZekaScoringService._();
 
-  static const int pointsPerCompletedLevel = 100;
-  static const int pointsPerStar = 25;
-  static const int pointsPerBoss = 250;
-  static const int pointsPerPlayedCourse = 50;
-  static const int pointsPerDailyCourse = 100;
-  static const int pointsPerBestStreakDay = 20;
-  static const int pointsPerPerfectDay = 50;
+  static const int pointsPerCompletedLevel = 10;
   static const int dailyCompletionBasePoints = 100;
   static const int dailyStarPoints = 50;
 
-  // Günlük bonuslar ana parkur ilerlemesinin önüne geçmesin diye sınırlıdır.
-  static const int dailyCourseBonusCap = 30;
-  static const int streakBonusCap = 30;
-  static const int perfectDayBonusCap = 30;
-
   static int courseScore(ParkurProgressData course) {
-    final bool bossCompleted =
-        course.yildizlar.length >= 10 && course.yildizlar[9] > 0;
-
-    return (course.tamamlananSeviye * pointsPerCompletedLevel) +
-        (course.toplamYildiz * pointsPerStar) +
-        (bossCompleted ? pointsPerBoss : 0);
+    return course.toplamOrtakPuan;
   }
 
-  static ZekaScoreBreakdown calculate({
-    required UnifiedProgressData progress,
-    required int completedDailyCourses,
-    required int bestStreak,
-    required int perfectDays,
-  }) {
-    final int bossCount = progress.parkurlar
-        .where(
-          (course) =>
-              course.yildizlar.length >= 10 && course.yildizlar[9] > 0,
-        )
-        .length;
-    final int playedCourseCount = progress.parkurlar
-        .where((course) => course.tamamlananSeviye > 0)
-        .length;
-
+  static ZekaScoreBreakdown calculate({required UnifiedProgressData progress}) {
     return ZekaScoreBreakdown(
-      levelPoints:
-          progress.tamamlananSeviye * pointsPerCompletedLevel,
-      starPoints: progress.toplamYildiz * pointsPerStar,
-      bossPoints: bossCount * pointsPerBoss,
-      varietyPoints: playedCourseCount * pointsPerPlayedCourse,
-      dailyCoursePoints:
-          completedDailyCourses.clamp(0, dailyCourseBonusCap).toInt() *
-              pointsPerDailyCourse,
-      streakPoints: bestStreak.clamp(0, streakBonusCap).toInt() *
-          pointsPerBestStreakDay,
-      perfectDayPoints:
-          perfectDays.clamp(0, perfectDayBonusCap).toInt() *
-              pointsPerPerfectDay,
+      levelPoints: progress.toplamOrtakPuan,
+      starPoints: 0,
+      bossPoints: 0,
+      varietyPoints: 0,
+      dailyCoursePoints: 0,
+      streakPoints: 0,
+      perfectDayPoints: 0,
     );
   }
 

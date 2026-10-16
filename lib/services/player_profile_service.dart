@@ -22,6 +22,22 @@ class PlayerProfileService {
   static const String _avatarKey = 'player_profile_v1_avatar';
 
   static const List<String> avatars = <String>[
+    'animal_fox',
+    'animal_panda',
+    'animal_dog',
+    'animal_owl',
+    'animal_snow_leopard',
+    'animal_sea_turtle',
+    'animal_rabbit',
+    'animal_eagle',
+    'animal_cat',
+    'animal_wolf',
+    'animal_penguin',
+    'animal_chameleon',
+    'object_robot',
+    'object_compass',
+    'object_puzzle',
+    'object_brain',
     '🧠',
     '🚀',
     '⚡',

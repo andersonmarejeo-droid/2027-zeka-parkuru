@@ -50,12 +50,12 @@ void main() {
     expect(skipped.totalScore, 0);
   });
 
-  test('günlük sayfa 11 oyuna kararlı düzen kodu taşır', () {
+  test('günlük sayfa katalogdaki her oyuna kararlı düzen kodu taşır', () {
     final String page = _source('lib/pages/daily_course_page.dart');
 
     expect(
       RegExp(r'competitionLayoutCode:\s*layoutCode').allMatches(page).length,
-      11,
+      greaterThanOrEqualTo(DailyCourseService.gameIds.length),
     );
     expect(page, contains("'daily_course_skip_button'"));
     expect(page, contains('Future<bool> _showStageTransition'));
@@ -70,23 +70,23 @@ void main() {
 
     final int level = service.levelForDailyCourse(
       date: date,
-      gameId: 'logic',
+      gameId: 'numbers',
       runNumber: 0,
     );
     final int layout = service.layoutCodeForDailyCourse(
       date: date,
-      gameId: 'logic',
+      gameId: 'numbers',
       runNumber: 0,
     );
 
     expect(
-      service.levelForDailyCourse(date: date, gameId: 'logic', runNumber: 0),
+      service.levelForDailyCourse(date: date, gameId: 'numbers', runNumber: 0),
       level,
     );
     expect(
       service.layoutCodeForDailyCourse(
         date: date,
-        gameId: 'logic',
+        gameId: 'numbers',
         runNumber: 0,
       ),
       layout,
@@ -133,7 +133,7 @@ void main() {
   test('hafıza can bitişi günlük akışta başarısızlığa çevrilir', () {
     final String memory = _source('lib/games/memory/memory_game_page.dart');
 
-    expect(memory, contains('result.stars == 0 && result.score == 0'));
+    expect(memory, contains('final bool failed = result != null && !result.completed;'));
     expect(memory, contains("DailyStageResult.failed(gameId: 'memory')"));
   });
 }

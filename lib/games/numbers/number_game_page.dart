@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../widgets/studio_chapter_card.dart';
+
 import '../../l10n/app_localizations.dart';
 import '../../widgets/advanced_result_banner.dart';
 
@@ -10,9 +12,13 @@ import '../../services/local_progress_service.dart';
 import '../../services/daily_challenge_service.dart';
 import '../../services/daily_course_service.dart';
 import '../../services/game_audio_service.dart';
+import '../../services/common_level_score_service.dart';
 import '../../services/replayability_service.dart';
 import '../../services/unified_progress_service.dart';
 import '../../theme/app_visual_theme.dart';
+import '../../theme/studio_visuals.dart';
+import '../shared/game_instruction_catalog.dart';
+import '../shared/studio_game_contracts.dart';
 
 class NumberGamePage extends StatefulWidget {
   final ParkurProgressData? initialProgress;
@@ -39,11 +45,14 @@ class _NumberGamePageState extends State<NumberGamePage> {
   bool yukleniyor = true;
   int acikSeviye = 1;
 
-  List<int> yildizlar = List<int>.filled(10, 0);
-  List<int> enIyiPuanlar = List<int>.filled(10, 0);
+  List<int> yildizlar = List<int>.filled(GameContentPolicy.campaignLevels, 0);
+  List<int> enIyiPuanlar = List<int>.filled(
+    GameContentPolicy.campaignLevels,
+    0,
+  );
   bool _competitionOpened = false;
 
-  final List<SayiSeviyesi> seviyeler = [
+  final List<SayiSeviyesi> _nativeLevels = const [
     SayiSeviyesi(
       numara: 1,
       baslik: 'Eksik Sayı',
@@ -299,6 +308,27 @@ class _NumberGamePageState extends State<NumberGamePage> {
     ),
   ];
 
+  late final List<SayiSeviyesi> seviyeler = List.generate(
+    GameContentPolicy.campaignLevels,
+    (index) {
+      final chapter = index + 1;
+      final base = _nativeLevels[GameContentPolicy.nativeLevel(chapter) - 1];
+      return SayiSeviyesi(
+        numara: chapter,
+        sourceNumber: base.numara,
+        challengeLevel: chapter,
+        zorluk: GameContentPolicy.difficulty(chapter),
+        baslik: base.baslik,
+        tur: base.tur,
+        oturumSoruSayisi: min(12, base.oturumSoruSayisi + (chapter - 1) ~/ 8),
+        sorular: base.sorular,
+        sudokuBoyutu: base.sudokuBoyutu,
+        sudokuBoslukSayisi: base.sudokuBoslukSayisi,
+      );
+    },
+    growable: false,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -376,20 +406,28 @@ class _NumberGamePageState extends State<NumberGamePage> {
 
     GameAudioService.instance.play(GameSound.uiClick);
 
-    final SayiSeviyeSonucu? sonuc = await Navigator.push<SayiSeviyeSonucu>(
-      context,
-      MaterialPageRoute(
-        builder: (context) {
-          return SayiOyunEkrani(
-            seviye: seviyeler[index],
-            toplamSeviye: seviyeler.length,
-            previousBestScore: enIyiPuanlar[index],
-            fixedSessionSeed: widget.competitionLayoutCode,
-            competitionMode: widget.competitionLevel != null,
-          );
-        },
-      ),
-    );
+    final List<int> previousStars = List<int>.from(yildizlar);
+    final CommonLevelScoreSession scoring = CommonLevelScoreSession.begin();
+    final SayiSeviyeSonucu? sonuc;
+    try {
+      sonuc = await Navigator.push<SayiSeviyeSonucu>(
+        context,
+        MaterialPageRoute(
+          builder: (context) {
+            return SayiOyunEkrani(
+              seviye: seviyeler[index],
+              toplamSeviye: seviyeler.length,
+              previousBestScore: enIyiPuanlar[index],
+              fixedSessionSeed: widget.competitionLayoutCode,
+              competitionMode: widget.competitionLevel != null,
+            );
+          },
+        ),
+      );
+    } finally {
+      scoring.finish();
+    }
+    final int commonPoints = scoring.points;
 
     if (!mounted) return;
 
@@ -402,7 +440,7 @@ class _NumberGamePageState extends State<NumberGamePage> {
             ? DailyStageResult.completed(
                 gameId: 'numbers',
                 stars: sonuc.yildiz,
-                rawScore: sonuc.puan,
+                rawScore: commonPoints,
               )
             : const DailyStageResult.failed(gameId: 'numbers'),
       );
@@ -415,26 +453,27 @@ class _NumberGamePageState extends State<NumberGamePage> {
       }
       return;
     }
+    final SayiSeviyeSonucu completedResult = sonuc;
 
     if (widget.competitionLevel != null) {
       Navigator.pop(
         context,
         DailyCourseGameResult(
           gameId: 'numbers',
-          stars: sonuc.yildiz,
-          score: sonuc.puan,
+          stars: completedResult.yildiz,
+          score: commonPoints,
         ),
       );
       return;
     }
 
     setState(() {
-      if (sonuc.yildiz > yildizlar[index]) {
-        yildizlar[index] = sonuc.yildiz;
+      if (completedResult.yildiz > yildizlar[index]) {
+        yildizlar[index] = completedResult.yildiz;
       }
 
-      if (sonuc.puan > enIyiPuanlar[index]) {
-        enIyiPuanlar[index] = sonuc.puan;
+      if (completedResult.puan > enIyiPuanlar[index]) {
+        enIyiPuanlar[index] = completedResult.puan;
       }
 
       if (index + 1 == acikSeviye && acikSeviye < seviyeler.length) {
@@ -443,18 +482,21 @@ class _NumberGamePageState extends State<NumberGamePage> {
     });
 
     await ilerlemeyiKaydet();
+    await CommonLevelScoreStore.recordBest(
+      gameId: 'numbers',
+      levelIndex: index,
+      points: commonPoints,
+      levelCount: seviyeler.length,
+      completedStars: previousStars,
+    );
 
     await DailyChallengeService.instance.recordLevelCompleted(
       gameId: 'numbers',
-      stars: sonuc.yildiz,
-      score: sonuc.puan,
+      stars: completedResult.yildiz,
+      score: commonPoints,
     );
 
-    if (!widget.dailyCourseMode && index + 1 == seviyeler.length) {
-      await GameAudioService.instance.playMashallahCelebration();
-    }
-
-    if (sonuc.sonrakiSeviye && index + 1 < seviyeler.length) {
+    if (completedResult.sonrakiSeviye && index + 1 < seviyeler.length) {
       await Future.delayed(const Duration(milliseconds: 180));
 
       if (!mounted) return;
@@ -467,79 +509,102 @@ class _NumberGamePageState extends State<NumberGamePage> {
   Widget build(BuildContext context) {
     if (yukleniyor) {
       return Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: StudioVisuals.canvas,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LText(
               'SAYI USTASI',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+              ),
             ),
             LText(
               'Sayıların dünyasını fethet',
-              style: TextStyle(color: Colors.white60, fontSize: 12),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 12,
+              ),
             ),
           ],
         ),
       ),
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final bool darEkran = constraints.maxWidth < 360;
-            final double yatayBosluk = darEkran ? 12 : 18;
-            final double izgaraBoslugu = darEkran ? 10 : 14;
+        top: false,
+        child: ResponsiveGameFrame(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final bool darEkran = constraints.maxWidth < 360;
+              final double yatayBosluk = darEkran ? 12 : 18;
+              final double izgaraBoslugu = darEkran ? 10 : 14;
 
-            return Column(
-              children: [
-                Padding(
-                  padding: EdgeInsets.all(yatayBosluk),
-                  child: _SayiIlerlemePaneli(
-                    toplamPuan: toplamPuan,
-                    toplamYildiz: toplamYildiz,
-                    acikSeviye: acikSeviye,
-                    darEkran: darEkran,
-                  ),
-                ),
-                Expanded(
-                  child: GridView.builder(
-                    padding: EdgeInsets.fromLTRB(
-                      yatayBosluk,
-                      0,
-                      yatayBosluk,
-                      30,
+              return Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.all(yatayBosluk),
+                    child: _SayiIlerlemePaneli(
+                      toplamPuan: toplamPuan,
+                      toplamYildiz: toplamYildiz,
+                      acikSeviye: acikSeviye,
+                      darEkran: darEkran,
                     ),
-                    itemCount: seviyeler.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: izgaraBoslugu,
-                      mainAxisSpacing: izgaraBoslugu,
-                      mainAxisExtent: 165,
-                    ),
-                    itemBuilder: (context, index) {
-                      return _SayiSeviyeKarti(
-                        seviye: seviyeler[index],
-                        acik: index + 1 <= acikSeviye,
-                        yildiz: yildizlar[index],
-                        enIyiPuan: enIyiPuanlar[index],
-                        onTap: () {
-                          seviyeAc(index);
-                        },
-                      );
-                    },
                   ),
-                ),
-              ],
-            );
-          },
+                  GameInstructionCard(
+                    gameId: 'numbers',
+                    english: context.l10n.isEnglish,
+                    initiallyExpanded: MediaQuery.sizeOf(context).height >= 650,
+                  ),
+                  Expanded(
+                    child: GridView.builder(
+                      padding: EdgeInsets.fromLTRB(
+                        yatayBosluk,
+                        0,
+                        yatayBosluk,
+                        30,
+                      ),
+                      itemCount: seviyeler.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 1,
+                        crossAxisSpacing: izgaraBoslugu,
+                        mainAxisSpacing: izgaraBoslugu,
+                        mainAxisExtent:
+                            104 *
+                            MediaQuery.textScalerOf(context)
+                                .scale(1)
+                                .clamp(1.0, 1.6),
+                      ),
+                      itemBuilder: (context, index) {
+                        return _SayiSeviyeKarti(
+                          seviye: seviyeler[index],
+                          acik: index + 1 <= acikSeviye,
+                          yildiz: yildizlar[index],
+                          enIyiPuan: enIyiPuanlar[index],
+                          onTap: () {
+                            seviyeAc(index);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -574,6 +639,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
   int dogruSayisi = 0;
   int yanlisSayisi = 0;
   int dogruSerisi = 0;
+  bool _advancingQuestion = false;
 
   late List<SayiSorusu> oturumSorulari;
   int sessionSeed = 0;
@@ -596,7 +662,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     // Menüden çok hızlı geçilse bile sayı efektleri hazır olsun.
     unawaited(_audio.preload(GameAudioGroup.numbers));
 
-    if (widget.seviye.zorluk == 'BOSS') {
+    if (widget.seviye.contentLevel == 10) {
       _audio.play(GameSound.bossIntro);
     }
 
@@ -657,6 +723,9 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
   List<SayiSorusu> _sorulariUret(Random rng) {
     // Bölüm sayısı değişmeden, her seviyenin kendi oturum uzunluğu kullanılır.
     final int adet = widget.seviye.oturumSoruSayisi;
+    final int difficulty = widget.seviye.challengeLevel
+        .clamp(1, GameContentPolicy.campaignLevels)
+        .toInt();
 
     if (widget.seviye.tur == 'SUDOKU') {
       return _benzersizSorularUret(
@@ -664,74 +733,91 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
         uret: () => _miniSudokuUret(
           rng,
           boyut: widget.seviye.sudokuBoyutu ?? 3,
-          boslukSayisi: widget.seviye.sudokuBoslukSayisi,
+          boslukSayisi:
+              widget.seviye.sudokuBoslukSayisi + max(0, (difficulty - 23) ~/ 2),
         ),
       );
     }
 
     if (widget.seviye.tur == 'EKSİK SAYI') {
-      return _benzersizSorularUret(adet: adet, uret: () => _eksikSayiUret(rng));
+      return _benzersizSorularUret(
+        adet: adet,
+        uret: () => _eksikSayiUret(rng, difficulty: difficulty),
+      );
     }
 
     if (widget.seviye.tur == 'ALTERNATİF DİZİ') {
       return _benzersizSorularUret(
         adet: adet,
-        uret: () => _alternatifDiziUret(rng),
+        uret: () => _alternatifDiziUret(rng, difficulty: difficulty),
       );
     }
 
     if (widget.seviye.tur == 'GELİŞMİŞ DİZİ') {
       return _benzersizSorularUret(
         adet: adet,
-        uret: () => _gelismisDiziUret(rng),
+        uret: () => _gelismisDiziUret(rng, difficulty: difficulty),
       );
     }
 
     if (widget.seviye.tur == 'ZİNCİR') {
-      return _benzersizSorularUret(adet: adet, uret: () => _zincirUret(rng));
+      return _benzersizSorularUret(
+        adet: adet,
+        uret: () => _zincirUret(rng, difficulty: difficulty),
+      );
     }
 
     if (widget.seviye.tur == 'İŞLEM') {
-      return _benzersizSorularUret(adet: adet, uret: () => _islemUret(rng));
+      return _benzersizSorularUret(
+        adet: adet,
+        uret: () => _islemUret(rng, difficulty: difficulty),
+      );
     }
 
     if (widget.seviye.tur == 'PİRAMİT') {
       return _benzersizSorularUret(
         adet: adet,
-        uret: () => _sayiPiramidiUret(rng),
+        uret: () => _sayiPiramidiUret(rng, difficulty: difficulty),
       );
     }
 
     if (widget.seviye.tur == 'DENKLEM') {
-      return _benzersizSorularUret(adet: adet, uret: () => _denklemUret(rng));
+      return _benzersizSorularUret(
+        adet: adet,
+        uret: () => _denklemUret(rng, difficulty: difficulty),
+      );
     }
 
     if (widget.seviye.tur == 'MATRİS') {
       return _benzersizSorularUret(
         adet: adet,
-        uret: () => _sayiMatrisiUret(rng),
+        uret: () => _sayiMatrisiUret(rng, difficulty: difficulty),
       );
     }
 
     if (widget.seviye.tur == 'SINIFLAMA') {
       return _benzersizSorularUret(
         adet: adet,
-        uret: () => _siniflandirmaUret(rng),
+        uret: () => _siniflandirmaUret(rng, difficulty: difficulty),
       );
     }
 
     if (widget.seviye.tur == 'BOSS') {
       final List<SayiSorusu Function()> ureticiler = <SayiSorusu Function()>[
-        () => _gelismisDiziUret(rng),
-        () => _alternatifDiziUret(rng, zor: true),
-        () => _islemUret(rng, zor: true),
-        () => _sayiPiramidiUret(rng, zor: true),
-        () => _denklemUret(rng, zor: true),
-        () => _sayiMatrisiUret(rng, zor: true),
-        () => _siniflandirmaUret(rng, zor: true),
-        () => _miniSudokuUret(rng, boyut: 4, boslukSayisi: 4),
-        () => _zincirUret(rng, zor: true),
-        () => _eksikSayiUret(rng, zor: true),
+        () => _gelismisDiziUret(rng, difficulty: difficulty),
+        () => _alternatifDiziUret(rng, difficulty: difficulty),
+        () => _islemUret(rng, difficulty: difficulty),
+        () => _sayiPiramidiUret(rng, difficulty: difficulty),
+        () => _denklemUret(rng, difficulty: difficulty),
+        () => _sayiMatrisiUret(rng, difficulty: difficulty),
+        () => _siniflandirmaUret(rng, difficulty: difficulty),
+        () => _miniSudokuUret(
+          rng,
+          boyut: 4,
+          boslukSayisi: max(4, min(8, 4 + difficulty ~/ 10)),
+        ),
+        () => _zincirUret(rng, difficulty: difficulty),
+        () => _eksikSayiUret(rng, difficulty: difficulty),
       ]..shuffle(rng);
       final List<SayiSorusu> havuz = ureticiler
           .take(adet)
@@ -772,71 +858,161 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     return sonuc;
   }
 
-  SayiSorusu _eksikSayiUret(Random rng, {bool zor = false}) {
-    final int baslangic = 1 + rng.nextInt(zor ? 18 : 12);
-    final int adim = 1 + rng.nextInt(zor ? 8 : 5);
-    final bool azalan = rng.nextBool() && baslangic + adim * 4 <= 50;
+  SayiSorusu _eksikSayiUret(Random rng, {int difficulty = 1}) {
+    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    // The opening round starts with alternating gaps instead of a single
+    // elementary +N pattern; each new chapter advances the sequence rule.
+    final int stage = (safeDifficulty + 1).clamp(2, 10).toInt();
+    final int length = safeDifficulty < 12
+        ? 6
+        : safeDifficulty < 24
+        ? 7
+        : 8;
+    final List<int> sequence = <int>[1 + rng.nextInt(12 + safeDifficulty)];
+    late String ruleTr;
+    late String ruleEn;
 
-    final List<int> dizi = List<int>.generate(
-      5,
-      (i) => azalan ? baslangic + adim * (4 - i) : baslangic + adim * i,
-    );
-
-    final int bosIndex = 1 + rng.nextInt(3);
-    final int dogru = dizi[bosIndex];
-
-    final List<int> yanlislar = <int>{
-      dogru + adim,
-      dogru - adim,
-      dogru + (adim == 1 ? 2 : 1),
-      dogru + adim * 2,
-    }.where((e) => e >= 0 && e != dogru).toList();
-
-    while (yanlislar.length < 3) {
-      final int aday = dogru + rng.nextInt(9) - 4;
-      if (aday >= 0 && aday != dogru && !yanlislar.contains(aday)) {
-        yanlislar.add(aday);
+    if (stage == 1) {
+      final int step = 2 + rng.nextInt(4 + safeDifficulty ~/ 2);
+      for (int index = 1; index < length; index++) {
+        sequence.add(sequence.last + step);
       }
+      ruleTr = 'Her adımda $step ekleniyor.';
+      ruleEn = 'Add $step at each step.';
+    } else if (stage == 2) {
+      final int firstStep = 2 + rng.nextInt(3 + safeDifficulty ~/ 3);
+      int secondStep = 3 + rng.nextInt(4 + safeDifficulty ~/ 3);
+      if (secondStep == firstStep) secondStep++;
+      for (int index = 1; index < length; index++) {
+        sequence.add(sequence.last + (index.isOdd ? firstStep : secondStep));
+      }
+      ruleTr = 'Artışlar sırayla +$firstStep ve +$secondStep.';
+      ruleEn = 'The increases alternate between +$firstStep and +$secondStep.';
+    } else if (stage == 3) {
+      int step = 2 + rng.nextInt(4);
+      final int growth = 1 + rng.nextInt(3 + safeDifficulty ~/ 6);
+      for (int index = 1; index < length; index++) {
+        sequence.add(sequence.last + step);
+        step += growth;
+      }
+      ruleTr = 'Artış miktarı her adımda $growth büyüyor.';
+      ruleEn = 'The increase grows by $growth at each step.';
+    } else if (stage == 4) {
+      final int multiplier = 2 + rng.nextInt(2);
+      for (int index = 1; index < length; index++) {
+        sequence.add(sequence.last * multiplier);
+      }
+      ruleTr = 'Her sayı $multiplier ile çarpılıyor.';
+      ruleEn = 'Multiply each number by $multiplier.';
+    } else if (stage == 5) {
+      sequence.add(2 + rng.nextInt(10));
+      while (sequence.length < length) {
+        sequence.add(
+          sequence[sequence.length - 1] + sequence[sequence.length - 2],
+        );
+      }
+      ruleTr = 'Her yeni sayı önceki iki sayının toplamı.';
+      ruleEn = 'Each new number is the sum of the previous two.';
+    } else if (stage == 6) {
+      final int multiplier = 2 + rng.nextInt(2);
+      final int offset = 1 + rng.nextInt(7 + safeDifficulty ~/ 3);
+      for (int index = 1; index < length; index++) {
+        sequence.add(sequence.last * multiplier + offset);
+      }
+      ruleTr = 'Önce $multiplier ile çarp, sonra $offset ekle.';
+      ruleEn = 'Multiply by $multiplier, then add $offset.';
+    } else if (stage == 7) {
+      final int multiplier = 2 + rng.nextInt(2);
+      final int offset = 2 + rng.nextInt(9 + safeDifficulty ~/ 3);
+      for (int index = 1; index < length; index++) {
+        sequence.add(
+          index.isOdd ? sequence.last * multiplier : sequence.last + offset,
+        );
+      }
+      ruleTr = 'Çarpma ve toplama işlemleri sırayla dönüşüyor.';
+      ruleEn = 'Multiplication and addition alternate.';
+    } else if (stage == 8) {
+      final int evenStep = 3 + rng.nextInt(7 + safeDifficulty ~/ 3);
+      final int oddMultiplier = 2 + rng.nextInt(2);
+      sequence.add(2 + rng.nextInt(8));
+      for (int index = 2; index < length; index++) {
+        sequence.add(
+          index.isEven
+              ? sequence[index - 2] + evenStep
+              : sequence[index - 2] * oddMultiplier,
+        );
+      }
+      ruleTr = 'Tek ve çift konumlardaki dizileri ayrı ayrı izle.';
+      ruleEn = 'Follow the odd- and even-position subsequences separately.';
+    } else if (stage == 9) {
+      final int growth = 1 + rng.nextInt(4 + safeDifficulty ~/ 6);
+      int step = 2 + rng.nextInt(5);
+      for (int index = 1; index < length; index++) {
+        sequence.add(sequence.last + step);
+        step += growth * (index + 1);
+      }
+      ruleTr = 'Artışlar sabit değil; aralarındaki fark düzenli büyüyor.';
+      ruleEn = 'The gaps are not constant; their differences grow regularly.';
+    } else {
+      sequence.add(2 + rng.nextInt(8));
+      while (sequence.length < length) {
+        sequence.add(
+          sequence[sequence.length - 1] * 2 + sequence[sequence.length - 2],
+        );
+      }
+      ruleTr = 'Her yeni sayı son sayının iki katı ile önceki sayının toplamı.';
+      ruleEn = 'Each term is twice the previous term plus the one before it.';
     }
 
-    final List<dynamic> secenekler = [dogru, ...yanlislar.take(3)];
-    secenekler.shuffle(rng);
-
-    final List<String> gorunen = dizi
+    final int missingIndex = 1 + rng.nextInt(sequence.length - 2);
+    final int answer = sequence[missingIndex];
+    final List<String> visible = sequence
         .asMap()
         .entries
-        .map((e) => e.key == bosIndex ? '?' : '${e.value}')
-        .toList();
+        .map((entry) => entry.key == missingIndex ? '?' : '${entry.value}')
+        .toList(growable: false);
 
     return SayiSorusu(
-      soru: gorunen.join(', '),
-      secenekler: secenekler,
-      dogruCevap: dogru,
-      aciklamaTr:
-          'Her adımda ${azalan ? '−' : '+'}$adim uygulanıyor. Eksik sayı $dogru.',
-      aciklamaEn:
-          'Each step applies ${azalan ? '−' : '+'}$adim. The missing number is $dogru.',
+      soru: visible.join(', '),
+      secenekler: _sayiSecenekleri(
+        rng,
+        dogru: answer,
+        sapmalar: <int>[1, 2, max(3, answer ~/ 5), max(4, answer ~/ 3)],
+      ),
+      dogruCevap: answer,
+      aciklamaTr: '$ruleTr Eksik sayı $answer.',
+      aciklamaEn: '$ruleEn The missing number is $answer.',
     );
   }
 
-  SayiSorusu _alternatifDiziUret(Random rng, {bool zor = false}) {
-    final int baslangic = 2 + rng.nextInt(zor ? 18 : 10);
-    final int ilkAdim = 1 + rng.nextInt(zor ? 7 : 4);
-    int ikinciAdim = 1 + rng.nextInt(zor ? 8 : 5);
-    if (ikinciAdim == ilkAdim) ikinciAdim++;
-
-    final List<int> dizi = <int>[baslangic];
-    for (int index = 0; index < 5; index++) {
-      final int adim = index.isEven ? ilkAdim : ikinciAdim;
-      dizi.add(dizi.last + adim);
+  SayiSorusu _alternatifDiziUret(Random rng, {int difficulty = 1}) {
+    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int stepCount = safeDifficulty >= 6 ? 3 : 2;
+    final int termCount = safeDifficulty >= 23
+        ? 8
+        : safeDifficulty >= 6
+        ? 7
+        : 6;
+    final int stepLimit = 3 + safeDifficulty ~/ 2;
+    final int baslangic = 8 + rng.nextInt(15 + safeDifficulty * 2);
+    final List<int> steps = List<int>.generate(stepCount, (int index) {
+      return 2 + rng.nextInt(stepLimit + index * 2);
+    });
+    for (int index = 1; index < steps.length; index++) {
+      if (steps[index] == steps[index - 1]) steps[index]++;
     }
 
-    final int bosIndex = 2 + rng.nextInt(3);
+    final List<int> dizi = <int>[baslangic];
+    while (dizi.length < termCount) {
+      dizi.add(dizi.last + steps[(dizi.length - 1) % steps.length]);
+    }
+
+    final int bosIndex = 1 + rng.nextInt(dizi.length - 2);
     final int dogru = dizi[bosIndex];
     final List<dynamic> secenekler = _sayiSecenekleri(
       rng,
       dogru: dogru,
-      sapmalar: <int>[ilkAdim, ikinciAdim, ilkAdim + ikinciAdim, 1],
+      sapmalar: <int>[...steps, steps.reduce((int a, int b) => a + b), 1],
     );
     final List<String> gorunen = dizi
         .asMap()
@@ -848,22 +1024,26 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
       soru: gorunen.join(', '),
       secenekler: secenekler,
       dogruCevap: dogru,
-      aciklamaTr: 'Adımlar sırayla +$ilkAdim ve +$ikinciAdim olarak dönüşüyor.',
-      aciklamaEn: 'The steps alternate between +$ilkAdim and +$ikinciAdim.',
+      aciklamaTr:
+          'Artışlar bu sırayla döngü kuruyor: ${steps.map((int step) => '+$step').join(', ')}.',
+      aciklamaEn:
+          'The increases repeat this cycle: ${steps.map((int step) => '+$step').join(', ')}.',
     );
   }
 
-  SayiSorusu _gelismisDiziUret(Random rng) {
-    final int tip = rng.nextInt(4);
+  SayiSorusu _gelismisDiziUret(Random rng, {int difficulty = 1}) {
+    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int tip = rng.nextInt(safeDifficulty >= 24 ? 6 : 4);
+    final int termCount = safeDifficulty >= 9 ? 7 : 6;
     late List<int> dizi;
     late String aciklamaTr;
     late String aciklamaEn;
 
     if (tip == 0) {
-      final int baslangic = 1 + rng.nextInt(4);
+      final int baslangic = 2 + rng.nextInt(3 + safeDifficulty ~/ 5);
       final int carpan = 2 + rng.nextInt(2);
       dizi = List<int>.generate(
-        6,
+        termCount,
         (index) => baslangic * pow(carpan, index).toInt(),
       );
       aciklamaTr = 'Her sayı $carpan ile çarpılıyor.';
@@ -871,27 +1051,51 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     } else if (tip == 1) {
       final int kaydirma = rng.nextInt(4);
       dizi = List<int>.generate(
-        6,
-        (index) => pow(index + 1, 2).toInt() + kaydirma,
+        termCount,
+        (index) =>
+            pow(index + 1, 2).toInt() * (1 + safeDifficulty ~/ 12) + kaydirma,
       );
       aciklamaTr = 'Dizi ardışık sayıların karelerine $kaydirma ekliyor.';
       aciklamaEn = 'The sequence adds $kaydirma to consecutive squares.';
     } else if (tip == 2) {
-      final int baslangic = 1 + rng.nextInt(3);
+      final int baslangic = 2 + rng.nextInt(4 + safeDifficulty ~/ 4);
       dizi = <int>[baslangic, baslangic + 1];
-      while (dizi.length < 6) {
+      while (dizi.length < termCount) {
         dizi.add(dizi[dizi.length - 1] + dizi[dizi.length - 2]);
       }
       aciklamaTr = 'Her sayı kendinden önceki iki sayının toplamıdır.';
       aciklamaEn = 'Each number is the sum of the previous two.';
-    } else {
-      final int baslangic = 2 + rng.nextInt(5);
+    } else if (tip == 3) {
+      final int baslangic = 4 + rng.nextInt(7 + safeDifficulty);
       dizi = <int>[baslangic];
-      for (int index = 1; index < 6; index++) {
-        dizi.add(dizi.last + index + 1);
+      for (int index = 1; index < termCount; index++) {
+        dizi.add(dizi.last + (index + 1) * (1 + safeDifficulty ~/ 10));
       }
       aciklamaTr = 'Artış miktarı her adımda 1 büyüyor.';
       aciklamaEn = 'The increase grows by 1 at each step.';
+    } else if (tip == 4) {
+      final int multiplier = 2 + rng.nextInt(2);
+      final int offset = 1 + rng.nextInt(5 + safeDifficulty);
+      dizi = <int>[2 + rng.nextInt(8)];
+      while (dizi.length < termCount) {
+        dizi.add(dizi.last * multiplier + offset);
+      }
+      aciklamaTr = 'Her terimde $multiplier ile çarpıp $offset ekle.';
+      aciklamaEn = 'Multiply each term by $multiplier and add $offset.';
+    } else {
+      final int evenStep = 2 + rng.nextInt(4 + safeDifficulty);
+      final int oddMultiplier = 2 + rng.nextInt(2);
+      dizi = <int>[2 + rng.nextInt(8), 3 + rng.nextInt(8)];
+      while (dizi.length < termCount) {
+        final int index = dizi.length;
+        dizi.add(
+          index.isEven
+              ? dizi[index - 2] + evenStep
+              : dizi[index - 2] * oddMultiplier,
+        );
+      }
+      aciklamaTr = 'Tek ve çift sıralardaki alt dizileri ayrı çöz.';
+      aciklamaEn = 'Solve the odd- and even-position subsequences separately.';
     }
 
     final int bosIndex = 2 + rng.nextInt(3);
@@ -915,29 +1119,44 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     );
   }
 
-  SayiSorusu _zincirUret(Random rng, {bool zor = false}) {
-    final int tip = rng.nextInt(zor ? 4 : 3);
+  SayiSorusu _zincirUret(Random rng, {int difficulty = 1}) {
+    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int tip = rng.nextInt(
+      safeDifficulty >= 22
+          ? 5
+          : safeDifficulty >= 8
+          ? 4
+          : 3,
+    );
+    final int termCount = safeDifficulty >= 20 ? 6 : 5;
     late List<int> dizi;
 
     if (tip == 0) {
-      final int bas = 1 + rng.nextInt(8);
-      final int artis = 2 + rng.nextInt(zor ? 8 : 5);
-      dizi = List<int>.generate(5, (i) => bas + artis * i);
+      final int bas = 1 + rng.nextInt(8 + safeDifficulty);
+      final int artis = 2 + rng.nextInt(4 + safeDifficulty ~/ 2);
+      dizi = List<int>.generate(termCount, (i) => bas + artis * i);
     } else if (tip == 1) {
-      final int bas = 1 + rng.nextInt(5);
-      final int carp = 2 + rng.nextInt(zor ? 3 : 2);
-      dizi = List<int>.generate(5, (i) => bas * pow(carp, i).toInt());
+      final int bas = 1 + rng.nextInt(5 + safeDifficulty ~/ 3);
+      final int carp = 2 + rng.nextInt(safeDifficulty >= 12 ? 3 : 2);
+      dizi = List<int>.generate(termCount, (i) => bas * pow(carp, i).toInt());
     } else if (tip == 2) {
-      final int bas = 2 + rng.nextInt(6);
+      final int bas = 2 + rng.nextInt(6 + safeDifficulty ~/ 4);
       dizi = [bas];
-      for (int i = 1; i < 5; i++) {
-        dizi.add(dizi.last * 2 + 1);
+      for (int i = 1; i < termCount; i++) {
+        dizi.add(dizi.last * 2 + 1 + safeDifficulty ~/ 10);
+      }
+    } else if (tip == 3) {
+      final int bas = 2 + rng.nextInt(5 + safeDifficulty ~/ 3);
+      dizi = [bas];
+      for (int i = 1; i < termCount; i++) {
+        dizi.add(dizi.last * 2 + i);
       }
     } else {
-      final int bas = 2 + rng.nextInt(5);
-      dizi = [bas];
-      for (int i = 1; i < 5; i++) {
-        dizi.add(dizi.last * 2 + i);
+      final int first = 2 + rng.nextInt(7);
+      final int second = 3 + rng.nextInt(8);
+      dizi = <int>[first, second];
+      while (dizi.length < termCount) {
+        dizi.add(dizi.last + dizi[dizi.length - 2] * 2);
       }
     }
 
@@ -960,7 +1179,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     secenekler.shuffle(rng);
 
     return SayiSorusu(
-      soru: '${dizi.take(4).join(' → ')} → ?',
+      soru: '${dizi.take(dizi.length - 1).join(' → ')} → ?',
       secenekler: secenekler,
       dogruCevap: dogru,
       aciklamaTr: 'Aynı işlem zinciri sürdürülünce sonuç $dogru olur.',
@@ -968,11 +1187,12 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     );
   }
 
-  SayiSorusu _islemUret(Random rng, {bool zor = false}) {
-    final int a = 2 + rng.nextInt(zor ? 18 : 10);
-    final int b = 2 + rng.nextInt(zor ? 9 : 7);
-    final int c = 1 + rng.nextInt(zor ? 9 : 6);
-    final int tip = rng.nextInt(3);
+  SayiSorusu _islemUret(Random rng, {int difficulty = 1}) {
+    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int a = 5 + rng.nextInt(10 + safeDifficulty * 2);
+    final int b = 3 + rng.nextInt(5 + safeDifficulty);
+    final int c = 2 + rng.nextInt(4 + safeDifficulty);
+    final int tip = rng.nextInt(safeDifficulty >= 12 ? 4 : 3);
 
     late String soru;
     late int dogru;
@@ -983,9 +1203,13 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     } else if (tip == 1) {
       dogru = a * b - c;
       soru = '$a × $b - $c = ?';
-    } else {
+    } else if (tip == 2) {
       dogru = (a + b) * c;
       soru = '($a + $b) × $c = ?';
+    } else {
+      final int d = 2 + rng.nextInt(3 + safeDifficulty ~/ 2);
+      dogru = a * b + c * d;
+      soru = '$a × $b + $c × $d = ?';
     }
 
     final List<int> yanlislar = <int>{
@@ -1015,10 +1239,12 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     );
   }
 
-  SayiSorusu _sayiPiramidiUret(Random rng, {bool zor = false}) {
-    final int alt1 = 1 + rng.nextInt(zor ? 12 : 8);
-    final int alt2 = 1 + rng.nextInt(zor ? 12 : 8);
-    final int alt3 = 1 + rng.nextInt(zor ? 12 : 8);
+  SayiSorusu _sayiPiramidiUret(Random rng, {int difficulty = 1}) {
+    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int upper = 6 + safeDifficulty * 2;
+    final int alt1 = 1 + rng.nextInt(upper);
+    final int alt2 = 1 + rng.nextInt(upper);
+    final int alt3 = 1 + rng.nextInt(upper);
     final int orta1 = alt1 + alt2;
     final int orta2 = alt2 + alt3;
     final int tepe = orta1 + orta2;
@@ -1052,10 +1278,11 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     );
   }
 
-  SayiSorusu _denklemUret(Random rng, {bool zor = false}) {
-    final int bilinmeyen = 2 + rng.nextInt(zor ? 14 : 9);
-    final int carpan = 2 + rng.nextInt(zor ? 8 : 5);
-    final int ek = 1 + rng.nextInt(zor ? 15 : 8);
+  SayiSorusu _denklemUret(Random rng, {int difficulty = 1}) {
+    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int bilinmeyen = 4 + rng.nextInt(8 + safeDifficulty * 2);
+    final int carpan = 2 + rng.nextInt(3 + safeDifficulty ~/ 2);
+    final int ek = 2 + rng.nextInt(5 + safeDifficulty * 2);
     final bool cikar = rng.nextBool();
     final int sonuc = cikar
         ? bilinmeyen * carpan - ek
@@ -1077,16 +1304,25 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     );
   }
 
-  SayiSorusu _sayiMatrisiUret(Random rng, {bool zor = false}) {
-    final int tip = rng.nextInt(3);
+  SayiSorusu _sayiMatrisiUret(Random rng, {int difficulty = 1}) {
+    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int tip = rng.nextInt(
+      safeDifficulty >= 28
+          ? 5
+          : safeDifficulty >= 21
+          ? 4
+          : 3,
+    );
     final List<List<int>> satirlar = <List<int>>[];
     for (int satir = 0; satir < 3; satir++) {
-      final int a = 1 + rng.nextInt(zor ? 12 : 8);
-      final int b = 1 + rng.nextInt(zor ? 10 : 7);
+      final int a = 3 + rng.nextInt(7 + safeDifficulty * 2);
+      final int b = 2 + rng.nextInt(6 + safeDifficulty);
       final int c = switch (tip) {
         0 => a + b,
         1 => a * 2 + b,
-        _ => a * b,
+        2 => a * b,
+        3 => a * a + b,
+        _ => a * (b + 1),
       };
       satirlar.add(<int>[a, b, c]);
     }
@@ -1100,12 +1336,17 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     final String kuralTr = switch (tip) {
       0 => 'Üçüncü sayı ilk iki sayının toplamıdır.',
       1 => 'Üçüncü sayı, ilk sayının iki katına ikinci sayı eklenerek bulunur.',
-      _ => 'Üçüncü sayı ilk iki sayının çarpımıdır.',
+      2 => 'Üçüncü sayı ilk iki sayının çarpımıdır.',
+      3 => 'Üçüncü sayı ilk sayının karesine ikinci sayı eklenerek bulunur.',
+      _ => 'Üçüncü sayı ilk sayı ile ikinci sayının bir fazlasının çarpımıdır.',
     };
     final String kuralEn = switch (tip) {
       0 => 'The third number is the sum of the first two.',
       1 => 'The third number is twice the first plus the second.',
-      _ => 'The third number is the product of the first two.',
+      2 => 'The third number is the product of the first two.',
+      3 => 'The third number is the square of the first plus the second.',
+      _ =>
+        'The third number is the first multiplied by one more than the second.',
     };
 
     return SayiSorusu(
@@ -1121,7 +1362,8 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     );
   }
 
-  SayiSorusu _siniflandirmaUret(Random rng, {bool zor = false}) {
+  SayiSorusu _siniflandirmaUret(Random rng, {int difficulty = 1}) {
+    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
     final int tip = rng.nextInt(3);
     late List<int> degerler;
     late int dogru;
@@ -1129,17 +1371,57 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     late String aciklamaEn;
 
     if (tip == 0) {
-      final int carpan = 2 + rng.nextInt(zor ? 7 : 4);
+      final int carpan = 3 + rng.nextInt(3 + safeDifficulty);
       degerler = List<int>.generate(4, (index) => carpan * (index + 2));
       dogru = degerler.last + 1;
       degerler[rng.nextInt(degerler.length)] = dogru;
       aciklamaTr = '$dogru, $carpan sayısının katı değildir.';
       aciklamaEn = '$dogru is not a multiple of $carpan.';
     } else if (tip == 1) {
-      const List<int> asalHavuzu = <int>[2, 3, 5, 7, 11, 13, 17, 19, 23, 29];
+      const List<int> asalHavuzu = <int>[
+        2,
+        3,
+        5,
+        7,
+        11,
+        13,
+        17,
+        19,
+        23,
+        29,
+        31,
+        37,
+        41,
+        43,
+        47,
+        53,
+        59,
+        61,
+        67,
+        71,
+        73,
+        79,
+        83,
+        89,
+        97,
+      ];
       degerler = List<int>.from(asalHavuzu)..shuffle(rng);
       degerler = degerler.take(4).toList(growable: true);
-      dogru = <int>[9, 15, 21, 25, 27][rng.nextInt(5)];
+      dogru = <int>[
+        9,
+        15,
+        21,
+        25,
+        27,
+        33,
+        35,
+        39,
+        49,
+        51,
+        57,
+        77,
+        91,
+      ][rng.nextInt(safeDifficulty >= 18 ? 13 : 5)];
       degerler[rng.nextInt(degerler.length)] = dogru;
       aciklamaTr =
           '$dogru asal değildir; diğerlerinin yalnız iki böleni vardır.';
@@ -1197,7 +1479,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     final int guvenliBoyut = boyut.clamp(3, 5).toInt();
     final int azamiBoslukSayisi = switch (guvenliBoyut) {
       3 => 1,
-      4 => 4,
+      4 => 8,
       _ => 7,
     };
     final int guvenliBoslukSayisi = boslukSayisi
@@ -1573,24 +1855,33 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
       }
     });
 
+    if (!dogru) return;
+
     final int sonucBeklemeSuresi = mevcutSoru.sudokuCevaplari.length > 1
         ? 1150
         : 850;
 
     Future.delayed(Duration(milliseconds: sonucBeklemeSuresi), () {
       if (!mounted) return;
-
-      if (soruIndex < oturumSorulari.length - 1) {
-        setState(() {
-          soruIndex++;
-          cevapVerildi = false;
-          secilenCevap = null;
-          _sudokuDurumunuSifirla();
-        });
-      } else {
-        sonucGoster();
-      }
+      _sonrakiSoruyuGoster();
     });
+  }
+
+  void _sonrakiSoruyuGoster() {
+    if (!mounted || !cevapVerildi || _advancingQuestion) return;
+    _advancingQuestion = true;
+
+    if (soruIndex < oturumSorulari.length - 1) {
+      setState(() {
+        soruIndex++;
+        cevapVerildi = false;
+        secilenCevap = null;
+        _sudokuDurumunuSifirla();
+        _advancingQuestion = false;
+      });
+    } else {
+      sonucGoster();
+    }
   }
 
   int yildizHesapla() {
@@ -1614,11 +1905,11 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
       puan += 50;
     }
 
-    if (widget.seviye.zorluk == 'ZOR') {
+    if (widget.seviye.challengeLevel >= 13) {
       puan += 50;
     }
 
-    if (widget.seviye.zorluk == 'BOSS') {
+    if (widget.seviye.tur == 'BOSS') {
       puan += 200;
     }
 
@@ -1691,12 +1982,20 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF243F6B),
+        backgroundColor: const Color(0xFF30453E),
         content: Row(
           children: [
-            const Icon(Icons.lightbulb_rounded, color: Color(0xFFFFD334)),
+            const Icon(Icons.lightbulb_rounded, color: Color(0xFFF2D4A0)),
             const SizedBox(width: 10),
-            Expanded(child: LText(mesaj)),
+            Expanded(
+              child: LText(
+                mesaj,
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  color: Colors.white,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -1707,7 +2006,11 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     final int yildiz = yildizHesapla();
     final int puan = puanHesapla();
 
-    _audio.playVictory(stars: yildiz, boss: widget.seviye.zorluk == 'BOSS');
+    _audio.playVictory(
+      stars: yildiz,
+      boss: widget.seviye.contentLevel == 10,
+      levelNumber: widget.seviye.numara,
+    );
 
     if (widget.competitionMode) {
       Navigator.pop(
@@ -1738,28 +2041,29 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
               decoration: BoxDecoration(
                 color: ZpVisualPalette.of(context).surface,
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: const Color(0xFF54E56B), width: 2),
+                border: Border.all(color: const Color(0xFF34715D), width: 2),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    widget.seviye.zorluk == 'BOSS'
+                    widget.seviye.contentLevel == 10
                         ? Icons.emoji_events_rounded
                         : Icons.calculate_rounded,
                     size: 62,
-                    color: const Color(0xFF54E56B),
+                    color: const Color(0xFF34715D),
                   ),
                   const SizedBox(height: 10),
                   LText(
-                    widget.seviye.zorluk == 'BOSS'
+                    widget.seviye.contentLevel == 10
                         ? 'SAYI BOSS YENİLDİ!'
                         : 'SEVİYE TAMAMLANDI!',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
+                      fontFamily: 'Roboto',
                       fontWeight: FontWeight.w900,
                       fontSize: 23,
-                      color: Color(0xFF54E56B),
+                      color: Color(0xFF34715D),
                     ),
                   ),
                   const SizedBox(height: 11),
@@ -1767,7 +2071,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                     score: puan,
                     previousBestScore: widget.previousBestScore,
                     english: context.l10n.isEnglish,
-                    accentColor: const Color(0xFF54E56B),
+                    accentColor: const Color(0xFF34715D),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -1777,7 +2081,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                         index < yildiz
                             ? Icons.star_rounded
                             : Icons.star_border_rounded,
-                        color: const Color(0xFFFFD334),
+                        color: const Color(0xFF8B622C),
                         size: 44,
                       );
                     }),
@@ -1809,7 +2113,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                       width: double.infinity,
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF54C96B),
+                          backgroundColor: const Color(0xFF34715D),
                           padding: const EdgeInsets.symmetric(vertical: 15),
                         ),
                         onPressed: () {
@@ -1835,7 +2139,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                       width: double.infinity,
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFE040FB),
+                          backgroundColor: const Color(0xFF9C5471),
                           padding: const EdgeInsets.symmetric(vertical: 15),
                         ),
                         onPressed: () {
@@ -1894,6 +2198,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
     final String aciklama = context.l10n.isEnglish
         ? mevcutSoru.aciklamaEn
         : mevcutSoru.aciklamaTr;
+    final Color mutedTextColor = Theme.of(context).colorScheme.onSurfaceVariant;
     final String durumMetni;
     final Color durumRengi;
 
@@ -1901,10 +2206,10 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
       durumMetni = miniSudokuGorunumu
           ? 'Parlayan hücreyi seç ve sayıyı yerleştir.'
           : 'Doğru cevabı seç.';
-      durumRengi = Colors.white54;
+      durumRengi = mutedTextColor;
     } else if (mevcutCevapDogru) {
       durumMetni = aciklama.isEmpty ? '✓ Doğru!' : '✓ $aciklama';
-      durumRengi = const Color(0xFF76FF03);
+      durumRengi = const Color(0xFF238451);
     } else {
       final String dogruMetni = miniSudokuGorunumu
           ? mevcutSoru.sudokuCevaplari.length > 2
@@ -1912,7 +2217,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                 : '✕ Doğru sayılar: ${mevcutSoru.sudokuCevaplari.join(' • ')}'
           : '✕ Doğru cevap: ${mevcutSoru.dogruCevap}';
       durumMetni = aciklama.isEmpty ? dogruMetni : '$dogruMetni  $aciklama';
-      durumRengi = const Color(0xFFFF7474);
+      durumRengi = const Color(0xFFD64F63);
     }
 
     return Scaffold(
@@ -1925,11 +2230,19 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
           children: [
             LText(
               widget.seviye.baslik.toUpperCase(),
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w900,
+                fontSize: 17,
+              ),
             ),
             LText(
               'Soru ${soruIndex + 1} / ${oturumSorulari.length}',
-              style: const TextStyle(color: Colors.white60, fontSize: 11),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: mutedTextColor,
+                fontSize: 11,
+              ),
             ),
           ],
         ),
@@ -1939,7 +2252,9 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
             onPressed: ipucuGoster,
             icon: Icon(
               Icons.lightbulb_rounded,
-              color: ipucuKullanildi ? Colors.white54 : const Color(0xFFFFD334),
+              color: ipucuKullanildi
+                  ? Theme.of(context).colorScheme.onSurfaceVariant
+                  : const Color(0xFF8B622C),
             ),
           ),
         ],
@@ -1954,9 +2269,9 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                 child: LinearProgressIndicator(
                   value: ilerleme,
                   minHeight: 9,
-                  backgroundColor: Colors.white12,
+                  backgroundColor: Theme.of(context).colorScheme.outlineVariant,
                   valueColor: const AlwaysStoppedAnimation<Color>(
-                    Color(0xFF54E56B),
+                    Color(0xFF34715D),
                   ),
                 ),
               ),
@@ -2007,6 +2322,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                                 mevcutSoru.soru,
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
+                                  fontFamily: 'Roboto',
                                   fontWeight: FontWeight.w900,
                                   fontSize: 30,
                                   height: 1.5,
@@ -2027,13 +2343,13 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                                 itemBuilder: (context, index) {
                                   final cevap = mevcutSoru.secenekler[index];
 
-                                  Color renk = const Color(0xFF173D61);
+                                  Color renk = const Color(0xFFF0F4F0);
 
                                   if (cevapVerildi) {
                                     if (cevap == mevcutSoru.dogruCevap) {
-                                      renk = const Color(0xFF1D8C4D);
+                                      renk = const Color(0xFFE2EFE6);
                                     } else if (cevap == secilenCevap) {
-                                      renk = const Color(0xFFC74242);
+                                      renk = const Color(0xFFF6E4E1);
                                     }
                                   }
 
@@ -2051,13 +2367,15 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                                             18,
                                           ),
                                           border: Border.all(
-                                            color: Colors.white12,
+                                            color: StudioVisuals.line,
                                           ),
                                         ),
                                         child: Center(
                                           child: LText(
                                             '$cevap',
                                             style: const TextStyle(
+                                              fontFamily: 'Roboto',
+                                              color: StudioVisuals.ink,
                                               fontWeight: FontWeight.w900,
                                               fontSize: 22,
                                             ),
@@ -2077,10 +2395,30 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
               LText(
                 durumMetni,
                 style: TextStyle(
+                  fontFamily: 'Roboto',
                   fontWeight: FontWeight.bold,
                   color: durumRengi,
                 ),
               ),
+              if (cevapVerildi && !mevcutCevapDogru) ...<Widget>[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    key: const ValueKey<String>(
+                      'numbers_wrong_answer_continue',
+                    ),
+                    onPressed: _advancingQuestion ? null : _sonrakiSoruyuGoster,
+                    icon: const Icon(Icons.skip_next_rounded),
+                    label: Text(context.l10n.isEnglish ? 'NEXT' : 'GEÇ'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF34715D),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -2261,9 +2599,9 @@ class _MiniSudokuSoruKarti extends StatelessWidget {
                         vertical: 7,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF071D37),
+                        color: const Color(0xFFEEF3F0),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0x4454E56B)),
+                        border: Border.all(color: const Color(0x4434715D)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -2271,7 +2609,7 @@ class _MiniSudokuSoruKarti extends StatelessWidget {
                           const Icon(
                             Icons.apps_rounded,
                             size: 17,
-                            color: Color(0xFF54E56B),
+                            color: Color(0xFF34715D),
                           ),
                           const SizedBox(width: 7),
                           Flexible(
@@ -2281,8 +2619,9 @@ class _MiniSudokuSoruKarti extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 10,
+                                fontFamily: 'Roboto',
+                                color: StudioVisuals.muted,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 0.8,
                               ),
@@ -2313,7 +2652,8 @@ class _MiniSudokuSoruKarti extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.white60,
+                        fontFamily: 'Roboto',
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -2414,10 +2754,10 @@ class _MiniSudokuTahtasi extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF0A1F3A), Color(0xFF123B5C)],
+          colors: [Color(0xFFEEF3F0), Color(0xFFE5EEE8)],
         ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFF54E56B), width: 2.4),
+        border: Border.all(color: const Color(0xFF34715D), width: 2.4),
         boxShadow: const [
           BoxShadow(color: Color(0x4400E5A0), blurRadius: 18, spreadRadius: 1),
         ],
@@ -2463,16 +2803,16 @@ class _MiniSudokuTahtasi extends StatelessWidget {
 
                     Color yaziRengi = Colors.white;
                     Color vurguRengi = aktifHucre
-                        ? const Color(0xFF00D9FF)
-                        : const Color(0xFFFFD334);
+                        ? const Color(0xFF3D7183)
+                        : const Color(0xFF8B622C);
 
                     if (eksikHucre && cevapVerildi) {
                       yaziRengi = hucreDogru
-                          ? const Color(0xFF8CFF9D)
+                          ? const Color(0xFF34715D)
                           : const Color(0xFFFF9D9D);
                       vurguRengi = hucreDogru
-                          ? const Color(0xFF54E56B)
-                          : const Color(0xFFFF7474);
+                          ? const Color(0xFF34715D)
+                          : const Color(0xFFA84640);
                     }
 
                     return Expanded(
@@ -2520,6 +2860,7 @@ class _MiniSudokuTahtasi extends StatelessWidget {
                                     child: LText(
                                       '${eksikHucreIndex + 1}',
                                       style: TextStyle(
+                                        fontFamily: 'Roboto',
                                         color: vurguRengi.withValues(
                                           alpha: 0.85,
                                         ),
@@ -2534,6 +2875,7 @@ class _MiniSudokuTahtasi extends StatelessWidget {
                                     child: LText(
                                       gorunenDeger,
                                       style: TextStyle(
+                                        fontFamily: 'Roboto',
                                         color: yaziRengi,
                                         fontSize: sayiBoyutu,
                                         fontWeight: FontWeight.w900,
@@ -2569,7 +2911,7 @@ class _SudokuIzgaraCizici extends CustomPainter {
     for (int cizgi = 1; cizgi < boyut; cizgi++) {
       final bool blokSiniri = boyut == 4 && cizgi == 2;
       final Paint boya = Paint()
-        ..color = blokSiniri ? const Color(0xCC54E56B) : const Color(0x38FFFFFF)
+        ..color = blokSiniri ? const Color(0xCC34715D) : const Color(0x38FFFFFF)
         ..strokeWidth = blokSiniri ? 3 : 1
         ..style = PaintingStyle.stroke;
       final double x = size.width * cizgi / boyut;
@@ -2607,20 +2949,20 @@ class _SudokuCevapButonu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color zeminRengi = const Color(0xFF173D61);
-    Color cerceveRengi = const Color(0x5554E56B);
+    Color zeminRengi = const Color(0xFFF0F4F0);
+    Color cerceveRengi = const Color(0x5534715D);
 
     if (cevapVerildi) {
       if (dogruSecenek) {
-        zeminRengi = const Color(0xFF1D8C4D);
-        cerceveRengi = const Color(0xFF8CFF9D);
+        zeminRengi = const Color(0xFFE2EFE6);
+        cerceveRengi = const Color(0xFF34715D);
       } else if (yanlisSecenek) {
-        zeminRengi = const Color(0xFFC74242);
+        zeminRengi = const Color(0xFFF6E4E1);
         cerceveRengi = const Color(0xFFFFA0A0);
       }
     } else if (secili) {
-      zeminRengi = const Color(0xFF135D7A);
-      cerceveRengi = const Color(0xFF00D9FF);
+      zeminRengi = const Color(0xFFDDECE6);
+      cerceveRengi = const Color(0xFF3D7183);
     }
 
     return SizedBox(
@@ -2637,7 +2979,7 @@ class _SudokuCevapButonu extends StatelessWidget {
               border: Border.all(color: cerceveRengi),
               boxShadow: secili
                   ? const <BoxShadow>[
-                      BoxShadow(color: Color(0x6600D9FF), blurRadius: 13),
+                      BoxShadow(color: Color(0x663D7183), blurRadius: 13),
                     ]
                   : const <BoxShadow>[
                       BoxShadow(
@@ -2653,6 +2995,8 @@ class _SudokuCevapButonu extends StatelessWidget {
                 child: LText(
                   '$cevap',
                   style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.ink,
                     fontWeight: FontWeight.w900,
                     fontSize: 22,
                   ),
@@ -2684,10 +3028,10 @@ class _SayiIlerlemePaneli extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(darEkran ? 14 : 18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF147D47), Color(0xFF0F526A)],
-        ),
-        borderRadius: BorderRadius.circular(24),
+        color: StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Column(
         children: [
@@ -2696,11 +3040,15 @@ class _SayiIlerlemePaneli extends StatelessWidget {
               Container(
                 width: darEkran ? 44 : 55,
                 height: darEkran ? 44 : 55,
-                decoration: BoxDecoration(
-                  color: Colors.white12,
-                  borderRadius: BorderRadius.circular(18),
+                decoration: const BoxDecoration(
+                  color: StudioVisuals.tealSoft,
+                  shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.calculate_rounded, size: darEkran ? 28 : 34),
+                child: Icon(
+                  Icons.calculate_rounded,
+                  size: darEkran ? 24 : 29,
+                  color: StudioVisuals.teal,
+                ),
               ),
               SizedBox(width: darEkran ? 9 : 14),
               Expanded(
@@ -2712,6 +3060,8 @@ class _SayiIlerlemePaneli extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
+                        fontFamily: 'Roboto',
+                        color: StudioVisuals.ink,
                         fontWeight: FontWeight.w900,
                         fontSize: darEkran ? 15 : 17,
                       ),
@@ -2720,7 +3070,11 @@ class _SayiIlerlemePaneli extends StatelessWidget {
                       'Desenleri bul, işlemleri çöz.',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.white70, fontSize: 11),
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        color: StudioVisuals.muted,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
@@ -2732,14 +3086,19 @@ class _SayiIlerlemePaneli extends StatelessWidget {
                   LText(
                     '$toplamPuan',
                     style: TextStyle(
-                      color: const Color(0xFFFFD334),
+                      fontFamily: 'Roboto',
+                      color: StudioVisuals.amber,
                       fontWeight: FontWeight.w900,
                       fontSize: darEkran ? 17 : 21,
                     ),
                   ),
                   const LText(
                     'PUAN',
-                    style: TextStyle(color: Colors.white60, fontSize: 9),
+                    style: TextStyle(
+                      fontFamily: 'Roboto',
+                      color: StudioVisuals.muted,
+                      fontSize: 9,
+                    ),
                   ),
                 ],
               ),
@@ -2751,15 +3110,19 @@ class _SayiIlerlemePaneli extends StatelessWidget {
               Expanded(
                 child: Row(
                   children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFFD334)),
+                    const Icon(Icons.star_rounded, color: StudioVisuals.amber),
                     const SizedBox(width: 5),
                     Flexible(
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
                         child: LText(
-                          '$toplamYildiz / 30',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          '$toplamYildiz / ${GameContentPolicy.campaignLevels * 3}',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: StudioVisuals.muted,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -2772,8 +3135,12 @@ class _SayiIlerlemePaneli extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerRight,
                   child: LText(
-                    'Seviye $acikSeviye / 10',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    'Seviye $acikSeviye / ${GameContentPolicy.campaignLevels}',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      color: StudioVisuals.muted,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -2812,7 +3179,7 @@ class _SayiSeviyeKarti extends StatelessWidget {
         return const Color(0xFFFF5252);
 
       case 'BOSS':
-        return const Color(0xFFE040FB);
+        return const Color(0xFF9C5471);
 
       default:
         return Colors.green;
@@ -2820,108 +3187,17 @@ class _SayiSeviyeKarti extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final Color anaRenk = renk();
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: acik ? onTap : null,
-        borderRadius: BorderRadius.circular(22),
-        child: Ink(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: acik
-                ? ZpVisualPalette.of(context).surface
-                : ZpVisualPalette.of(context).surfaceAlternative,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: acik ? anaRenk.withValues(alpha: 0.65) : Colors.white12,
-            ),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: acik ? anaRenk : Colors.white12,
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: acik
-                        ? LText(
-                            '${seviye.numara}',
-                            style: const TextStyle(fontWeight: FontWeight.w900),
-                          )
-                        : const Icon(
-                            Icons.lock_rounded,
-                            size: 20,
-                            color: Colors.white30,
-                          ),
-                  ),
-                  const Spacer(),
-                  if (acik)
-                    LText(
-                      seviye.zorluk,
-                      style: TextStyle(
-                        color: anaRenk,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 7),
-              Icon(
-                seviye.zorluk == 'BOSS'
-                    ? Icons.emoji_events_rounded
-                    : Icons.calculate_rounded,
-                color: acik ? anaRenk : Colors.white12,
-                size: 32,
-              ),
-              const SizedBox(height: 5),
-              LText(
-                seviye.baslik,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                  color: acik ? Colors.white : Colors.white24,
-                ),
-              ),
-              LText(
-                '${seviye.tur} • ${seviye.oturumSoruSayisi} SORU',
-                style: const TextStyle(color: Colors.white38, fontSize: 8),
-              ),
-              const Spacer(),
-              if (enIyiPuan > 0)
-                LText(
-                  'En iyi: $enIyiPuan',
-                  style: const TextStyle(color: Colors.white54, fontSize: 9),
-                ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  3,
-                  (index) => Icon(
-                    index < yildiz
-                        ? Icons.star_rounded
-                        : Icons.star_border_rounded,
-                    color: acik ? const Color(0xFFFFD334) : Colors.white12,
-                    size: 19,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => StudioChapterCard(
+    gameId: 'numbers',
+    number: seviye.numara,
+    title: seviye.baslik,
+    detail: '${seviye.tur} • ${seviye.oturumSoruSayisi} soru',
+    difficulty: GameContentPolicy.difficulty(seviye.numara),
+    unlocked: acik,
+    stars: yildiz,
+    best: enIyiPuan,
+    onTap: onTap,
+  );
 }
 
 class _UstBilgiEtiketi extends StatelessWidget {
@@ -2940,11 +3216,15 @@ class _UstBilgiEtiketi extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(ikon, size: 17, color: const Color(0xFF54E56B)),
+          Icon(ikon, size: 17, color: const Color(0xFF34715D)),
           const SizedBox(width: 5),
           LText(
             metin,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -2973,15 +3253,23 @@ class _SayiSonucKutusu extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(ikon, color: const Color(0xFF54E56B)),
+          Icon(ikon, color: const Color(0xFF34715D)),
           const SizedBox(height: 5),
           LText(
             deger,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w900,
+              fontSize: 20,
+            ),
           ),
           LText(
             baslik,
-            style: const TextStyle(color: Colors.white54, fontSize: 9),
+            style: TextStyle(
+              fontFamily: 'Roboto',
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 11,
+            ),
           ),
         ],
       ),
@@ -2991,6 +3279,9 @@ class _SayiSonucKutusu extends StatelessWidget {
 
 class SayiSeviyesi {
   final int numara;
+  final int? sourceNumber;
+  final int challengeLevel;
+  int get contentLevel => sourceNumber ?? numara;
   final String baslik;
   final String tur;
   final String zorluk;
@@ -3001,6 +3292,8 @@ class SayiSeviyesi {
 
   const SayiSeviyesi({
     required this.numara,
+    this.sourceNumber,
+    this.challengeLevel = 1,
     required this.baslik,
     required this.tur,
     required this.zorluk,

@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app_language_controller.dart';
 import 'firebase_bootstrap_service.dart';
 import 'player_progress_service.dart';
+import 'unified_progress_service.dart';
 
 class OnlineLeaderboardEntry {
   final String uid;
@@ -85,12 +86,16 @@ class OnlineLeaderboardEntry {
         fallback: 'Player',
         maxLength: 18,
       ),
-      avatar: _safeString(data['avatar'], fallback: '🧠', maxLength: 16),
+      avatar: _safeString(data['avatar'], fallback: '🧠', maxLength: 32),
       xp: _safeInt(data['xp'], 0, 1000000),
       level: _safeInt(data['level'], 1, 50),
       score: _safeInt(data['score'], 0, 10000000),
-      stars: _safeInt(data['stars'], 0, 330),
-      completedLevels: _safeInt(data['completedLevels'], 0, 110),
+      stars: _safeInt(data['stars'], 0, UnifiedProgressData.maksimumYildiz),
+      completedLevels: _safeInt(
+        data['completedLevels'],
+        0,
+        UnifiedProgressData.maksimumSeviye,
+      ),
       bestStreak: _safeInt(data['bestStreak'], 0, 10000),
       perfectDays: _safeInt(data['perfectDays'], 0, 10000),
       leagueShortName: _safeString(
@@ -414,8 +419,12 @@ class OnlineLeaderboardService {
       'xp': data.zekaScore.clamp(0, 1000000).toInt(),
       'level': data.level.clamp(1, 50).toInt(),
       'score': data.zekaScore.clamp(0, 10000000).toInt(),
-      'stars': data.progress.toplamYildiz.clamp(0, 330).toInt(),
-      'completedLevels': data.progress.tamamlananSeviye.clamp(0, 110).toInt(),
+      'stars': data.progress.toplamYildiz
+          .clamp(0, UnifiedProgressData.maksimumYildiz)
+          .toInt(),
+      'completedLevels': data.progress.tamamlananSeviye
+          .clamp(0, UnifiedProgressData.maksimumSeviye)
+          .toInt(),
       'bestStreak': data.daily.bestStreak.clamp(0, 10000).toInt(),
       'perfectDays': data.daily.perfectDays.clamp(0, 10000).toInt(),
       'league': data.league.shortName,
@@ -628,6 +637,6 @@ class OnlineLeaderboardService {
     final String trimmed = value.trim();
     if (trimmed.isEmpty) return '🧠';
 
-    return trimmed.length > 16 ? trimmed.substring(0, 16) : trimmed;
+    return trimmed.length > 32 ? trimmed.substring(0, 32) : trimmed;
   }
 }

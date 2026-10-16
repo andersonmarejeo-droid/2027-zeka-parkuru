@@ -84,22 +84,206 @@ class AppLocalizations {
     switch (gameId) {
       case 'logic':
         return isEnglish ? 'Logic Maze' : 'Mantık Labirenti';
+      case 'flow_connect':
+        return isEnglish ? 'Flow Connect' : 'Akış Bağlantısı';
+      case 'circuit_repair':
+        return isEnglish ? 'Circuit Repair' : 'Devre Tamiri';
+      case 'beam_director':
+        return isEnglish ? 'Beam Director' : 'Işın Yönlendir';
+      case 'detective_notes':
+        return isEnglish ? 'Detective Notes' : 'Dedektif Notları';
+      case 'mine_detective':
+        return isEnglish ? 'Mine Detector' : 'Mayın Dedektifi';
+      case 'warehouse_master':
+        return isEnglish ? 'Warehouse Master' : 'Depo Ustası';
+      case 'bridge_builder':
+        return isEnglish ? 'Bridge Builder' : 'Köprü Kur';
+      case 'gate_sequence':
+        return isEnglish ? 'Gate Sequence' : 'Kapı Dizisi';
+      case 'parking_puzzle':
+        return isEnglish ? 'Parking Puzzle' : 'Park Yeri';
+      case 'pin_unlock':
+        return isEnglish ? 'Pin Unlock' : 'Kilit Aç';
+      case 'balance_scale':
+        return isEnglish ? 'Balance Scale' : 'Ağırlık Dengesi';
+      case 'target_24':
+        return isEnglish ? 'Target 24' : 'Hedef 24';
+      case 'mini_sudoku':
+        return 'Mini Sudoku 6×6';
+      case 'kenken_cube':
+        return isEnglish ? 'KenKen Cube' : 'KenKen Küpü';
+      case 'mahjong_layers':
+        return isEnglish ? 'Mahjong Layers' : 'Mahjong Katmanları';
       case 'numbers':
         return isEnglish ? 'Number Master' : 'Sayı Ustası';
       case 'blocks':
         return isEnglish ? 'Block Workshop' : 'Blok Atölyesi';
       case 'memory':
         return isEnglish ? 'Memory Maze' : 'Hafıza Labirenti';
+      case 'card_pairs':
+        return isEnglish ? 'Card Pairs' : 'Kart Çifti';
+      case 'focus_filter':
+        return isEnglish ? 'Focus Filter' : 'Odak Filtresi';
+      case 'spot_change':
+        return isEnglish ? 'Spot the Change' : 'Değişeni Bul';
+      case 'rhythm_memory':
+        return isEnglish ? 'Rhythm Memory' : 'Ritim Hafızası';
+      case 'attention_tunnel':
+        return isEnglish ? 'Attention Tunnel' : 'Dikkat Tüneli';
       case 'hanoi':
         return isEnglish ? 'Tower of Hanoi' : 'Hanoi Kulesi';
       case 'word_hunt':
         return isEnglish ? 'Word Hunt' : 'Kelime Avı';
+      case 'meaning_match':
+        return isEnglish ? 'Meaning Match' : 'Anlam Eşleştir';
+      case 'proverb_finish':
+        return isEnglish ? 'Finish the Proverb' : 'Atasözü Tamamla';
+      case 'sentence_builder':
+        return isEnglish ? 'Sentence Builder' : 'Cümle Kur';
+      case 'near_meaning':
+        return isEnglish ? 'Near Meaning' : 'Yakın Anlam';
+      case 'letter_maze':
+        return isEnglish ? 'Letter Maze' : 'Harf Labirenti';
+      case 'language_detective':
+        return isEnglish ? 'Language Detective' : 'Dil Dedektifi';
+      case 'story_order':
+        return isEnglish ? 'Story Order' : 'Hikâye Sırası';
+      case 'word_wheel':
+        return isEnglish ? 'Word Wheel' : 'Kelime Çarkı';
+      case 'hidden_masses':
+        return isEnglish ? 'Hidden Masses' : 'Gizli Kütleler';
+      case 'kakuro':
+        return isEnglish ? 'Kakuro Grid' : 'Kakuro Izgarası';
+      case 'reversi_arena':
+        return isEnglish ? 'Reversi Arena' : 'Reversi Arenası';
+      case 'picross_master':
+        return isEnglish ? 'Picross Master' : 'Picross Ustası';
+      case 'tavla_master':
+        return isEnglish ? 'Backgammon Master' : 'Tavla Ustası';
+      case 'arrow_route':
+        return isEnglish ? 'Arrow Route' : 'Ok Rotası';
+      case 'mini_chess_tactics':
+        return isEnglish ? 'Chess Mate' : 'Satranç Matı';
+      case 'loop_master':
+        return isEnglish ? 'Loop Master' : 'Döngü Ustası';
+      case 'go_life_death':
+        return isEnglish ? 'Go Life & Death' : 'Go Yaşam-Ölüm';
+      case 'code_breaker':
+        return isEnglish ? 'Code Breaker' : 'Kod Kırıcı';
+      case 'shogi_mate':
+        return isEnglish ? 'Shogi Mate' : 'Shogi Mat';
+      case 'island_sea':
+        return isEnglish ? 'Island & Sea' : 'Ada ve Deniz';
+      case 'peg_solitaire':
+        return isEnglish ? 'Peg Solitaire' : 'Tek Taş';
+      case 'futoshiki':
+        return 'Futoshiki';
+      case 'hex_connection':
+        return isEnglish ? 'Hex Connection' : 'Hex Bağlantısı';
+      case 'skyscrapers':
+        return isEnglish ? 'Skyscrapers' : 'Gökdelenler';
+      case 'hitori':
+        return 'Hitori';
+      case 'balloon_pop':
+        return isEnglish ? 'Balloon Catcher' : 'Balon Avcısı';
+      case 'bottle_target':
+        return isEnglish ? 'Bottle Target' : 'Şişe Kırmaca';
+      case 'color_match':
+        return isEnglish ? 'Color Reactor' : 'Renk Reaktörü';
+      case 'ball_merge':
+        return isEnglish ? 'Ball Merge' : 'Top Birleştir';
+      case 'tower_balance':
+        return isEnglish ? 'Tower Balance' : 'Kule Denge';
+      case 'magnet_path':
+        return isEnglish ? 'Magnet Path' : 'Mıknatıs Rotası';
+      case 'mini_golf_route':
+        return isEnglish ? 'Mini Golf Route' : 'Mini Golf Rota';
+      case 'slide_sweets':
+        return isEnglish ? 'Sweet Conveyor' : 'Şeker Konveyörü';
+      case 'ring_toss':
+        return isEnglish ? 'Ring Toss' : 'Halka At';
+      case 'little_fisher':
+        return isEnglish ? 'Little Fisher' : 'Küçük Balıkçı';
+      case 'marble_route':
+        return isEnglish ? 'Marble Route' : 'Mermer Rota';
+      case 'block_flow':
+        return isEnglish ? 'Block Flow' : 'Blok Akışı';
+      case 'paper_flight':
+        return isEnglish ? 'Paper Flight' : 'Kâğıt Uçak Şampiyonası';
+      case 'neon_pinball':
+        return 'Neon Pinball';
+      case 'kite_runner':
+        return isEnglish ? 'Kite Pilot' : 'Uçurtma Pilotu';
+      case 'rhythm_drums':
+        return isEnglish ? 'Rhythm Workshop' : 'Ritim Atölyesi';
+      case 'skate_combo':
+        return isEnglish ? 'Skate Flow' : 'Kaykay Akışı';
+      case 'snowboard_slalom':
+        return isEnglish ? 'Snowboard Slalom' : 'Kar Sörfü Slalomu';
+      case 'jetpack_courier':
+        return isEnglish ? 'Jetpack Courier' : 'Jetpack Kurye';
+      case 'orbit_rescue':
+        return isEnglish ? 'Orbit Rescue' : 'Yörünge Kurtarma';
+      case 'drift_league':
+        return isEnglish ? 'Drift League' : 'Drift Ligi';
+      case 'table_tennis_rally':
+        return isEnglish ? 'Table Tennis Rally' : 'Masa Tenisi Rallisi';
+      case 'penalty_mindgame':
+        return isEnglish ? 'Penalty Mindgame' : 'Penaltı Zihin Oyunu';
+      case 'air_hockey_arena':
+        return 'Air Hockey Arena';
+      case 'relic_run':
+        return isEnglish ? 'Relic Run' : 'Kalıntı Seferi';
+      case 'lighthouse_defense':
+        return isEnglish ? 'Lighthouse Defense' : 'Fener Savunması';
+      case 'museum_after_hours':
+        return isEnglish ? 'Museum: After Hours' : 'Müze: Gece Vardiyası';
+      case 'deep_current':
+        return isEnglish ? 'Deep Current' : 'Derin Akıntı';
+      case 'cafe_shift':
+        return isEnglish ? 'Cafe Shift' : 'Kafe Vardiyası';
+      case 'interior_studio':
+        return isEnglish ? 'Interior Studio' : 'İç Mekân Atölyesi';
+      case 'tideglass_aquarium':
+        return isEnglish ? 'Tideglass Aquarium' : 'Deniz Camı Akvaryumu';
+      case 'pet_rescue_clinic':
+        return isEnglish ? 'Pet Rescue Clinic' : 'Dostlar Kurtarma Kliniği';
+      case 'boardwalk_builder':
+        return isEnglish ? 'Boardwalk Builder' : 'Sahil Parkı Kurucusu';
+      case 'moonbase_ops':
+        return isEnglish ? 'Moonbase Operations' : 'Ay Üssü Operasyonları';
+      case 'museum_curator':
+        return isEnglish ? 'Museum Curator' : 'Müze Küratörü';
+      case 'festival_producer':
+        return isEnglish ? 'Festival Producer' : 'Festival Yapımcısı';
+      case 'secret_room_party':
+        return isEnglish
+            ? 'Secret Room: Social Deduction'
+            : 'Gizli Oda: Sosyal Çıkarım';
+      case 'dice_bluff_arena':
+        return isEnglish ? 'Dice & Dagger' : 'Zar ve Hançer';
+      case 'signal_pair':
+        return isEnglish ? 'Signal Partner' : 'Sinyal Ortağı';
+      case 'deckforge_duel':
+        return isEnglish ? 'Deckforge Duel' : 'Deste Ustası';
+      case 'city_atlas':
+        return isEnglish ? 'Turkey Atlas' : 'Şehir Atlası';
+      case 'world_atlas':
+        return isEnglish ? 'World Atlas' : 'Dünya Atlası';
+      case 'katamino_workshop':
+        return isEnglish ? 'Katamino Workshop' : 'Katamino Atölyesi';
+      case 'single_stroke':
+        return isEnglish ? 'One-Stroke Master' : 'Tek Çizgi Ustası';
+      case 'arrow_maze':
+        return isEnglish ? 'Arrow Maze' : 'Ok Labirenti';
+      case 'bubble_shooter':
+        return isEnglish ? 'Bubble Shooter' : 'Baloncuk Arenası';
       case 'picture_iq':
         return isEnglish ? 'Visual IQ' : 'Görsel IQ';
       case 'candy_sort':
         return isEnglish ? 'Candy Sort' : 'Şeker Sıralama';
       case 'number_sort':
-        return isEnglish ? 'Number Hive' : 'Sayı Peteği';
+        return isEnglish ? '15-Tile Master' : '15 Taş Ustası';
       case 'shape_puzzle':
         return isEnglish ? 'Shape Merge' : 'Şekil Birleştir';
       case 'reflex':
@@ -115,6 +299,66 @@ class AppLocalizations {
         return isEnglish
             ? 'Explore the paths and reach the goal.'
             : 'Yolları keşfet ve hedefe ulaş.';
+      case 'flow_connect':
+        return isEnglish
+            ? 'Connect matching terminals without crossing paths.'
+            : 'Yollar kesişmeden aynı renkteki uçları bağla.';
+      case 'circuit_repair':
+        return isEnglish
+            ? 'Rotate the parts and restore the energy route.'
+            : 'Parçaları döndür ve enerji yolunu onar.';
+      case 'beam_director':
+        return isEnglish
+            ? 'Turn the mirrors and guide the beam to its target.'
+            : 'Aynaları çevir ve ışını hedefe ulaştır.';
+      case 'detective_notes':
+        return isEnglish
+            ? 'Connect clues across people, rooms and relics to solve the case.'
+            : 'Vakayı çözmek için kişi, oda ve eser ipuçlarını birleştir.';
+      case 'mine_detective':
+        return isEnglish
+            ? 'Read adjacent clues and secure every safe cell without guessing.'
+            : 'Komşu izlerini oku ve tahmin etmeden tüm güvenli hücreleri aç.';
+      case 'warehouse_master':
+        return isEnglish
+            ? 'Route every crate to a goal without pushing it into a deadlock.'
+            : 'Her kasayı çıkmaza sokmadan hedefe ulaştır.';
+      case 'bridge_builder':
+        return isEnglish
+            ? 'Balance island counts, avoid crossings and connect every island.'
+            : 'Ada sayılarını tuttur, kesişmeleri önle ve tüm adaları bağla.';
+      case 'gate_sequence':
+        return isEnglish
+            ? 'Use layered clues to uncover the only valid vault-gate order.'
+            : 'Katmanlı ipuçlarından kasanın tek doğru kapı sırasını çıkar.';
+      case 'parking_puzzle':
+        return isEnglish
+            ? 'Slide traffic in its lanes and plan a clear route for the target car.'
+            : 'Araçları raylarında kaydır, hedef araç için açık bir çıkış planla.';
+      case 'pin_unlock':
+        return isEnglish
+            ? 'Combine pin sums, height relations and mechanical signals to release a unique lock.'
+            : 'Tekil kilidi açmak için pim toplamlarını, yükseklik ilişkilerini ve mekanik sinyalleri birleştir.';
+      case 'balance_scale':
+        return isEnglish
+            ? 'Match precision weights to each scale and use the shared clues to find the only balanced arrangement.'
+            : 'Hassas ağırlıkları terazilere eşleştir ve tek doğru dizilimi bulmak için ortak ipuçlarını kullan.';
+      case 'target_24':
+        return isEnglish
+            ? 'Combine four number cards with exact arithmetic to reach 24.'
+            : 'Dört sayı kartını kesin işlemlerle birleştirerek 24’e ulaş.';
+      case 'mini_sudoku':
+        return isEnglish
+            ? 'Fill the 6×6 grid so every row, column and 2×3 region contains 1–6 once.'
+            : '6×6 tabloyu; her satır, sütun ve 2×3 bölgeye 1–6 birer kez gelecek şekilde doldur.';
+      case 'kenken_cube':
+        return isEnglish
+            ? 'Complete each Latin grid and solve every arithmetic cage with its target.'
+            : 'Satır ve sütunlarda sayıları tekrarlamadan ilerle, işlem kafeslerinin hedeflerini bul.';
+      case 'mahjong_layers':
+        return isEnglish
+            ? 'Plan the order of free matching tiles to reveal every layer.'
+            : 'Serbest eş taşların sırasını planla ve tüm katmanları aç.';
       case 'numbers':
         return isEnglish
             ? 'Solve sequences and number patterns.'
@@ -127,6 +371,26 @@ class AppLocalizations {
         return isEnglish
             ? 'Observe, remember and make the right choice.'
             : 'Gör, hatırla ve doğru seçimi yap.';
+      case 'card_pairs':
+        return isEnglish
+            ? 'Find evolving visual, color and meaning pairs while keeping the full board in memory.'
+            : 'Görsel, renk ve anlam eşleşmelerini değişen kurallarla bul; tüm tahtayı aklında tut.';
+      case 'focus_filter':
+        return isEnglish
+            ? 'Track a changing visual rule, reject near-misses and manage false alarms.'
+            : 'Değişen görsel kuralı izle, yakın yanıltıcıları ele ve yanlış alarmı yönet.';
+      case 'spot_change':
+        return isEnglish
+            ? 'Compare two abstract scenes and identify every changed position, including advanced relation swaps.'
+            : 'İki soyut sahneyi karşılaştır; ileri seviyedeki yer değişimleri dâhil tüm farkları bul.';
+      case 'rhythm_memory':
+        return isEnglish
+            ? 'Recall distinct notes, rhythmic gaps and accents; reverse the phrase in expert stages.'
+            : 'Farklı notaları, ritmik araları ve vurguları hatırla; usta seviyelerinde diziyi tersten çal.';
+      case 'attention_tunnel':
+        return isEnglish
+            ? 'Follow the same moving target through crossing rails and tunnel shutters.'
+            : 'Aynı hareketli hedefi kesişen hatlarda ve tünel örtülmelerinde takip et.';
       case 'hanoi':
         return isEnglish
             ? 'Plan your moves and rebuild the colorful tower.'
@@ -135,18 +399,302 @@ class AppLocalizations {
         return isEnglish
             ? 'Find hidden words in growing grids.'
             : 'Büyüyen tablolardaki gizli kelimeleri bul.';
+      case 'meaning_match':
+        return isEnglish
+            ? 'Sort sixteen words into four hidden semantic groups.'
+            : 'On altı sözcüğü dört gizli anlam kümesine ayır.';
+      case 'proverb_finish':
+        return isEnglish
+            ? 'Complete a Turkish proverb, then see its meaning in context.'
+            : 'Bir Türk atasözünü tamamla, ardından bağlam içindeki anlamını gör.';
+      case 'sentence_builder':
+        return isEnglish
+            ? 'Rebuild contextual sentences from meaningful clause blocks.'
+            : 'Bağlam ve bağlaç ipuçlarıyla cümle bloklarını yeniden kur.';
+      case 'near_meaning':
+        return isEnglish
+            ? 'Distinguish close meanings through context, tone and evidence.'
+            : 'Yakın anlamları bağlam, ton ve cümle kanıtıyla ayırt et.';
+      case 'letter_maze':
+        return isEnglish
+            ? 'Trace a contextual word through a letter maze and its root gate.'
+            : 'Bağlamdaki sözcüğü harf labirentinde ve kök kapısından geçirerek bul.';
+      case 'language_detective':
+        return isEnglish
+            ? 'Inspect short sources, separate evidence from inference and explain each finding.'
+            : 'Kısa kaynakları incele, kanıtla çıkarımı ayır ve her sonucu gerekçelendir.';
+      case 'story_order':
+        return isEnglish
+            ? 'Read contextual clues, order events by cause and effect, and reject unsupported details.'
+            : 'Bağlam ipuçlarını okuyup olayları neden-sonuç sırasına diz ve kanıtsız ayrıntıyı ele.';
+      case 'word_wheel':
+        return isEnglish
+            ? 'Swipe through the letter wheel to find hidden words; longer words score more.'
+            : 'Gizli kelimeleri bulmak için harf çarkında parmağını sürükle; uzun kelimeler daha çok puan kazandırır.';
+      case 'hidden_masses':
+        return isEnglish
+            ? 'Compare balanced measurements and deduce each unknown object mass.'
+            : 'Dengeli ölçümleri karşılaştır ve nesnelerin bilinmeyen kütlelerini çıkar.';
+      case 'kakuro':
+        return isEnglish
+            ? 'Complete the crossing sum runs without repeating digits.'
+            : 'Kesişen toplam dizilerini rakam tekrarı yapmadan tamamla.';
+      case 'reversi_arena':
+        return isEnglish
+            ? 'Flip opposing lines, secure corners and control an 8×8 board.'
+            : 'Rakip taşlarını çevir, köşeleri ele geçir ve 8×8 tahtayı yönet.';
+      case 'picross_master':
+        return isEnglish
+            ? 'Use crossing run clues to reveal a uniquely solvable pixel silhouette.'
+            : 'Tek çözümlü piksel silüetini satır ve sütun koşu ipuçlarıyla ortaya çıkar.';
+      case 'tavla_master':
+        return isEnglish
+            ? 'Read the dice, make points, hit blots and bear off all fifteen checkers.'
+            : 'Zarları değerlendir, kapı kur, açık pulları kır ve on beş pulunu topla.';
+      case 'arrow_route':
+        return isEnglish
+            ? 'Trace each arrow to the boundary and clear its blockers in the only safe order.'
+            : 'Her okun sınır rotasını izle ve engellerini tek güvenli sırayla temizle.';
+      case 'mini_chess_tactics':
+        return isEnglish
+            ? 'Find the only legal move that checkmates the king.'
+            : 'Şahı mat eden tek yasal hamleyi bul.';
+      case 'loop_master':
+        return isEnglish
+            ? 'Use the clue totals to draw exactly one unbranched closed loop.'
+            : 'İpucu toplamlarını kullanarak dallanmayan tek bir kapalı halka çiz.';
+      case 'go_life_death':
+        return isEnglish
+            ? 'Count liberties and find the vital capture or rescue move.'
+            : 'Özgürlükleri say ve yaşamsal yakalama ya da kurtarma hamlesini bul.';
+      case 'code_breaker':
+        return isEnglish
+            ? 'Use exact and misplaced-symbol clues to crack the hidden code.'
+            : 'Gizli kodu kırmak için yerinde ve yeri yanlış sembol ipuçlarını kullan.';
+      case 'shogi_mate':
+        return isEnglish
+            ? 'Find the only legal mating move using promotion and captured-piece drops.'
+            : 'Terfi ve ele geçen taşı oyuna geri koyma kurallarıyla tek yasal mat hamlesini bul.';
+      case 'island_sea':
+        return isEnglish
+            ? 'Build the numbered islands, keep them diagonally separate and connect one sea without 2×2 water.'
+            : 'Numaralı adaları kur, çapraz teması engelle ve 2×2 su olmadan tek deniz oluştur.';
+      case 'peg_solitaire':
+        return isEnglish
+            ? 'Jump pegs over one another, remove each captured peg and leave exactly one on the center.'
+            : 'Piyonları birbirinin üzerinden atlat, alınan taşı kaldır ve merkezde tam bir taş bırak.';
+      case 'futoshiki':
+        return isEnglish
+            ? 'Fill each row and column with unique values while satisfying every adjacent inequality.'
+            : 'Her satır ve sütuna farklı sayılar yerleştir; komşu hücrelerdeki eşitsizlikleri uygula.';
+      case 'hex_connection':
+        return isEnglish
+            ? 'Connect coral edges with an unbroken path while blocking the rival’s blue connection.'
+            : 'Rakibin lacivert bağlantısını keserken koral kenarları kesintisiz bir yolla birleştir.';
+      case 'skyscrapers':
+        return isEnglish
+            ? 'Place each height once per row and column; edge clues count the towers visible from each direction.'
+            : 'Her yüksekliği satır ve sütunda bir kez kullan; kenar ipuçları her yönden görünen kuleleri sayar.';
+      case 'hitori':
+        return isEnglish
+            ? 'Shade repeated numbers, keep shaded cells apart, and preserve one connected white region.'
+            : 'Tekrarlanan sayıları gölgele; siyah hücreleri ayır ve beyaz alanı tek parça bağlı tut.';
+      case 'balloon_pop':
+        return isEnglish
+            ? 'Guide your basket through shifting winds, catch the outlined color and avoid storm decoys.'
+            : 'Sepeti değişen rüzgârda yönet; çerçeveli balonları yakala, sis tuzaklarından kaç.';
+      case 'bottle_target':
+        return isEnglish
+            ? 'Set your angle and power, use bank shots and hit the target bottles without breaking the display.'
+            : 'Açıyı ve gücü ayarla, sekmeli atışları kullan; sahne eşyalarını koruyarak hedef şişeleri vur.';
+      case 'color_match':
+        return isEnglish
+            ? 'Read each moving energy pulse and route it through the matching shape-and-color channel before it reaches the valve.'
+            : 'Hareketli enerji darbesini oku; cam vanaya ulaşmadan şekil ve rengi eşleşen kanala yönlendir.';
+      case 'ball_merge':
+        return isEnglish
+            ? 'Aim each orb into a changing physics chamber, fuse equal values and manage the rising stack before it crosses the overfill line.'
+            : 'Küreleri değişen fizik haznesinde doğru rotaya bırak; eşit değerleri birleştir ve yığın taşma çizgisine ulaşmadan alanı yönet.';
+      case 'tower_balance':
+        return isEnglish
+            ? 'Place asymmetric pieces on a swaying support by reading their mass, overlap and wind-driven center of gravity.'
+            : 'Asimetrik parçaları salınan platforma yerleştirirken kütleyi, temas yüzeyini ve rüzgârla kayan ağırlık merkezini oku.';
+      case 'magnet_path':
+        return isEnglish
+            ? 'Drag a horseshoe magnet to attract or repel an inertial puck through ordered gates and around metal shields.'
+            : 'At nalı mıknatısı sürükleyerek ataletli bilyeyi çek veya it; sıralı kapılardan ve metal kalkanlardan geçir.';
+      case 'mini_golf_route':
+        return isEnglish
+            ? 'Read turf and sand friction, choose power and spin, and time your putt through a moving gate.'
+            : 'Çim ve kum sürtünmesini oku; güç/spin seçip vuruşunu hareketli kapının ritminde yap.';
+      case 'slide_sweets':
+        return isEnglish
+            ? 'Route wrapped sweets through two live conveyor junctions, read the order wave and protect the line buffer.'
+            : 'Sarma şekerleri iki hareketli konveyör kavşağından doğru pakete yönlendir; sipariş dalgasını okuyup bant kapasitesini koru.';
+      case 'ring_toss':
+        return isEnglish
+            ? 'Set the pull-back angle, power and spin; read wind and catch a moving peg with a soft parabolic throw.'
+            : 'Geri çekme açısı, güç ve dönüşü ayarla; rüzgârı okuyup hareketli direği yumuşak parabolik atışla yakala.';
+      case 'little_fisher':
+        return isEnglish
+            ? 'Match bait and depth to the fish, then pulse the reel inside a live tension window as layered currents pull.'
+            : 'Yem ve derinliği balığa uydur; katmanlı akıntı çekerken makarayı canlı misina gerilim aralığında darbeli yönet.';
+      case 'marble_route':
+        return isEnglish
+            ? 'Tilt an inertia-driven marble through moving gates; manage ice, felt, bumpers and side pockets before easing into the cup.'
+            : 'Ataletli bilyeyi hareketli geçitlerden geçir; çukura yumuşakça girmeden önce buz, keçe, tampon ve yan cepleri yönet.';
+      case 'block_flow':
+        return isEnglish
+            ? 'Switch lanes through a geometric corridor, collect energy cubes and spend them at phase rifts to cross stacked routes.'
+            : 'Geometrik koridorda şerit değiştir, enerji küplerini topla ve katman kapılarında harcayarak üst üste rotaları aş.';
+      case 'paper_flight':
+        return isEnglish
+            ? 'Manage bank, pitch and thermals to glide through moving hoops, preserve altitude and flare onto a narrow runway.'
+            : 'Yatış, burun açısı ve termikleri yönet; hareketli halkalardan süzül, irtifayı koru ve dar piste yumuşakça in.';
+      case 'neon_pinball':
+        return isEnglish
+            ? 'Time both flippers, follow moving targets in sequence, chain bumper rebounds and release multiball from the lock.'
+            : 'İki kanadı zamanla; hareketli hedef sırasını izle, bumper sekmelerini komboya bağla ve kilitten çift topu aç.';
+      case 'kite_runner':
+        return isEnglish
+            ? 'Steer a fabric kite through shifting flag gates; trim the tether under gusts and avoid live power lines before the string snaps.'
+            : 'Kumaş uçurtmayı kayan bayrak kapılarından geçir; rüzgâr hamlelerinde ipi ayarla ve kopmadan elektrik hatlarını aş.';
+      case 'rhythm_drums':
+        return isEnglish
+            ? 'Read four percussion lanes, strike syncopated beats with precise timing and sustain long notes through changing bars.'
+            : 'Dört davul şeridini izle; senkoplu vuruşları tam zamanında çal ve değişen ölçülerde uzun notaları basılı tut.';
+      case 'skate_combo':
+        return isEnglish
+            ? 'Build speed into each ramp, spin a measured trick in the air and manage board balance to keep a clean landing combo.'
+            : 'Rampaya hız taşı; havada ölçülü dönüş yap ve temiz iniş combo’su için gövde dengesini yönet.';
+      case 'snowboard_slalom':
+        return isEnglish
+            ? 'Carve an inertial line through slalom flags, read changing snow grip and scrub speed before icy or mogul gates.'
+            : 'Ataletli kavisle slalom kapılarından geç; değişen kar tutuşunu oku, buz ve tümsek kapılarından önce hızı kes.';
+      case 'jetpack_courier':
+        return isEnglish
+            ? 'Balance thrust, fuel and heat to thread a courier pod through shifting air gates and dock the fragile cargo softly.'
+            : 'İtki, yakıt ve ısıyı dengele; kurye kapsülünü değişen hava kapılarından geçirip hassas paketi yumuşakça indir.';
+      case 'orbit_rescue':
+        return isEnglish
+            ? 'Read three gravity wells, spend limited impulse bursts and brake into a narrow rescue orbit.'
+            : 'Üç kütleçekim kuyusunu oku; sınırlı itki darbelerini kullan ve dar kurtarma yörüngesine frenle.';
+      case 'drift_league':
+        return isEnglish
+            ? 'Hold your line through shaped circuits, brake into corners and chain controlled drifts across changing road surfaces.'
+            : 'Virajlı pistlerde çizgini koru; fren ve el frenini ayır, değişen zeminlerde kontrollü drift zinciri kur.';
+      case 'table_tennis_rally':
+        return isEnglish
+            ? 'Read the bounce, move your paddle, then time a topspin, slice or block to outplay a moving opponent.'
+            : 'Sekişi oku, raketini konumlandır; hareketli rakibe karşı zamanında üst spin, kesme ya da blok seç.';
+      case 'penalty_mindgame':
+        return isEnglish
+            ? 'Take penalties with deliberate power and read shoulder, hip and plant-foot cues before diving as keeper.'
+            : 'Gücü ayarlı şut çek; kaleci rolünde dalmadan önce omuz, kalça ve destek ayağı ipuçlarını oku.';
+      case 'air_hockey_arena':
+        return isEnglish
+            ? 'Lead the puck with real-time mallet control, bank off the rails, read bumper rebounds and time one charged smash per point.'
+            : 'Diski gerçek zamanlı raketle karşıla; kenarlardan açı al, tampon sekmesini oku ve her sayıda tek güçlü smaçı zamanla.';
+      case 'relic_run':
+        return isEnglish
+            ? 'Clear three tactical rooms, read enemy strike tells, evade danger lanes and choose a relic between rooms.'
+            : 'Üç taktik odayı temizle, düşman saldırı işaretlerini oku, tehlike hattından kaçın ve odalar arasında kalıntı seç.';
+      case 'lighthouse_defense':
+        return isEnglish
+            ? 'Build ballista, frost and mortar towers around switchback paths, set target priorities and manage coins between enemy waves.'
+            : 'Kıvrımlı kıyı yollarına balista, ayaz ve havan kuleleri kur; hedef önceliğini belirle ve dalgalar arasında altını yönet.';
+      case 'museum_after_hours':
+        return isEnglish
+            ? 'Read guard sight cones and laser cycles, hide in gallery shadows, recover the collection and slip out before the alarm.'
+            : 'Nöbetçi görüşünü ve lazer çevrimini oku; galeri gölgelerinde saklan, eserleri topla ve alarm çalmadan çık.';
+      case 'deep_current':
+        return isEnglish
+            ? 'Pilot a compact submarine through live currents, sweep sonar for salvage and return to base with air, battery and hull intact.'
+            : 'Mini denizaltıyı değişen akıntılarda sür; sonar ile enkazı bul ve oksijen, batarya, gövde payını koruyup üsse dön.';
+      case 'cafe_shift':
+        return isEnglish
+            ? 'Read guest tickets, route recipes through concurrent cafe stations, protect ingredient stock and serve before patience runs out.'
+            : 'Müşteri fişlerini oku, tarifleri eşzamanlı kafe istasyonlarına dağıt; stok ve sabrı yönetip doğru siparişi servis et.';
+      case 'interior_studio':
+        return isEnglish
+            ? 'Design a room around a visible brief, budget, style, palette and accessible walkway.'
+            : 'Görünür brief, bütçe, stil, renk paleti ve geçiş alanına göre oda tasarla.';
+      case 'tideglass_aquarium':
+        return isEnglish
+            ? 'Build a compatible aquarium by balancing fish groups, tank volume, water temperature, oxygen, filter and plants.'
+            : 'Canlı grupları, tank hacmi, su sıcaklığı, oksijen, filtre ve bitki dengesini kurarak uyumlu akvaryum tasarla.';
+      case 'pet_rescue_clinic':
+        return isEnglish
+            ? 'Sequence gentle, fictional visit activities for a cartoon animal. This is a care-themed game, not veterinary guidance.'
+            : 'Çizgi karakter hayvan için kurmaca ve nazik ziyaret etkinliklerini sırala. Bu bakım temalı bir oyundur, veteriner önerisi değildir.';
+      case 'boardwalk_builder':
+        return isEnglish
+            ? 'Design a connected seaside park by balancing paths, guest capacity, food service, budget and weather-ready amenities.'
+            : 'Yolları, ziyaretçi kapasitesini, yiyecek servisini, bütçeyi ve hava koşullarına uygun hizmetleri dengeleyerek bağlantılı bir sahil parkı tasarla.';
+      case 'moonbase_ops':
+        return isEnglish
+            ? 'Connect a moonbase life-support network and balance power, oxygen, temperature, crew and mission hazards.'
+            : 'Ay üssü yaşam destek ağını bağla; enerji, oksijen, sıcaklık, ekip ve görev tehditlerini dengele.';
+      case 'museum_curator':
+        return isEnglish
+            ? 'Curate a themed exhibition by arranging artifacts in era order while protecting fragile objects and balancing visitor appeal and budget.'
+            : 'Eserleri dönem sırasına koy; kırılgan parçaları koruyup ziyaretçi ilgisi ve bütçeyi dengeleyerek temalı sergi kur.';
+      case 'festival_producer':
+        return isEnglish
+            ? 'Build a two-stage festival lineup around time windows, audience flow, crew, power, budget and weather.'
+            : 'Zaman aralıkları, seyirci akışı, ekip, enerji, bütçe ve hava koşullarını dengeleyerek iki sahneli festival programı kur.';
+      case 'secret_room_party':
+        return isEnglish
+            ? 'Pass one device around, reveal private roles safely, discuss a mystery and cast a sealed vote.'
+            : 'Tek cihazı sırayla paylaş; özel rolleri güvenle aç, vakayı tartış ve kapalı oy kullan.';
+      case 'dice_bluff_arena':
+        return isEnglish
+            ? 'Read a hidden dice pool, raise a legal probability claim or challenge the bid; the computer never sees your hand.'
+            : 'Gizli zar havuzunu değerlendir, olasılığa dayalı yasal iddiayı yükselt ya da blöfe meydan oku; bilgisayar elini göremez.';
+      case 'signal_pair':
+        return isEnglish
+            ? 'Two players share one device: the navigator sees a private route, the operator gets a cross-wired panel, and both restore a relay through communication.'
+            : 'İki oyuncu tek cihazı paylaşır: gezgin özel rotayı, operatör çapraz bağlı paneli görür; röleyi iletişimle birlikte onarırlar.';
+      case 'deckforge_duel':
+        return isEnglish
+            ? 'Build tactical plans from a compact deck, manage limited energy, read the rival’s open intent, and resolve attacks simultaneously.'
+            : 'Kompakt desteden taktik plan kur, sınırlı enerjiyi yönet, rakibin açık niyetini oku ve saldırıları eşzamanlı çöz.';
+      case 'city_atlas':
+        return isEnglish
+            ? 'Locate Turkish provinces by their real administrative boundaries.'
+            : 'Türkiye illerini gerçek idari sınırları üzerinden bul.';
+      case 'world_atlas':
+        return isEnglish
+            ? 'Identify countries from an offline world map with real borders.'
+            : 'Çevrimdışı gerçek dünya haritasında ülkeleri sınırlarından tanı.';
+      case 'katamino_workshop':
+        return isEnglish
+            ? 'Rotate, mirror and fit connected polyomino pieces into a complete board.'
+            : 'Bağlantılı poliomino parçalarını döndürüp aynalayarak tahtayı eksiksiz döşe.';
+      case 'single_stroke':
+        return isEnglish
+            ? 'Trace a connected network without repeating an edge; later circuits add loops and branching.'
+            : 'Bağlantılı ağı bir kenarı yinelemeden çiz; ileri bölümlerde döngüler ve dallar artar.';
+      case 'arrow_maze':
+        return isEnglish
+            ? 'Turn one-way floor arrows to navigate a growing, generated maze.'
+            : 'Giderek karmaşıklaşan üretilmiş labirentte tek yönlü zemin oklarını çevir.';
+      case 'bubble_shooter':
+        return isEnglish
+            ? 'Aim with a bounce shot, match color clusters and clear each board within its shot budget.'
+            : 'Sekmeli atışlarla nişan al, renk kümelerini eşleştir ve tahtayı atış sınırında temizle.';
       case 'picture_iq':
         return isEnglish
             ? 'Decode visual transformations and analogies.'
             : 'Görsel dönüşümleri ve benzetmeleri çöz.';
       case 'candy_sort':
         return isEnglish
-            ? 'Group colorful candies with smart moves.'
-            : 'Renkli şekerleri akıllı hamlelerle grupla.';
+            ? 'Move the top candy onto the same color or into an empty jar until every color is grouped.'
+            : 'Her renk gruplanana kadar üstteki şekeri aynı rengin üzerine veya boş kavanoza taşı.';
       case 'number_sort':
         return isEnglish
-            ? 'Slide 8 and 15 tiles into order.'
-            : '8 ve 15 taşı petek üzerinde sırala.';
+            ? 'Slide the 8- or 15-tile board into its numbered order using the empty space.'
+            : 'Boş alanı kullanarak 8 ya da 15 taşı numaralı hedef dizilimine kaydır.';
       case 'shape_puzzle':
         return isEnglish
             ? 'Combine fragments and find the final silhouette.'
@@ -740,6 +1288,9 @@ const Map<String, String> _gameUiEnglish = <String, String>{
   'KOLAY': 'EASY',
   'ORTA': 'MEDIUM',
   'ZOR': 'HARD',
+  'USTALAŞMA': 'MASTERY',
+  'İLERİ': 'ADVANCED',
+  'UZMAN': 'EXPERT',
   'BOSS': 'BOSS',
   'PUAN': 'SCORE',
   'HEDEF': 'TARGET',

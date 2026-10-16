@@ -1,13 +1,36 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_visual_theme.dart';
+import '../theme/studio_visuals.dart';
 
 import '../l10n/app_localizations.dart';
 import 'daily_course_page.dart';
+import 'themed_course_page.dart';
 
 import '../services/daily_challenge_service.dart';
 import '../services/daily_course_service.dart';
 import '../services/game_audio_service.dart';
+import '../services/themed_course_service.dart';
+import '../widgets/studio_card.dart';
+
+const String _dailyCourseVisualAsset =
+    'assets/branding/studio_parkur_daily_course.png';
+
+String _themedCourseVisualAsset(String id) {
+  switch (id) {
+    case 'star_hunt':
+      return 'assets/branding/studio_parkur_star_hunt.png';
+    case 'mind_gym':
+      return 'assets/branding/studio_parkur_mind_gym.png';
+    case 'high_iq':
+      return 'assets/branding/studio_parkur_high_iq.png';
+    case 'word_labyrinth':
+      return 'assets/branding/studio_parkur_word_labyrinth.png';
+    case 'speed_precision':
+      return 'assets/branding/studio_parkur_speed_precision.png';
+    default:
+      return _dailyCourseVisualAsset;
+  }
+}
 
 class DailyTasksPage extends StatefulWidget {
   const DailyTasksPage({super.key});
@@ -19,10 +42,12 @@ class DailyTasksPage extends StatefulWidget {
 class _DailyTasksPageState extends State<DailyTasksPage> {
   final DailyChallengeService _daily = DailyChallengeService.instance;
   final DailyCourseService _course = DailyCourseService.instance;
+  final ThemedCourseService _themed = ThemedCourseService.instance;
   final GameAudioService _audio = GameAudioService.instance;
 
   DailyChallengeData? _data;
   DailyCourseData? _courseData;
+  List<ThemedCourseData>? _themedCourses;
   bool _loading = true;
   bool _leavingPage = false;
 
@@ -35,12 +60,18 @@ class _DailyTasksPageState extends State<DailyTasksPage> {
   Future<void> _load() async {
     final DailyChallengeData data = await _daily.loadToday();
     final DailyCourseData courseData = await _course.loadToday();
+    final List<ThemedCourseData> themedCourses = await Future.wait(
+      ThemedCourseCatalog.definitions.map(
+        (ThemedCourseDefinition definition) => _themed.load(definition.id),
+      ),
+    );
 
     if (!mounted) return;
 
     setState(() {
       _data = data;
       _courseData = courseData;
+      _themedCourses = themedCourses;
       _loading = false;
     });
   }
@@ -52,6 +83,20 @@ class _DailyTasksPageState extends State<DailyTasksPage> {
     await Navigator.push<void>(
       context,
       MaterialPageRoute(builder: (_) => const DailyCoursePage()),
+    );
+
+    if (mounted) await _load();
+  }
+
+  Future<void> _openThemedCourse(ThemedCourseDefinition definition) async {
+    await _audio.play(GameSound.uiClick);
+    if (!mounted) return;
+
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ThemedCoursePage(definition: definition),
+      ),
     );
 
     if (mounted) await _load();
@@ -97,17 +142,17 @@ class _DailyTasksPageState extends State<DailyTasksPage> {
   Color _colorFor(DailyTaskType type) {
     switch (type) {
       case DailyTaskType.completeLevels:
-        return const Color(0xFF00D9FF);
+        return StudioVisuals.teal;
       case DailyTaskType.earnStars:
-        return const Color(0xFFFFD334);
+        return StudioVisuals.amber;
       case DailyTaskType.playDifferentGames:
-        return const Color(0xFF76FF03);
+        return StudioVisuals.muted;
       case DailyTaskType.earnScore:
-        return const Color(0xFFFF8A00);
+        return StudioVisuals.teal;
       case DailyTaskType.playSpecificGame:
-        return const Color(0xFFB06CFF);
+        return StudioVisuals.muted;
       case DailyTaskType.threeStarLevel:
-        return const Color(0xFFE748CF);
+        return StudioVisuals.amber;
     }
   }
 
@@ -115,100 +160,133 @@ class _DailyTasksPageState extends State<DailyTasksPage> {
   Widget build(BuildContext context) {
     final DailyChallengeData? data = _data;
     final DailyCourseData? courseData = _courseData;
+    final List<ThemedCourseData>? themedCourses = _themedCourses;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
           context.l10n.dailyChallenges,
-          style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.7),
+          style: const TextStyle(
+            color: StudioVisuals.ink,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.2,
+          ),
         ),
       ),
-      body: _loading || data == null || courseData == null
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(18, 8, 18, 30),
-                children: [
-                  _StreakCard(data: data),
-                  const SizedBox(height: 16),
-                  _DailyCourseLaunchCard(
-                    data: courseData,
-                    onTap: _openDailyCourse,
+      body: StudioPageFrame(
+        child:
+            _loading ||
+                data == null ||
+                courseData == null ||
+                themedCourses == null
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                color: StudioVisuals.teal,
+                backgroundColor: StudioVisuals.surface,
+                onRefresh: _load,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(
+                    StudioVisuals.pageGutter,
+                    12,
+                    StudioVisuals.pageGutter,
+                    32,
                   ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          context.l10n.todaysGoals,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
+                  children: [
+                    _StreakCard(data: data),
+                    const SizedBox(height: 16),
+                    _DailyCourseLaunchCard(
+                      data: courseData,
+                      onTap: _openDailyCourse,
+                    ),
+                    const SizedBox(height: 18),
+                    _ThemedCourseSection(
+                      courses: themedCourses,
+                      onTap: _openThemedCourse,
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            context.l10n.todaysGoals,
+                            style: const TextStyle(
+                              color: StudioVisuals.ink,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 11,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: StudioVisuals.tealSoft,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(
+                            '${data.completedTaskCount}/3',
+                            style: const TextStyle(
+                              color: StudioVisuals.ink,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    ...data.tasks.map(
+                      (progress) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _TaskCard(
+                          progress: progress,
+                          icon: _iconFor(progress.task.type),
+                          color: _colorFor(progress.task.type),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    _DailyFinishCard(data: data),
+                    const SizedBox(height: 14),
+                    Text(
+                      context.l10n.dailyResetInfo,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: StudioVisuals.muted,
+                        fontSize: 10,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 18),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.tonalIcon(
+                            onPressed: _leavingPage ? null : _returnToGame,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: StudioVisuals.ink,
+                              foregroundColor: Colors.white,
+                            ),
+                            icon: const Icon(Icons.sports_esports_rounded),
+                            label: Text(context.l10n.backToGame),
                           ),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 11,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white10,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: Text(
-                          '${data.completedTaskCount}/3',
-                          style: const TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  ...data.tasks.map(
-                    (progress) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _TaskCard(
-                        progress: progress,
-                        icon: _iconFor(progress.task.type),
-                        color: _colorFor(progress.task.type),
-                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  _DailyFinishCard(data: data),
-                  const SizedBox(height: 14),
-                  Text(
-                    context.l10n.dailyResetInfo,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white38,
-                      fontSize: 10,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SafeArea(
-                    top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 18),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.tonalIcon(
-                          onPressed: _leavingPage ? null : _returnToGame,
-                          icon: const Icon(Icons.sports_esports_rounded),
-                          label: Text(context.l10n.backToGame),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }
@@ -229,16 +307,42 @@ class _DailyCourseLaunchCard extends StatelessWidget {
         return Icons.view_in_ar_rounded;
       case 'memory':
         return Icons.grid_view_rounded;
+      case 'card_pairs':
+        return Icons.style_rounded;
+      case 'focus_filter':
+        return Icons.filter_center_focus_rounded;
+      case 'spot_change':
+        return Icons.compare_rounded;
+      case 'rhythm_memory':
+        return Icons.graphic_eq_rounded;
+      case 'attention_tunnel':
+        return Icons.blur_on_rounded;
       case 'hanoi':
         return Icons.account_balance_rounded;
       case 'word_hunt':
         return Icons.travel_explore_rounded;
+      case 'meaning_match':
+        return Icons.hub_rounded;
+      case 'proverb_finish':
+        return Icons.menu_book_rounded;
+      case 'sentence_builder':
+        return Icons.format_align_left_rounded;
+      case 'near_meaning':
+        return Icons.manage_search_rounded;
+      case 'letter_maze':
+        return Icons.route_rounded;
+      case 'language_detective':
+        return Icons.manage_search_rounded;
+      case 'story_order':
+        return Icons.timeline_rounded;
       case 'picture_iq':
         return Icons.auto_awesome_mosaic_rounded;
       case 'candy_sort':
         return Icons.cookie_rounded;
       case 'number_sort':
-        return Icons.hive_rounded;
+        return Icons.grid_4x4_rounded;
+      case 'bubble_shooter':
+        return Icons.bubble_chart_rounded;
       case 'shape_puzzle':
         return Icons.interests_rounded;
       case 'reflex':
@@ -255,26 +359,14 @@ class _DailyCourseLaunchCard extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(25),
+      borderRadius: StudioVisuals.cardRadius,
       child: Ink(
         padding: const EdgeInsets.all(17),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: completed
-                ? const [Color(0xFF375C25), Color(0xFF176A62)]
-                : const [Color(0xFF07577A), Color(0xFF4D2A85)],
-          ),
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: Colors.white24),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x4400D9FF),
-              blurRadius: 22,
-              spreadRadius: -13,
-            ),
-          ],
+          color: StudioVisuals.surface,
+          borderRadius: StudioVisuals.cardRadius,
+          border: Border.all(color: StudioVisuals.line),
+          boxShadow: StudioVisuals.softShadow,
         ),
         child: Column(
           children: [
@@ -284,14 +376,16 @@ class _DailyCourseLaunchCard extends StatelessWidget {
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.14),
+                    color: completed
+                        ? StudioVisuals.tealSoft
+                        : StudioVisuals.amberSoft.withValues(alpha: 0.72),
                     borderRadius: BorderRadius.circular(17),
                   ),
                   child: Icon(
                     completed
                         ? Icons.emoji_events_rounded
                         : Icons.route_rounded,
-                    color: const Color(0xFFFFD334),
+                    color: completed ? StudioVisuals.teal : StudioVisuals.amber,
                     size: 31,
                   ),
                 ),
@@ -303,6 +397,7 @@ class _DailyCourseLaunchCard extends StatelessWidget {
                       Text(
                         english ? 'Daily Brain Course' : 'Günün Zekâ Parkuru',
                         style: const TextStyle(
+                          color: StudioVisuals.ink,
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
                         ),
@@ -317,7 +412,7 @@ class _DailyCourseLaunchCard extends StatelessWidget {
                             ? 'Complete ${data.games.length} different games in order.'
                             : '${data.games.length} farklı oyunu sırayla tamamla.',
                         style: const TextStyle(
-                          color: Colors.white70,
+                          color: StudioVisuals.muted,
                           fontSize: 10,
                         ),
                       ),
@@ -326,12 +421,27 @@ class _DailyCourseLaunchCard extends StatelessWidget {
                 ),
                 const Icon(
                   Icons.arrow_forward_ios_rounded,
-                  color: Colors.white70,
+                  color: StudioVisuals.ink,
                   size: 18,
                 ),
               ],
             ),
             const SizedBox(height: 15),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 126,
+                child: Image.asset(
+                  _dailyCourseVisualAsset,
+                  fit: BoxFit.cover,
+                  semanticLabel: english
+                      ? 'Daily brain course visual'
+                      : 'Günün zekâ parkuru görseli',
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
             Column(
               children: [
                 for (
@@ -360,8 +470,8 @@ class _DailyCourseLaunchCard extends StatelessWidget {
                             width: 12,
                             height: 2,
                             color: data.isCompleted(data.games[index])
-                                ? const Color(0xFF6CFF9B)
-                                : Colors.white24,
+                                ? StudioVisuals.teal
+                                : StudioVisuals.line,
                           ),
                       ],
                     ],
@@ -394,10 +504,10 @@ class _DailyCourseMiniStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color color = completed
-        ? const Color(0xFF6CFF9B)
+        ? StudioVisuals.teal
         : current
-        ? const Color(0xFF7BEAFF)
-        : Colors.white54;
+        ? StudioVisuals.amber
+        : StudioVisuals.muted;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -425,6 +535,253 @@ class _DailyCourseMiniStep extends StatelessWidget {
   }
 }
 
+class _ThemedCourseSection extends StatelessWidget {
+  final List<ThemedCourseData> courses;
+  final ValueChanged<ThemedCourseDefinition> onTap;
+
+  const _ThemedCourseSection({required this.courses, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool english = context.l10n.isEnglish;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                english ? 'MORE BRAIN CIRCUITS' : 'DİĞER ZEKÂ PARKURLARI',
+                style: const TextStyle(
+                  color: StudioVisuals.ink,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            Text(
+              english ? 'CHOOSE A THEME' : 'TEMANI SEÇ',
+              style: const TextStyle(
+                color: StudioVisuals.muted,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Text(
+          english
+              ? 'Replayable mixed routes, each with its own game mix and difficulty.'
+              : 'Günlük parkura ek olarak, kendi oyun seçkisi ve zorluk düzeni olan tekrar oynanabilir parkurlar.',
+          style: const TextStyle(
+            color: StudioVisuals.muted,
+            fontSize: 11,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 11),
+        ...courses.map(
+          (ThemedCourseData data) => Padding(
+            padding: const EdgeInsets.only(bottom: 11),
+            child: _ThemedCourseLaunchCard(
+              data: data,
+              onTap: () => onTap(data.definition),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ThemedCourseLaunchCard extends StatelessWidget {
+  final ThemedCourseData data;
+  final VoidCallback onTap;
+
+  const _ThemedCourseLaunchCard({required this.data, required this.onTap});
+
+  Color _accent(String id) {
+    switch (id) {
+      case 'star_hunt':
+        return StudioVisuals.amber;
+      case 'mind_gym':
+        return StudioVisuals.teal;
+      case 'high_iq':
+        return const Color(0xFF665AA2);
+      case 'word_labyrinth':
+        return const Color(0xFF3D7183);
+      case 'speed_precision':
+        return StudioVisuals.danger;
+      default:
+        return StudioVisuals.teal;
+    }
+  }
+
+  IconData _icon(String id) {
+    switch (id) {
+      case 'star_hunt':
+        return Icons.stars_rounded;
+      case 'mind_gym':
+        return Icons.psychology_alt_rounded;
+      case 'high_iq':
+        return Icons.workspace_premium_rounded;
+      case 'word_labyrinth':
+        return Icons.menu_book_rounded;
+      case 'speed_precision':
+        return Icons.bolt_rounded;
+      default:
+        return Icons.route_rounded;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool english = context.l10n.isEnglish;
+    final Color accent = _accent(data.definition.id);
+    final double progress = data.games.isEmpty
+        ? 0
+        : data.completedCount / data.games.length;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: StudioVisuals.cardRadius,
+      child: Ink(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: StudioVisuals.surface,
+          borderRadius: StudioVisuals.cardRadius,
+          border: Border.all(color: accent.withValues(alpha: 0.25)),
+          boxShadow: StudioVisuals.softShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    data.allCompleted
+                        ? Icons.check_circle_rounded
+                        : _icon(data.definition.id),
+                    color: accent,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        data.definition.title(english: english),
+                        style: const TextStyle(
+                          color: StudioVisuals.ink,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        data.definition.subtitle(english: english),
+                        style: TextStyle(
+                          color: accent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios_rounded, color: accent, size: 17),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 126,
+                child: Image.asset(
+                  _themedCourseVisualAsset(data.definition.id),
+                  fit: BoxFit.cover,
+                  semanticLabel: data.definition.title(english: english),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              data.definition.description(english: english),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: StudioVisuals.muted,
+                fontSize: 10,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 11),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: StudioVisuals.surfaceSoft,
+                valueColor: AlwaysStoppedAnimation<Color>(accent),
+              ),
+            ),
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    data.allCompleted
+                        ? (english
+                              ? 'Complete • ${data.totalScore} Brain Points'
+                              : 'Tamamlandı • ${data.totalScore} Zeka Puanı')
+                        : '${data.completedCount}/${data.games.length} ${english ? 'steps' : 'adım'}',
+                    style: TextStyle(
+                      color: data.allCompleted ? accent : StudioVisuals.muted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Text(
+                  english
+                      ? 'Lv ${data.definition.minLevel}-${data.definition.maxLevel}'
+                      : 'Sv ${data.definition.minLevel}-${data.definition.maxLevel}',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Tur ${data.round}',
+                  style: const TextStyle(
+                    color: StudioVisuals.muted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _StreakCard extends StatelessWidget {
   final DailyChallengeData data;
 
@@ -432,14 +789,9 @@ class _StreakCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFF5C00), Color(0xFFFFB300)],
-        ),
-        borderRadius: BorderRadius.circular(25),
-      ),
+    return StudioCard(
+      minHeight: 142,
+      padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           Row(
@@ -448,12 +800,13 @@ class _StreakCard extends StatelessWidget {
                 width: 57,
                 height: 57,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
+                  color: StudioVisuals.amberSoft.withValues(alpha: 0.72),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.local_fire_department_rounded,
                   size: 36,
+                  color: StudioVisuals.amber,
                 ),
               ),
               const SizedBox(width: 13),
@@ -464,6 +817,7 @@ class _StreakCard extends StatelessWidget {
                     Text(
                       context.l10n.streakTitle(data.currentStreak),
                       style: const TextStyle(
+                        color: StudioVisuals.ink,
                         fontWeight: FontWeight.w900,
                         fontSize: 20,
                       ),
@@ -474,7 +828,7 @@ class _StreakCard extends StatelessWidget {
                           ? context.l10n.streakDoneToday
                           : context.l10n.keepStreak,
                       style: const TextStyle(
-                        color: Color(0xCCFFFFFF),
+                        color: StudioVisuals.muted,
                         fontSize: 11,
                       ),
                     ),
@@ -486,6 +840,9 @@ class _StreakCard extends StatelessWidget {
                     ? Icons.check_circle_rounded
                     : Icons.hourglass_top_rounded,
                 size: 29,
+                color: data.activeToday
+                    ? StudioVisuals.teal
+                    : StudioVisuals.amber,
               ),
             ],
           ),
@@ -531,7 +888,7 @@ class _StreakStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.12),
+        color: StudioVisuals.surfaceSoft,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -539,14 +896,18 @@ class _StreakStat extends StatelessWidget {
           Text(
             value,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+            style: const TextStyle(
+              color: StudioVisuals.ink,
+              fontWeight: FontWeight.w900,
+              fontSize: 13,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Colors.white70,
+              color: StudioVisuals.muted,
               fontSize: 7,
               fontWeight: FontWeight.w800,
             ),
@@ -570,17 +931,9 @@ class _TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: ZpVisualPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(21),
-        border: Border.all(
-          color: progress.completed
-              ? const Color(0xFF52E86B).withValues(alpha: 0.65)
-              : color.withValues(alpha: 0.35),
-        ),
-      ),
+    return StudioCard(
+      minHeight: 112,
+      padding: const EdgeInsets.all(18),
       child: Row(
         children: [
           Container(
@@ -588,13 +941,13 @@ class _TaskCard extends StatelessWidget {
             height: 50,
             decoration: BoxDecoration(
               color: progress.completed
-                  ? const Color(0xFF52E86B).withValues(alpha: 0.15)
+                  ? StudioVisuals.tealSoft
                   : color.withValues(alpha: 0.13),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
               progress.completed ? Icons.check_rounded : icon,
-              color: progress.completed ? const Color(0xFF52E86B) : color,
+              color: progress.completed ? StudioVisuals.teal : color,
               size: 28,
             ),
           ),
@@ -609,6 +962,7 @@ class _TaskCard extends StatelessWidget {
                       child: Text(
                         context.l10n.dailyTaskTitle(progress.task.id),
                         style: const TextStyle(
+                          color: StudioVisuals.ink,
                           fontWeight: FontWeight.w900,
                           fontSize: 14,
                         ),
@@ -618,8 +972,8 @@ class _TaskCard extends StatelessWidget {
                       '${progress.shownCurrent}/${progress.task.target}',
                       style: TextStyle(
                         color: progress.completed
-                            ? const Color(0xFF52E86B)
-                            : Colors.white70,
+                            ? StudioVisuals.teal
+                            : StudioVisuals.ink,
                         fontWeight: FontWeight.w900,
                         fontSize: 11,
                       ),
@@ -633,9 +987,9 @@ class _TaskCard extends StatelessWidget {
                     progress.task.gameId,
                   ),
                   style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 10,
-                    height: 1.3,
+                    color: StudioVisuals.muted,
+                    fontSize: 11,
+                    height: 1.35,
                   ),
                 ),
                 const SizedBox(height: 9),
@@ -644,9 +998,9 @@ class _TaskCard extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: progress.ratio,
                     minHeight: 6,
-                    backgroundColor: Colors.white10,
+                    backgroundColor: StudioVisuals.surfaceSoft,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      progress.completed ? const Color(0xFF52E86B) : color,
+                      progress.completed ? StudioVisuals.teal : color,
                     ),
                   ),
                 ),
@@ -671,14 +1025,9 @@ class _DailyFinishCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
-        gradient: completed
-            ? const LinearGradient(
-                colors: [Color(0xFF6043D8), Color(0xFFE748CF)],
-              )
-            : null,
-        color: completed ? null : const Color(0xFF0D213F),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: completed ? Colors.white24 : Colors.white10),
+        color: completed ? StudioVisuals.tealSoft : StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
       ),
       child: Row(
         children: [
@@ -686,7 +1035,7 @@ class _DailyFinishCard extends StatelessWidget {
             completed
                 ? Icons.workspace_premium_rounded
                 : Icons.lock_clock_rounded,
-            color: completed ? const Color(0xFFFFD334) : Colors.white30,
+            color: completed ? StudioVisuals.amber : StudioVisuals.muted,
             size: 36,
           ),
           const SizedBox(width: 12),
@@ -699,6 +1048,7 @@ class _DailyFinishCard extends StatelessWidget {
                       ? context.l10n.dailyCourseCompleted
                       : context.l10n.dailyCourse,
                   style: const TextStyle(
+                    color: StudioVisuals.ink,
                     fontWeight: FontWeight.w900,
                     fontSize: 13,
                   ),
@@ -708,7 +1058,10 @@ class _DailyFinishCard extends StatelessWidget {
                   completed
                       ? context.l10n.perfectDayEarned
                       : context.l10n.completeDailyCourse,
-                  style: const TextStyle(color: Colors.white60, fontSize: 10),
+                  style: const TextStyle(
+                    color: StudioVisuals.muted,
+                    fontSize: 10,
+                  ),
                 ),
               ],
             ),

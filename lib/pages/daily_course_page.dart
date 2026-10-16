@@ -3,19 +3,54 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-import '../theme/app_visual_theme.dart';
+import '../theme/studio_visuals.dart';
+import '../features/catalog/domain/studio_game_catalog.dart';
 
 import '../games/blocks/block_game_page.dart';
+import '../games/balance_scale/balance_scale_game_page.dart';
+import '../games/chess_mate/chess_mate_game_page.dart';
+import '../games/detective_notes/detective_notes_game_page.dart';
+import '../games/arrow_route/arrow_game_page.dart';
+import '../games/futoshiki/futoshiki_game_page.dart';
 import '../games/hanoi/hanoi_game_page.dart';
-import '../games/logic/logic_game_page.dart';
-import '../games/memory/memory_game_page.dart';
-import '../games/numbers/number_game_page.dart';
 import '../games/candy_sort/candy_sort_game_page.dart';
+import '../games/hidden_masses/hidden_masses_game_page.dart';
+import '../games/hitori/hitori_game_page.dart';
+import '../games/island_sea/island_sea_game_page.dart';
+import '../games/kakuro/kakuro_game_page.dart';
+import '../games/kenken_cube/kenken_cube_game_page.dart';
+import '../games/memory/memory_game_page.dart';
+import '../games/mini_sudoku/mini_sudoku_game_page.dart';
+import '../games/numbers/number_game_page.dart';
 import '../games/number_sort/number_sort_game_page.dart';
+import '../games/parking_puzzle/parking_puzzle_game_page.dart';
+import '../games/picross_master/picross_game_page.dart';
 import '../games/picture_iq/picture_iq_game_page.dart';
 import '../games/reflex/reflex_game_page.dart';
+import '../games/reversi_arena/reversi_game_page.dart';
 import '../games/shape_puzzle/shape_puzzle_game_page.dart';
+import '../games/skyscrapers/skyscrapers_game_page.dart';
+import '../games/slide_sweets/slide_sweets_game_page.dart';
+import '../games/target_24/target_24_game_page.dart';
 import '../games/word_hunt/word_hunt_game_page.dart';
+import '../games/word_wheel/word_wheel_game_page.dart';
+import '../games/meaning_match/meaning_match_game_page.dart';
+import '../games/proverb_finish/proverb_finish_game_page.dart';
+import '../games/sentence_builder/sentence_builder_game_page.dart';
+import '../games/near_meaning/near_meaning_game_page.dart';
+import '../games/letter_maze/letter_maze_game_page.dart';
+import '../games/language_detective/language_detective_game_page.dart';
+import '../games/card_pairs/card_pairs_game_page.dart';
+import '../games/focus_filter/focus_filter_game_page.dart';
+import '../games/spot_change/spot_change_game_page.dart';
+import '../games/rhythm_memory/rhythm_memory_game_page.dart';
+import '../games/attention_tunnel/attention_tunnel_game_page.dart';
+import '../games/story_order/story_order_game_page.dart';
+import '../games/reference_games/arrow_maze_game_page.dart';
+import '../games/reference_games/atlas_find_game_page.dart';
+import '../games/reference_games/katamino_game_page.dart';
+import '../games/reference_games/single_stroke_game_page.dart';
+import '../games/reference_games/atlas_puzzle.dart';
 import '../l10n/app_localizations.dart';
 import '../services/daily_challenge_service.dart';
 import '../services/daily_course_service.dart';
@@ -235,10 +270,14 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: <Color>[Color(0xFF18345F), Color(0xFF111E3B)],
+                      colors: <Color>[
+                        StudioVisuals.surface,
+                        StudioVisuals.tealSoft,
+                      ],
                     ),
                     borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: const Color(0xFF4C79AE)),
+                    border: Border.all(color: StudioVisuals.line),
+                    boxShadow: StudioVisuals.softShadow,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -246,7 +285,7 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                     children: <Widget>[
                       const Icon(
                         Icons.save_alt_rounded,
-                        color: Color(0xFF7DEFD1),
+                        color: StudioVisuals.teal,
                         size: 40,
                       ),
                       const SizedBox(height: 10),
@@ -256,6 +295,7 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                             : 'GÜNÜN PARKURUNDAN ÇIKILSIN MI?',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
+                          color: StudioVisuals.ink,
                           fontSize: 19,
                           fontWeight: FontWeight.w900,
                         ),
@@ -267,7 +307,7 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                             : '$gameName henüz sonuçlanmadı. Aynı oyun, seviye ve düzen korunacak.',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                          color: Colors.white70,
+                          color: StudioVisuals.muted,
                           fontSize: 13,
                           height: 1.4,
                         ),
@@ -292,8 +332,8 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                           _DailyExitDecision.skip,
                         ),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFFFD334),
-                          side: const BorderSide(color: Color(0xFFFFD334)),
+                          foregroundColor: StudioVisuals.amber,
+                          side: const BorderSide(color: StudioVisuals.amber),
                         ),
                         icon: const Icon(Icons.skip_next_rounded),
                         label: Text(
@@ -308,7 +348,7 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                             : 'Geçilen bölüm 0 yıldız ve 0 puanla kaydedilir.',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                          color: Colors.white54,
+                          color: StudioVisuals.muted,
                           fontSize: 10,
                         ),
                       ),
@@ -318,6 +358,9 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                           _DailyExitDecision.leave,
                         ),
                         icon: const Icon(Icons.exit_to_app_rounded),
+                        style: TextButton.styleFrom(
+                          foregroundColor: StudioVisuals.muted,
+                        ),
                         label: Text(
                           english ? 'LEAVE THE COURSE' : 'PARKURDAN ÇIK',
                           style: const TextStyle(fontWeight: FontWeight.w800),
@@ -507,17 +550,10 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
 
   Future<void> _playCourseCompletionSound() async {
     await _audio.play(GameSound.levelComplete);
-    await _audio.playMashallahCelebration();
   }
 
   Widget _pageFor(String gameId, int competitionLevel, int layoutCode) {
     switch (gameId) {
-      case 'logic':
-        return LogicGamePage(
-          dailyCourseMode: true,
-          competitionLevel: competitionLevel,
-          competitionLayoutCode: layoutCode,
-        );
       case 'numbers':
         return NumberGamePage(
           dailyCourseMode: true,
@@ -536,8 +572,44 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
           competitionLevel: competitionLevel,
           competitionLayoutCode: layoutCode,
         );
+      case 'card_pairs':
+        return CardPairsGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'focus_filter':
+        return FocusFilterGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'spot_change':
+        return SpotChangeGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'rhythm_memory':
+        return RhythmMemoryGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'attention_tunnel':
+        return AttentionTunnelGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
       case 'hanoi':
         return HanoiGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'candy_sort':
+        return CandySortGamePage(
           dailyCourseMode: true,
           competitionLevel: competitionLevel,
           competitionLayoutCode: layoutCode,
@@ -548,14 +620,50 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
           competitionLevel: competitionLevel,
           competitionLayoutCode: layoutCode,
         );
-      case 'picture_iq':
-        return PictureIqGamePage(
+      case 'meaning_match':
+        return MeaningMatchGamePage(
           dailyCourseMode: true,
           competitionLevel: competitionLevel,
           competitionLayoutCode: layoutCode,
         );
-      case 'candy_sort':
-        return CandySortGamePage(
+      case 'proverb_finish':
+        return ProverbFinishGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'sentence_builder':
+        return SentenceBuilderGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'near_meaning':
+        return NearMeaningGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'letter_maze':
+        return LetterMazeGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'language_detective':
+        return LanguageDetectiveGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'story_order':
+        return StoryOrderGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'picture_iq':
+        return PictureIqGamePage(
           dailyCourseMode: true,
           competitionLevel: competitionLevel,
           competitionLayoutCode: layoutCode,
@@ -568,6 +676,146 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
         );
       case 'shape_puzzle':
         return ShapePuzzleGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'detective_notes':
+        return DetectiveNotesGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'balance_scale':
+        return BalanceScaleGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'target_24':
+        return Target24GamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'mini_sudoku':
+        return MiniSudokuGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'kenken_cube':
+        return KenKenCubeGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'hidden_masses':
+        return HiddenMassesGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'kakuro':
+        return KakuroGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'parking_puzzle':
+        return ParkingPuzzleGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'mini_chess_tactics':
+        return ChessMateGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'word_wheel':
+        return WordWheelGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'slide_sweets':
+        return SlideSweetsGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'reversi_arena':
+        return ReversiGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'picross_master':
+        return PicrossGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'arrow_route':
+        return ArrowRouteGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'island_sea':
+        return IslandSeaGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'futoshiki':
+        return FutoshikiGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'skyscrapers':
+        return SkyscrapersGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'hitori':
+        return HitoriGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'city_atlas':
+        return AtlasFindGamePage(
+          kind: AtlasKind.turkey,
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'world_atlas':
+        return AtlasFindGamePage(
+          kind: AtlasKind.world,
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'katamino_workshop':
+        return KataminoGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'single_stroke':
+        return SingleStrokeGamePage(
+          dailyCourseMode: true,
+          competitionLevel: competitionLevel,
+          competitionLayoutCode: layoutCode,
+        );
+      case 'arrow_maze':
+        return ArrowMazeGamePage(
           dailyCourseMode: true,
           competitionLevel: competitionLevel,
           competitionLayoutCode: layoutCode,
@@ -593,22 +841,48 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
         return english ? 'Block Mind' : 'Blok Zekâ';
       case 'memory':
         return english ? 'Memory Master' : 'Hafıza Ustası';
+      case 'card_pairs':
+        return english ? 'Card Pairs' : 'Kart Çifti';
+      case 'focus_filter':
+        return english ? 'Focus Filter' : 'Odak Filtresi';
+      case 'spot_change':
+        return english ? 'Spot the Change' : 'Değişeni Bul';
+      case 'rhythm_memory':
+        return english ? 'Rhythm Memory' : 'Ritim Hafızası';
+      case 'attention_tunnel':
+        return english ? 'Attention Tunnel' : 'Dikkat Tüneli';
       case 'hanoi':
         return english ? 'Tower of Hanoi' : 'Hanoi Kulesi';
-      case 'word_hunt':
-        return english ? 'Word Hunt' : 'Kelime Avı';
-      case 'picture_iq':
-        return english ? 'Visual IQ' : 'Görsel IQ';
       case 'candy_sort':
         return english ? 'Candy Sort' : 'Şeker Sıralama';
+      case 'word_hunt':
+        return english ? 'Word Hunt' : 'Kelime Avı';
+      case 'meaning_match':
+        return english ? 'Meaning Match' : 'Anlam Eşleştir';
+      case 'proverb_finish':
+        return english ? 'Finish the Proverb' : 'Atasözü Tamamla';
+      case 'sentence_builder':
+        return english ? 'Sentence Builder' : 'Cümle Kur';
+      case 'near_meaning':
+        return english ? 'Near Meaning' : 'Yakın Anlam';
+      case 'letter_maze':
+        return english ? 'Letter Maze' : 'Harf Labirenti';
+      case 'language_detective':
+        return english ? 'Language Detective' : 'Dil Dedektifi';
+      case 'story_order':
+        return english ? 'Story Order' : 'Hikâye Sırası';
+      case 'picture_iq':
+        return english ? 'Visual IQ' : 'Görsel IQ';
       case 'number_sort':
-        return english ? 'Number Hive' : 'Sayı Peteği';
+        return english ? '15-Tile Master' : '15 Taş Ustası';
       case 'shape_puzzle':
         return english ? 'Shape Merge' : 'Şekil Birleştir';
       case 'reflex':
         return english ? 'Reflex Hunt' : 'Refleks Avı';
       default:
-        return english ? 'Game' : 'Oyun';
+        final GameDefinition? definition = StudioGameCatalog.byId(gameId);
+        return definition?.title(english: english) ??
+            (english ? 'Game' : 'Oyun');
     }
   }
 
@@ -630,22 +904,70 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
         return english
             ? 'Put your visual memory to work.'
             : 'Görsel hafızanı çalıştır.';
+      case 'card_pairs':
+        return english
+            ? 'Match visual, color and meaning pairs with a changing rule.'
+            : 'Değişen kuralla görsel, renk ve anlam eşlerini bul.';
+      case 'focus_filter':
+        return english
+            ? 'Track the changing target, ignore near-misses and avoid false alarms.'
+            : 'Değişen hedefi izle, yakın yanıltıcıları ele ve yanlış alarmı önle.';
+      case 'spot_change':
+        return english
+            ? 'Compare two scenes and select every altered position.'
+            : 'İki sahneyi karşılaştır ve değişen tüm konumları seç.';
+      case 'rhythm_memory':
+        return english
+            ? 'Repeat the note sequence with its accents and relative pauses.'
+            : 'Nota dizisini vurguları ve göreli bekleme aralıklarıyla tekrar et.';
+      case 'attention_tunnel':
+        return english
+            ? 'Follow the target through crossing rails and brief tunnel shutters.'
+            : 'Hedefi kesişen hatlar ve kısa tünel örtülmeleri boyunca takip et.';
       case 'hanoi':
         return english
             ? 'Move the rings in the right order.'
             : 'Halkaları doğru sırayla taşı.';
+      case 'candy_sort':
+        return english
+            ? 'Move candies onto matching colors or into empty jars.'
+            : 'Şekerleri aynı rengin üzerine veya boş kavanoza taşı.';
       case 'word_hunt':
         return english
             ? 'Find every hidden word.'
             : 'Gizlenen kelimelerin tamamını bul.';
+      case 'meaning_match':
+        return english
+            ? 'Group sixteen words into four precise connections.'
+            : 'On altı sözcüğü dört doğru anlam kümesine ayır.';
+      case 'proverb_finish':
+        return english
+            ? 'Complete Turkish sayings and learn their usage.'
+            : 'Atasözlerini tamamla, anlamını ve kullanımını öğren.';
+      case 'sentence_builder':
+        return english
+            ? 'Order sentence blocks using context and grammar cues.'
+            : 'Bağlam ve dilbilgisi ipuçlarıyla cümle bloklarını sırala.';
+      case 'near_meaning':
+        return english
+            ? 'Choose the closest definition that fits the context.'
+            : 'Bağlama en uygun yakın anlam açıklamasını seç.';
+      case 'letter_maze':
+        return english
+            ? 'Trace the clue word through its entrance, root gate and exit.'
+            : 'İpucundaki sözcüğü giriş, kök kapısı ve çıkıştan geçir.';
+      case 'language_detective':
+        return english
+            ? 'Separate supported findings from assumptions in short source files.'
+            : 'Kısa kaynak dosyalarında kanıtlı sonucu varsayımdan ayır.';
+      case 'story_order':
+        return english
+            ? 'Order events by cause and effect, then reject one unsupported detail.'
+            : 'Olayları neden-sonuç ilişkisiyle sırala, ardından kanıtsız ayrıntıyı ele.';
       case 'picture_iq':
         return english
             ? 'Decode a visual transformation.'
             : 'Görsel dönüşüm kuralını çöz.';
-      case 'candy_sort':
-        return english
-            ? 'Group candies by color.'
-            : 'Şekerleri renklerine göre grupla.';
       case 'number_sort':
         return english
             ? 'Restore the number order.'
@@ -659,7 +981,10 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
             ? 'React to the correct target.'
             : 'Doğru hedefe hızla tepki ver.';
       default:
-        return '';
+        final GameDefinition? definition = StudioGameCatalog.byId(gameId);
+        return english
+            ? 'Complete a ${definition?.titleEn ?? 'brain'} challenge.'
+            : '${definition?.titleTr ?? 'Oyunu'} tamamla.';
     }
   }
 
@@ -673,51 +998,83 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
         return Icons.view_in_ar_rounded;
       case 'memory':
         return Icons.grid_view_rounded;
+      case 'card_pairs':
+        return Icons.style_rounded;
+      case 'focus_filter':
+        return Icons.filter_center_focus_rounded;
+      case 'spot_change':
+        return Icons.compare_rounded;
+      case 'rhythm_memory':
+        return Icons.graphic_eq_rounded;
+      case 'attention_tunnel':
+        return Icons.blur_on_rounded;
       case 'hanoi':
         return Icons.account_balance_rounded;
-      case 'word_hunt':
-        return Icons.travel_explore_rounded;
-      case 'picture_iq':
-        return Icons.auto_awesome_mosaic_rounded;
       case 'candy_sort':
         return Icons.cookie_rounded;
+      case 'word_hunt':
+        return Icons.travel_explore_rounded;
+      case 'meaning_match':
+        return Icons.hub_rounded;
+      case 'proverb_finish':
+        return Icons.menu_book_rounded;
+      case 'sentence_builder':
+        return Icons.format_align_left_rounded;
+      case 'near_meaning':
+        return Icons.manage_search_rounded;
+      case 'letter_maze':
+        return Icons.route_rounded;
+      case 'language_detective':
+        return Icons.manage_search_rounded;
+      case 'story_order':
+        return Icons.timeline_rounded;
+      case 'picture_iq':
+        return Icons.auto_awesome_mosaic_rounded;
       case 'number_sort':
-        return Icons.hive_rounded;
+        return Icons.grid_4x4_rounded;
       case 'shape_puzzle':
         return Icons.interests_rounded;
       case 'reflex':
         return Icons.bolt_rounded;
       default:
-        return Icons.sports_esports_rounded;
+        return StudioGameCatalog.byId(gameId)?.gameClass.icon ??
+            Icons.sports_esports_rounded;
     }
   }
 
   Color _gameColor(String gameId) {
     switch (gameId) {
       case 'logic':
-        return const Color(0xFF52E86B);
       case 'numbers':
-        return const Color(0xFF00D9FF);
-      case 'blocks':
-        return const Color(0xFFFF8A00);
       case 'memory':
-        return const Color(0xFFE748CF);
-      case 'hanoi':
-        return const Color(0xFFB06CFF);
-      case 'word_hunt':
-        return const Color(0xFF00D9A6);
-      case 'picture_iq':
-        return const Color(0xFFFF4FA3);
-      case 'candy_sort':
-        return const Color(0xFFFF8A3D);
+      case 'card_pairs':
+      case 'spot_change':
+      case 'rhythm_memory':
+      case 'attention_tunnel':
+        return StudioVisuals.teal;
+      case 'blocks':
       case 'number_sort':
-        return const Color(0xFFFFD334);
+      case 'hanoi':
+        return StudioVisuals.amber;
+      case 'candy_sort':
+        return const Color(0xFFC46D32);
+      case 'word_hunt':
+      case 'meaning_match':
+      case 'proverb_finish':
+      case 'sentence_builder':
+      case 'near_meaning':
+      case 'letter_maze':
+      case 'language_detective':
+      case 'story_order':
+      case 'picture_iq':
       case 'shape_puzzle':
-        return const Color(0xFF8C6CFF);
+        return StudioVisuals.muted;
       case 'reflex':
-        return const Color(0xFFFF5B5B);
+      case 'focus_filter':
+        return StudioVisuals.danger;
       default:
-        return Colors.white;
+        return StudioGameCatalog.byId(gameId)?.gameClass.accent ??
+            StudioVisuals.teal;
     }
   }
 
@@ -741,17 +1098,11 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Color(0xFF173B69), Color(0xFF351D70)],
+                    colors: [StudioVisuals.surface, StudioVisuals.tealSoft],
                   ),
                   borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: Colors.white24),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x8800D9FF),
-                      blurRadius: 30,
-                      spreadRadius: -14,
-                    ),
-                  ],
+                  border: Border.all(color: StudioVisuals.line),
+                  boxShadow: StudioVisuals.softShadow,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -780,6 +1131,7 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                           : 'Günlük Rota Tamamlandı',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
+                        color: StudioVisuals.ink,
                         fontSize: 21,
                         fontWeight: FontWeight.w900,
                       ),
@@ -799,7 +1151,7 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                                 '${data.skippedGames.length} geçildi',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        color: Colors.white70,
+                        color: StudioVisuals.muted,
                         fontSize: 12,
                       ),
                     ),
@@ -818,7 +1170,7 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                         Expanded(
                           child: _ResultStat(
                             icon: Icons.bolt_rounded,
-                            color: const Color(0xFF00D9FF),
+                            color: StudioVisuals.teal,
                             value: '${data.totalScore}',
                             label: english ? 'Brain Points' : 'Zeka Puanı',
                           ),
@@ -831,8 +1183,8 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                       child: FilledButton.icon(
                         onPressed: () => Navigator.pop(dialogContext, true),
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF00D9FF),
-                          foregroundColor: const Color(0xFF041527),
+                          backgroundColor: StudioVisuals.teal,
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 13),
                         ),
                         icon: const Icon(Icons.replay_rounded),
@@ -845,9 +1197,11 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                     const SizedBox(height: 5),
                     TextButton(
                       onPressed: () => Navigator.pop(dialogContext, false),
+                      style: TextButton.styleFrom(
+                        foregroundColor: StudioVisuals.muted,
+                      ),
                       child: Text(
                         english ? 'Finish for now' : 'Şimdilik Tamam',
-                        style: const TextStyle(color: Colors.white70),
                       ),
                     ),
                     if (replay)
@@ -857,7 +1211,7 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                             : 'Tekrar puanı günlük ödülü yeniden artırmaz.',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                          color: Colors.white38,
+                          color: StudioVisuals.muted,
                           fontSize: 9,
                         ),
                       ),
@@ -876,13 +1230,15 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
     final bool english = context.l10n.isEnglish;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
         elevation: 0,
         title: Text(
           english ? 'Daily Brain Course' : 'Günün Zekâ Parkuru',
           style: const TextStyle(
+            color: StudioVisuals.ink,
             fontWeight: FontWeight.w900,
             letterSpacing: 0.4,
           ),
@@ -913,7 +1269,7 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                       Text(
                         '${data.completedCount}/${data.games.length}',
                         style: const TextStyle(
-                          color: Color(0xFF7BEAFF),
+                          color: StudioVisuals.teal,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -946,10 +1302,10 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                           ? _startReplay
                           : _startOrResume,
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF00D9FF),
-                        foregroundColor: const Color(0xFF041527),
-                        disabledBackgroundColor: const Color(0xFF173B69),
-                        disabledForegroundColor: Colors.white70,
+                        backgroundColor: StudioVisuals.teal,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: StudioVisuals.line,
+                        disabledForegroundColor: StudioVisuals.muted,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
                         ),
@@ -996,7 +1352,7 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
                         : 'Her oyunda bir seviye tamamla. Normal oyun ilerlemen aynen korunur.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      color: Colors.white38,
+                      color: StudioVisuals.muted,
                       fontSize: 10,
                       height: 1.35,
                     ),
@@ -1043,7 +1399,10 @@ class _DailyCourseLoadFailure extends StatelessWidget {
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white54, fontSize: 11),
+                style: const TextStyle(
+                  color: StudioVisuals.muted,
+                  fontSize: 11,
+                ),
               ),
             ],
             const SizedBox(height: 18),
@@ -1068,8 +1427,11 @@ class _DailyCourseUnavailablePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool english = context.l10n.isEnglish;
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(backgroundColor: Colors.transparent),
+      backgroundColor: StudioVisuals.canvas,
+      appBar: AppBar(
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(28),
@@ -1093,7 +1455,7 @@ class _DailyCourseUnavailablePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(gameId, style: const TextStyle(color: Colors.white54)),
+              Text(gameId, style: const TextStyle(color: StudioVisuals.muted)),
               const SizedBox(height: 18),
               FilledButton.icon(
                 onPressed: () => Navigator.pop(
@@ -1125,17 +1487,11 @@ class _CourseHero extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF07577A), Color(0xFF303080), Color(0xFF6A246E)],
+          colors: [StudioVisuals.tealSoft, StudioVisuals.surface],
         ),
         borderRadius: BorderRadius.circular(27),
-        border: Border.all(color: Colors.white24),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x5500D9FF),
-            blurRadius: 26,
-            spreadRadius: -13,
-          ),
-        ],
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         children: [
@@ -1143,9 +1499,9 @@ class _CourseHero extends StatelessWidget {
             width: 66,
             height: 66,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.14),
+              color: StudioVisuals.surface,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white24),
+              border: Border.all(color: StudioVisuals.line),
             ),
             child: Icon(
               data.allSuccessful
@@ -1153,7 +1509,7 @@ class _CourseHero extends StatelessWidget {
                   : data.allCompleted
                   ? Icons.flag_circle_rounded
                   : Icons.route_rounded,
-              color: const Color(0xFFFFD334),
+              color: StudioVisuals.amber,
               size: 38,
             ),
           ),
@@ -1175,6 +1531,7 @@ class _CourseHero extends StatelessWidget {
                       ? '${data.games.length} games, one daily run'
                       : '${data.games.length} oyun, tek günlük rota',
                   style: const TextStyle(
+                    color: StudioVisuals.ink,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1189,7 +1546,7 @@ class _CourseHero extends StatelessWidget {
                       ? 'Finish the route and train ${data.games.length} different skills.'
                       : 'Rotayı bitir, ${data.games.length} farklı beceriyi çalıştır.',
                   style: const TextStyle(
-                    color: Colors.white70,
+                    color: StudioVisuals.muted,
                     fontSize: 11,
                     height: 1.35,
                   ),
@@ -1229,19 +1586,19 @@ class _CourseStepCard extends StatelessWidget {
     final IconData statusIcon;
     switch (outcome) {
       case DailyStageOutcome.completed:
-        statusColor = const Color(0xFF52E86B);
+        statusColor = StudioVisuals.teal;
         statusIcon = Icons.check_rounded;
       case DailyStageOutcome.failed:
-        statusColor = const Color(0xFFFF6868);
+        statusColor = StudioVisuals.danger;
         statusIcon = Icons.close_rounded;
       case DailyStageOutcome.skipped:
-        statusColor = const Color(0xFFFFB44A);
+        statusColor = StudioVisuals.amber;
         statusIcon = Icons.skip_next_rounded;
       case DailyStageOutcome.exited:
         statusColor = color;
         statusIcon = Icons.logout_rounded;
       case null:
-        statusColor = current ? color : Colors.white24;
+        statusColor = current ? color : StudioVisuals.muted;
         statusIcon = icon;
     }
 
@@ -1249,15 +1606,12 @@ class _CourseStepCard extends StatelessWidget {
       duration: const Duration(milliseconds: 260),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: current
-            ? color.withValues(alpha: 0.11)
-            : ZpVisualPalette.of(context).surface,
+        color: current ? StudioVisuals.tealSoft : StudioVisuals.surface,
         borderRadius: BorderRadius.circular(21),
         border: Border.all(
-          color: statusColor.withValues(
-            alpha: resolved || current ? 0.65 : 0.30,
-          ),
+          color: resolved || current ? statusColor : StudioVisuals.line,
         ),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         children: [
@@ -1278,6 +1632,7 @@ class _CourseStepCard extends StatelessWidget {
                 Text(
                   name,
                   style: const TextStyle(
+                    color: StudioVisuals.ink,
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1288,7 +1643,7 @@ class _CourseStepCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white54,
+                    color: StudioVisuals.muted,
                     fontSize: 10,
                     height: 1.25,
                   ),
@@ -1338,9 +1693,9 @@ class _ResultStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.18),
+        color: StudioVisuals.surfaceSoft,
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: StudioVisuals.line),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1353,13 +1708,14 @@ class _ResultStat extends StatelessWidget {
               Text(
                 value,
                 style: const TextStyle(
+                  color: StudioVisuals.ink,
                   fontSize: 16,
                   fontWeight: FontWeight.w900,
                 ),
               ),
               Text(
                 label,
-                style: const TextStyle(color: Colors.white54, fontSize: 9),
+                style: const TextStyle(color: StudioVisuals.muted, fontSize: 9),
               ),
             ],
           ),
@@ -1420,10 +1776,10 @@ class _DailyCourseStageTransitionState
   @override
   Widget build(BuildContext context) {
     final Color accent = switch (widget.outcome) {
-      DailyStageOutcome.completed => const Color(0xFF6CFF9B),
-      DailyStageOutcome.failed => const Color(0xFFFF6868),
-      DailyStageOutcome.skipped => const Color(0xFFFFB44A),
-      DailyStageOutcome.exited => const Color(0xFF7BEAFF),
+      DailyStageOutcome.completed => StudioVisuals.teal,
+      DailyStageOutcome.failed => StudioVisuals.danger,
+      DailyStageOutcome.skipped => StudioVisuals.amber,
+      DailyStageOutcome.exited => StudioVisuals.muted,
     };
     final IconData statusIcon = switch (widget.outcome) {
       DailyStageOutcome.completed => Icons.check_circle_rounded,
@@ -1459,17 +1815,14 @@ class _DailyCourseStageTransitionState
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: <Color>[Color(0xFF173B69), Color(0xFF31215D)],
+                  colors: <Color>[
+                    StudioVisuals.surface,
+                    StudioVisuals.tealSoft,
+                  ],
                 ),
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: accent, width: 1.6),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: accent.withValues(alpha: 0.28),
-                    blurRadius: 34,
-                    spreadRadius: -8,
-                  ),
-                ],
+                border: Border.all(color: StudioVisuals.line),
+                boxShadow: StudioVisuals.softShadow,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1480,6 +1833,7 @@ class _DailyCourseStageTransitionState
                     title,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
+                      color: StudioVisuals.ink,
                       fontSize: 20,
                       fontWeight: FontWeight.w900,
                     ),
@@ -1501,7 +1855,7 @@ class _DailyCourseStageTransitionState
                         : 'Sırada: ${widget.nextGameName}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      color: Colors.white70,
+                      color: StudioVisuals.muted,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1512,7 +1866,7 @@ class _DailyCourseStageTransitionState
                     minHeight: 7,
                     borderRadius: BorderRadius.circular(99),
                     color: accent,
-                    backgroundColor: Colors.white12,
+                    backgroundColor: StudioVisuals.line,
                   ),
                 ],
               ),

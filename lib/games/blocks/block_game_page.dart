@@ -4,13 +4,52 @@ import '../../services/replayability_service.dart';
 import '../../services/daily_challenge_service.dart';
 import '../../services/daily_course_service.dart';
 import '../../services/game_audio_service.dart';
-import '../../theme/app_visual_theme.dart';
+import '../../services/common_level_score_service.dart';
+import '../../theme/studio_visuals.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../widgets/studio_chapter_card.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../widgets/advanced_result_banner.dart';
 import '../../services/local_progress_service.dart';
+import '../shared/studio_game_contracts.dart';
+import '../shared/game_instruction_catalog.dart';
+
+abstract final class _BlockNeon {
+  static const Color background = Color(0xFF080D22);
+  static const Color board = Color(0xFF101936);
+  static const Color panel = Color(0xFF151F40);
+  static const Color panelRaised = Color(0xFF1D2A52);
+  static const Color emptyCell = Color(0xFF202D50);
+  static const Color line = Color(0xFF35456F);
+  static const Color text = Color(0xFFF4F7FF);
+  static const Color muted = Color(0xFFBCC8E8);
+  // The play pieces use a rich, material-like palette inspired by the
+  // reference block set. Keep the interface accents separate so the board
+  // remains readable without the pieces looking fluorescent.
+  static const Color cyan = Color(0xFF148FA7);
+  static const Color violet = Color(0xFF7C58AF);
+  static const Color pink = Color(0xFFD94A56);
+  static const Color orange = Color(0xFFE6A12B);
+  static const Color lime = Color(0xFF82A64F);
+  static const Color green = Color(0xFF4D9964);
+  static const Color red = Color(0xFFD94445);
+  static const Color blockBlue = Color(0xFF2D6FB0);
+  static const Color blockOrange = Color(0xFFE2752C);
+
+  static const List<Color> pieces = <Color>[
+    pink,
+    orange,
+    blockBlue,
+    green,
+    violet,
+    cyan,
+    blockOrange,
+  ];
+}
 
 class BlockGamePage extends StatefulWidget {
   final bool dailyCourseMode;
@@ -34,11 +73,14 @@ class _BlockGamePageState extends State<BlockGamePage> {
   bool yukleniyor = true;
   int acikSeviye = 1;
 
-  List<int> yildizlar = List<int>.filled(10, 0);
-  List<int> enIyiPuanlar = List<int>.filled(10, 0);
+  List<int> yildizlar = List<int>.filled(GameContentPolicy.campaignLevels, 0);
+  List<int> enIyiPuanlar = List<int>.filled(
+    GameContentPolicy.campaignLevels,
+    0,
+  );
   bool _competitionOpened = false;
 
-  final List<BlockLevel> seviyeler = const [
+  final List<BlockLevel> _nativeLevels = const [
     BlockLevel(
       number: 1,
       title: 'Blok Başlangıç',
@@ -126,6 +168,25 @@ class _BlockGamePageState extends State<BlockGamePage> {
     ),
   ];
 
+  late final List<BlockLevel> seviyeler = List.generate(
+    GameContentPolicy.campaignLevels,
+    (index) {
+      final chapter = index + 1;
+      final base = _nativeLevels[GameContentPolicy.nativeLevel(chapter) - 1];
+      return BlockLevel(
+        number: chapter,
+        sourceNumber: base.number,
+        difficulty: GameContentPolicy.difficulty(chapter),
+        title: base.title,
+        targetScore: base.targetScore,
+        targetLines: base.targetLines,
+        targetCombo: base.targetCombo,
+        targetMoves: base.targetMoves,
+      );
+    },
+    growable: false,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -175,18 +236,26 @@ class _BlockGamePageState extends State<BlockGamePage> {
 
     GameAudioService.instance.play(GameSound.uiClick);
 
-    final BlockLevelResult? sonuc = await Navigator.push<BlockLevelResult>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BlockPlayPage(
-          level: seviyeler[index],
-          totalLevels: seviyeler.length,
-          previousBestScore: enIyiPuanlar[index],
-          fixedSessionSeed: widget.competitionLayoutCode,
-          competitionMode: widget.competitionLevel != null,
+    final List<int> previousStars = List<int>.from(yildizlar);
+    final CommonLevelScoreSession scoring = CommonLevelScoreSession.begin();
+    final BlockLevelResult? sonuc;
+    try {
+      sonuc = await Navigator.push<BlockLevelResult>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BlockPlayPage(
+            level: seviyeler[index],
+            totalLevels: seviyeler.length,
+            previousBestScore: enIyiPuanlar[index],
+            fixedSessionSeed: widget.competitionLayoutCode,
+            competitionMode: widget.competitionLevel != null,
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      scoring.finish();
+    }
+    final int commonPoints = scoring.points;
 
     if (!mounted) return;
 
@@ -199,7 +268,7 @@ class _BlockGamePageState extends State<BlockGamePage> {
             ? DailyStageResult.completed(
                 gameId: 'blocks',
                 stars: sonuc.stars,
-                rawScore: sonuc.score,
+                rawScore: commonPoints,
               )
             : const DailyStageResult.failed(gameId: 'blocks'),
       );
@@ -212,23 +281,24 @@ class _BlockGamePageState extends State<BlockGamePage> {
       }
       return;
     }
+    final BlockLevelResult completedResult = sonuc;
 
     if (widget.competitionLevel != null) {
       Navigator.pop(
         context,
         DailyCourseGameResult(
           gameId: 'blocks',
-          stars: sonuc.stars,
-          score: sonuc.score,
+          stars: completedResult.stars,
+          score: commonPoints,
         ),
       );
       return;
     }
 
     setState(() {
-      yildizlar[index] = max(yildizlar[index], sonuc.stars);
+      yildizlar[index] = max(yildizlar[index], completedResult.stars);
 
-      enIyiPuanlar[index] = max(enIyiPuanlar[index], sonuc.score);
+      enIyiPuanlar[index] = max(enIyiPuanlar[index], completedResult.score);
 
       if (index + 1 == acikSeviye && acikSeviye < seviyeler.length) {
         acikSeviye++;
@@ -236,18 +306,21 @@ class _BlockGamePageState extends State<BlockGamePage> {
     });
 
     await ilerlemeyiKaydet();
+    await CommonLevelScoreStore.recordBest(
+      gameId: 'blocks',
+      levelIndex: index,
+      points: commonPoints,
+      levelCount: seviyeler.length,
+      completedStars: previousStars,
+    );
 
     await DailyChallengeService.instance.recordLevelCompleted(
       gameId: 'blocks',
-      stars: sonuc.stars,
-      score: sonuc.score,
+      stars: completedResult.stars,
+      score: commonPoints,
     );
 
-    if (!widget.dailyCourseMode && index + 1 == seviyeler.length) {
-      await GameAudioService.instance.playMashallahCelebration();
-    }
-
-    if (sonuc.nextLevel && index + 1 < seviyeler.length && mounted) {
+    if (completedResult.nextLevel && index + 1 < seviyeler.length && mounted) {
       await Future.delayed(const Duration(milliseconds: 180));
 
       if (mounted) {
@@ -260,63 +333,86 @@ class _BlockGamePageState extends State<BlockGamePage> {
   Widget build(BuildContext context) {
     if (yukleniyor || widget.competitionLevel != null) {
       return Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: StudioVisuals.canvas,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LText(
               'BLOK FIRTINASI',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+              ),
             ),
             LText(
               'Sürükle • Yerleştir • Patlat',
-              style: TextStyle(color: Colors.white60, fontSize: 12),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 12,
+              ),
             ),
           ],
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(18),
-              child: _ProgressPanel(
-                score: toplamPuan,
-                stars: toplamYildiz,
-                level: acikSeviye,
-              ),
-            ),
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
-                itemCount: seviyeler.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                  mainAxisExtent: 165,
+        top: false,
+        child: ResponsiveGameFrame(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: _ProgressPanel(
+                  score: toplamPuan,
+                  stars: toplamYildiz,
+                  level: acikSeviye,
                 ),
-                itemBuilder: (context, index) {
-                  return _LevelCard(
-                    level: seviyeler[index],
-                    unlocked: index + 1 <= acikSeviye,
-                    stars: yildizlar[index],
-                    bestScore: enIyiPuanlar[index],
-                    onTap: () => seviyeAc(index),
-                  );
-                },
               ),
-            ),
-          ],
+              GameInstructionCard(
+                gameId: 'blocks',
+                english: context.l10n.isEnglish,
+                initiallyExpanded: MediaQuery.sizeOf(context).height >= 650,
+              ),
+              Expanded(
+                child: GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
+                  itemCount: seviyeler.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 1,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    mainAxisExtent:
+                        104 *
+                        MediaQuery.textScalerOf(context)
+                            .scale(1)
+                            .clamp(1.0, 1.6),
+                  ),
+                  itemBuilder: (context, index) {
+                    return _LevelCard(
+                      level: seviyeler[index],
+                      unlocked: index + 1 <= acikSeviye,
+                      stars: yildizlar[index],
+                      bestScore: enIyiPuanlar[index],
+                      onTap: () => seviyeAc(index),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -416,15 +512,7 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
 
   OverlayEntry? _dragOverlay;
 
-  final List<Color> blockColors = const [
-    Color(0xFF00D9FF),
-    Color(0xFF745CFF),
-    Color(0xFFFF4F9A),
-    Color(0xFFFF9F1C),
-    Color(0xFFFFD93D),
-    Color(0xFF52E86B),
-    Color(0xFFFF5E57),
-  ];
+  final List<Color> blockColors = _BlockNeon.pieces;
 
   @override
   void initState() {
@@ -433,7 +521,7 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
     _audio.preload(GameAudioGroup.blocks);
     _audio.playMusic(GameMusic.calm);
 
-    if (widget.level.difficulty == 'BOSS') {
+    if (widget.level.contentLevel == 10) {
       _audio.play(GameSound.bossIntro);
     }
 
@@ -489,7 +577,7 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
 
   List<List<Color?>> _scenarioBoard() {
     final List<List<Color?>> result = _emptyBoard();
-    if (widget.level.number < 5) return result;
+    if (widget.level.contentLevel < 5) return result;
 
     final int fillTarget = min(22, 5 + widget.level.number * 2);
     final List<int> cells = List<int>.generate(
@@ -643,9 +731,9 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
 
     List<List<BlockCell>> pool;
 
-    if (widget.level.number <= 2) {
+    if (widget.level.contentLevel <= 2) {
       pool = kolay;
-    } else if (widget.level.number <= 6) {
+    } else if (widget.level.contentLevel <= 6) {
       pool = orta;
     } else {
       pool = zor;
@@ -1308,7 +1396,11 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
 
     _audio.hapticHeavy();
 
-    _audio.playVictory(stars: stars, boss: widget.level.difficulty == 'BOSS');
+    _audio.playVictory(
+      stars: stars,
+      boss: widget.level.contentLevel == 10,
+      levelNumber: widget.level.number,
+    );
 
     if (widget.competitionMode) {
       Navigator.pop(
@@ -1338,10 +1430,17 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF123465), Color(0xFF492785)],
+                  colors: [_BlockNeon.board, _BlockNeon.panel],
                 ),
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: const Color(0xFFFFD93D), width: 2),
+                border: Border.all(color: _BlockNeon.cyan, width: 2),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: _BlockNeon.cyan.withValues(alpha: 0.20),
+                    blurRadius: 24,
+                    spreadRadius: 2,
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1349,15 +1448,17 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
                   const Icon(
                     Icons.emoji_events_rounded,
                     size: 62,
-                    color: Color(0xFFFFD93D),
+                    color: _BlockNeon.orange,
                   ),
                   const SizedBox(height: 8),
                   LText(
-                    widget.level.difficulty == 'BOSS'
+                    widget.level.contentLevel == 10
                         ? '🔥 BLOK BOSS!'
                         : '🎉 HEDEF TAMAMLANDI!',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      color: _BlockNeon.text,
                       fontWeight: FontWeight.w900,
                       fontSize: 23,
                     ),
@@ -1367,7 +1468,7 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
                     score: finalScore,
                     previousBestScore: widget.previousBestScore,
                     english: context.l10n.isEnglish,
-                    accentColor: const Color(0xFFFF8A00),
+                    accentColor: _BlockNeon.cyan,
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -1378,7 +1479,7 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
                         index < stars
                             ? Icons.star_rounded
                             : Icons.star_border_rounded,
-                        color: const Color(0xFFFFD93D),
+                        color: _BlockNeon.orange,
                         size: 46,
                       ),
                     ),
@@ -1388,7 +1489,8 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
                     '$clearedLines sıra • $moves hamle • x$bestCombo en iyi kombo',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      color: Colors.white70,
+                      fontFamily: 'Roboto',
+                      color: _BlockNeon.muted,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1479,20 +1581,34 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
         : (scoreProgress + lineProgress + comboProgress) / 3;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: _BlockNeon.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: _BlockNeon.background,
+        foregroundColor: _BlockNeon.text,
+        systemOverlayStyle: SystemUiOverlayStyle.light.copyWith(
+          statusBarColor: _BlockNeon.background,
+          systemNavigationBarColor: _BlockNeon.background,
+          systemNavigationBarIconBrightness: Brightness.light,
+        ),
         elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LText(
               widget.level.title.toUpperCase(),
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w900,
+                fontSize: 17,
+              ),
             ),
             LText(
               'Seviye ${widget.level.number} / ${widget.totalLevels}',
-              style: const TextStyle(color: Colors.white60, fontSize: 11),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: _BlockNeon.muted,
+                fontSize: 11,
+              ),
             ),
           ],
         ),
@@ -1522,9 +1638,9 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
                 child: LinearProgressIndicator(
                   value: progress,
                   minHeight: 9,
-                  backgroundColor: Colors.white12,
+                  backgroundColor: _BlockNeon.panelRaised,
                   valueColor: const AlwaysStoppedAnimation<Color>(
-                    Color(0xFF52E86B),
+                    _BlockNeon.cyan,
                   ),
                 ),
               ),
@@ -1556,7 +1672,7 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
                               gradient: const RadialGradient(
                                 colors: [
                                   Color(0xFFFFFFFF),
-                                  Color(0x55FFD93D),
+                                  Color(0x66FFB21C),
                                   Color(0x0000D9FF),
                                 ],
                               ),
@@ -1618,17 +1734,18 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
                               vertical: 10,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF09162E)
+                              color: const Color(0xFFFFFFFF)
                                   .withValues(alpha: 0.94),
                               borderRadius: BorderRadius.circular(18),
                               border: Border.all(
-                                color: const Color(0xFFFFD93D),
+                                color: _BlockNeon.cyan,
                                 width: 2,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFFFD93D)
-                                      .withValues(alpha: 0.22),
+                                  color: _BlockNeon.cyan.withValues(
+                                    alpha: 0.34,
+                                  ),
                                   blurRadius: 18,
                                   spreadRadius: 2,
                                 ),
@@ -1638,7 +1755,8 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
                               floatingText,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                color: Color(0xFFFFD93D),
+                                fontFamily: 'Roboto',
+                                color: _BlockNeon.cyan,
                                 fontWeight: FontWeight.w900,
                                 fontSize: 20,
                               ),
@@ -1653,14 +1771,18 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
 
               const SizedBox(height: 5),
 
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.bolt_rounded, color: Color(0xFF00D9FF), size: 18),
+                  Icon(Icons.bolt_rounded, color: _BlockNeon.cyan, size: 18),
                   SizedBox(width: 6),
                   Expanded(
                     child: LText(
                       'Bloğa dokunduğun anda kalkar. Parmağını bırakınca otomatik yerleşir.',
-                      style: TextStyle(color: Colors.white60, fontSize: 10),
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        color: _BlockNeon.muted,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ],
@@ -1710,9 +1832,19 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
       child: Container(
         padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
-          color: const Color(0xFF09182E),
+          color: _BlockNeon.board,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0xFF235080), width: 2),
+          border: Border.all(
+            color: _BlockNeon.cyan.withValues(alpha: 0.72),
+            width: 2,
+          ),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: _BlockNeon.cyan.withValues(alpha: 0.16),
+              blurRadius: 20,
+              spreadRadius: 1,
+            ),
+          ],
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -1810,11 +1942,11 @@ class _FastPieceTray extends StatelessWidget {
     if (piece == null) {
       return Container(
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
+          color: _BlockNeon.panel,
           borderRadius: BorderRadius.circular(18),
         ),
         child: const Center(
-          child: Icon(Icons.check_rounded, color: Color(0xFF52E86B), size: 30),
+          child: Icon(Icons.check_rounded, color: _BlockNeon.green, size: 30),
         ),
       );
     }
@@ -1835,14 +1967,21 @@ class _FastPieceTray extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 60),
           decoration: BoxDecoration(
-            color: selected
-                ? piece!.color.withValues(alpha: 0.13)
-                : ZpVisualPalette.of(context).surface,
+            color: selected ? _BlockNeon.panelRaised : _BlockNeon.panel,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: selected ? piece!.color : Colors.white12,
-              width: selected ? 2 : 1,
+              color: selected ? piece!.color : _BlockNeon.line,
+              width: selected ? 2 : 1.2,
             ),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: (selected ? piece!.color : _BlockNeon.cyan).withValues(
+                  alpha: selected ? 0.30 : 0.07,
+                ),
+                blurRadius: selected ? 17 : 8,
+                spreadRadius: selected ? 1 : 0,
+              ),
+            ],
           ),
           child: Center(
             child: Padding(
@@ -1877,7 +2016,7 @@ class _FloatingPiece extends StatelessWidget {
           width: cellSize,
           height: cellSize,
           child: _ColorBlock(
-            color: valid ? piece.color : const Color(0xFFFF5E57),
+            color: valid ? piece.color : _BlockNeon.red,
             glow: true,
           ),
         );
@@ -1939,12 +2078,7 @@ class _LineClearLedCell extends StatelessWidget {
             Color.lerp(color, Colors.white, 0.28 + glow * 0.22) ?? color;
 
         final Color edgeColor =
-            Color.lerp(
-              const Color(0xFF00E5FF),
-              Colors.white,
-              0.30 + glow * 0.28,
-            ) ??
-            Colors.white;
+            Color.lerp(color, Colors.white, 0.52 + glow * 0.30) ?? Colors.white;
 
         return Transform.scale(
           scale: 1 + glow * 0.025,
@@ -1964,14 +2098,13 @@ class _LineClearLedCell extends StatelessWidget {
               border: Border.all(color: edgeColor, width: 1.8 + glow * 0.9),
               boxShadow: <BoxShadow>[
                 BoxShadow(
-                  color: const Color(0xFF00E5FF)
-                      .withValues(alpha: 0.44 + glow * 0.28),
-                  blurRadius: 10 + glow * 10,
-                  spreadRadius: 0.5 + glow * 1.2,
+                  color: color.withValues(alpha: 0.42 + glow * 0.24),
+                  blurRadius: 7 + glow * 9,
+                  spreadRadius: 0.5 + glow,
                 ),
                 BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.20 + glow * 0.22),
-                  blurRadius: 4 + glow * 4,
+                  color: color.withValues(alpha: 0.20 + glow * 0.26),
+                  blurRadius: 4 + glow * 7,
                 ),
               ],
             ),
@@ -2047,8 +2180,8 @@ class _BoardCell extends StatelessWidget {
     if (lineClearPreview) {
       return _LineClearLedCell(
         color: preview
-            ? (previewColor ?? const Color(0xFF00D9FF))
-            : (color ?? previewColor ?? const Color(0xFF00D9FF)),
+            ? (previewColor ?? _BlockNeon.cyan)
+            : (color ?? previewColor ?? _BlockNeon.cyan),
         ghost: preview,
       );
     }
@@ -2057,24 +2190,24 @@ class _BoardCell extends StatelessWidget {
       return Container(
         decoration: BoxDecoration(
           color: previewValid
-              ? (previewColor ?? Colors.green).withValues(alpha: 0.72)
-              : const Color(0xFFFF5E57).withValues(alpha: 0.72),
+              ? (previewColor ?? _BlockNeon.lime).withValues(alpha: 0.68)
+              : _BlockNeon.red.withValues(alpha: 0.72),
           borderRadius: BorderRadius.circular(5),
           border: Border.all(
             color: previewValid
-                ? const Color(0xFF76FF03)
-                : const Color(0xFFFF5E57),
+                ? (previewColor ?? _BlockNeon.lime)
+                : _BlockNeon.red,
             width: 3,
           ),
           boxShadow: [
             BoxShadow(
               color:
                   (previewValid
-                          ? (previewColor ?? const Color(0xFF76FF03))
-                          : const Color(0xFFFF5E57))
-                      .withValues(alpha: 0.36),
-              blurRadius: 8,
-              spreadRadius: 1,
+                          ? (previewColor ?? _BlockNeon.lime)
+                          : _BlockNeon.red)
+                      .withValues(alpha: 0.58),
+              blurRadius: 14,
+              spreadRadius: 2,
             ),
           ],
         ),
@@ -2094,9 +2227,12 @@ class _BoardCell extends StatelessWidget {
       child: color == null
           ? Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF142A49),
+                color: _BlockNeon.emptyCell,
                 borderRadius: BorderRadius.circular(5),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+                border: Border.all(
+                  color: _BlockNeon.line.withValues(alpha: 0.68),
+                  width: 0.8,
+                ),
               ),
             )
           : _ColorBlock(color: color!, glow: true),
@@ -2120,13 +2256,27 @@ class _ColorBlock extends StatelessWidget {
           colors: [
             Color.lerp(color, Colors.white, 0.30) ?? color,
             color,
-            Color.lerp(color, Colors.black, 0.18) ?? color,
+            Color.lerp(color, Colors.black, 0.16) ?? color,
           ],
         ),
         borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.54),
+          width: 1.3,
+        ),
         boxShadow: glow
-            ? [BoxShadow(color: color.withValues(alpha: 0.28), blurRadius: 5)]
+            ? <BoxShadow>[
+                BoxShadow(
+                  color: color.withValues(alpha: 0.28),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+                BoxShadow(
+                  color: color.withValues(alpha: 0.12),
+                  blurRadius: 16,
+                  spreadRadius: 1,
+                ),
+              ]
             : null,
       ),
       child: Center(
@@ -2134,7 +2284,7 @@ class _ColorBlock extends StatelessWidget {
           width: 5,
           height: 5,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.22),
+            color: Colors.white.withValues(alpha: 0.74),
             shape: BoxShape.circle,
           ),
         ),
@@ -2162,18 +2312,13 @@ class _GameHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _stat(context, 'PUAN', '$score', const Color(0xFFFFD93D)),
+        _stat(context, 'PUAN', '$score', _BlockNeon.orange),
         const SizedBox(width: 6),
-        _stat(
-          context,
-          'SIRA',
-          '$clearedLines/$targetLines',
-          const Color(0xFF52E86B),
-        ),
+        _stat(context, 'SIRA', '$clearedLines/$targetLines', _BlockNeon.green),
         const SizedBox(width: 6),
-        _stat(context, 'HAMLE', '$moves', const Color(0xFF00D9FF)),
+        _stat(context, 'HAMLE', '$moves', _BlockNeon.cyan),
         const SizedBox(width: 6),
-        _stat(context, 'COMBO', 'x$bestCombo', const Color(0xFFFF5E57)),
+        _stat(context, 'COMBO', 'x$bestCombo', _BlockNeon.pink),
       ],
     );
   }
@@ -2183,14 +2328,23 @@ class _GameHeader extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: ZpVisualPalette.of(context).surface,
+          color: _BlockNeon.panel,
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _BlockNeon.line.withValues(alpha: 0.7)),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: color.withValues(alpha: 0.12),
+              blurRadius: 10,
+              spreadRadius: 0.5,
+            ),
+          ],
         ),
         child: Column(
           children: [
             LText(
               value,
               style: TextStyle(
+                fontFamily: 'Roboto',
                 color: color,
                 fontWeight: FontWeight.w900,
                 fontSize: 14,
@@ -2198,7 +2352,11 @@ class _GameHeader extends StatelessWidget {
             ),
             LText(
               title,
-              style: const TextStyle(color: Colors.white38, fontSize: 7),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: _BlockNeon.muted,
+                fontSize: 10,
+              ),
             ),
           ],
         ),
@@ -2230,9 +2388,9 @@ class _MissionSummary extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D2342),
+        color: _BlockNeon.panel,
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: _BlockNeon.line),
       ),
       child: Wrap(
         alignment: WrapAlignment.center,
@@ -2252,7 +2410,7 @@ class _MissionSummary extends StatelessWidget {
   }
 
   Widget _missionItem({required bool completed, required String text}) {
-    final Color color = completed ? const Color(0xFF52E86B) : Colors.white60;
+    final Color color = completed ? _BlockNeon.green : _BlockNeon.muted;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -2268,8 +2426,9 @@ class _MissionSummary extends StatelessWidget {
         LText(
           text,
           style: TextStyle(
+            fontFamily: 'Roboto',
             color: color,
-            fontSize: 10,
+            fontSize: 12,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -2294,17 +2453,25 @@ class _ProgressPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF173E9A), Color(0xFF6D2C91)],
-        ),
-        borderRadius: BorderRadius.circular(24),
+        color: StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.grid_view_rounded,
-            size: 42,
-            color: Color(0xFF00D9FF),
+          Container(
+            width: 54,
+            height: 54,
+            decoration: const BoxDecoration(
+              color: StudioVisuals.tealSoft,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.grid_view_rounded,
+              size: 29,
+              color: StudioVisuals.teal,
+            ),
           ),
           const SizedBox(width: 13),
           Expanded(
@@ -2313,11 +2480,20 @@ class _ProgressPanel extends StatelessWidget {
               children: [
                 const LText(
                   'BLOK FIRTINASI',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 17,
+                  ),
                 ),
                 LText(
-                  'Seviye $level / 10   •   ⭐ $stars / 30',
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  'Seviye $level / ${GameContentPolicy.campaignLevels}   •   ⭐ $stars / ${GameContentPolicy.campaignLevels * 3}',
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.muted,
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -2325,7 +2501,8 @@ class _ProgressPanel extends StatelessWidget {
           LText(
             '$score',
             style: const TextStyle(
-              color: Color(0xFFFFD93D),
+              fontFamily: 'Roboto',
+              color: StudioVisuals.amber,
               fontWeight: FontWeight.w900,
               fontSize: 21,
             ),
@@ -2354,106 +2531,30 @@ class _LevelCard extends StatelessWidget {
   Color get color {
     switch (level.difficulty) {
       case 'KOLAY':
-        return const Color(0xFF52E86B);
+        return const Color(0xFF34715D);
       case 'ORTA':
         return const Color(0xFFFF9F1C);
       case 'ZOR':
-        return const Color(0xFFFF5E57);
+        return const Color(0xFFA84640);
       case 'BOSS':
         return const Color(0xFFFF4F9A);
       default:
-        return const Color(0xFF00D9FF);
+        return const Color(0xFF3D7183);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: unlocked ? onTap : null,
-        borderRadius: BorderRadius.circular(22),
-        child: Ink(
-          padding: const EdgeInsets.all(11),
-          decoration: BoxDecoration(
-            color: unlocked
-                ? ZpVisualPalette.of(context).surface
-                : ZpVisualPalette.of(context).surfaceAlternative,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: unlocked ? color.withValues(alpha: 0.60) : Colors.white12,
-            ),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  LText(
-                    unlocked ? '${level.number}' : '🔒',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 17,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (unlocked)
-                    LText(
-                      level.difficulty,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                ],
-              ),
-              const Spacer(),
-              Icon(
-                level.difficulty == 'BOSS'
-                    ? Icons.local_fire_department_rounded
-                    : Icons.grid_view_rounded,
-                color: unlocked ? color : Colors.white12,
-                size: 34,
-              ),
-              const SizedBox(height: 5),
-              LText(
-                level.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: unlocked ? Colors.white : Colors.white24,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              LText(
-                '${level.targetScore} puan • ${level.targetLines} sıra',
-                style: const TextStyle(color: Colors.white38, fontSize: 9),
-              ),
-              const Spacer(),
-              if (bestScore > 0)
-                LText(
-                  'En iyi: $bestScore',
-                  style: const TextStyle(color: Colors.white54, fontSize: 9),
-                ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  3,
-                  (index) => Icon(
-                    index < stars
-                        ? Icons.star_rounded
-                        : Icons.star_border_rounded,
-                    color: unlocked ? const Color(0xFFFFD93D) : Colors.white12,
-                    size: 18,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => StudioChapterCard(
+    gameId: 'blocks',
+    number: level.number,
+    title: level.title,
+    detail: '${level.targetScore} puan • ${level.targetLines} sıra',
+    difficulty: GameContentPolicy.difficulty(level.number),
+    unlocked: unlocked,
+    stars: stars,
+    best: bestScore,
+    onTap: onTap,
+  );
 }
 
 class _ResultBox extends StatelessWidget {
@@ -2467,18 +2568,27 @@ class _ResultBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
+        color: _BlockNeon.panelRaised,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
           LText(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              color: _BlockNeon.text,
+              fontWeight: FontWeight.w900,
+              fontSize: 17,
+            ),
           ),
           LText(
             title,
-            style: const TextStyle(color: Colors.white54, fontSize: 8),
+            style: TextStyle(
+              fontFamily: 'Roboto',
+              color: _BlockNeon.muted,
+              fontSize: 10,
+            ),
           ),
         ],
       ),
@@ -2497,15 +2607,7 @@ class _BurstPainter extends CustomPainter {
     final Random rng = Random(seed);
     final Offset center = Offset(size.width / 2, size.height / 2);
 
-    const List<Color> colors = [
-      Color(0xFF00D9FF),
-      Color(0xFF745CFF),
-      Color(0xFFFF4F9A),
-      Color(0xFFFF9F1C),
-      Color(0xFFFFD93D),
-      Color(0xFF52E86B),
-      Color(0xFFFF5E57),
-    ];
+    const List<Color> colors = _BlockNeon.pieces;
 
     final double fade = (1 - progress).clamp(0.0, 1.0);
 
@@ -2640,6 +2742,8 @@ Set<String> blockLineClearPreviewCells({
 
 class BlockLevel {
   final int number;
+  final int? sourceNumber;
+  int get contentLevel => sourceNumber ?? number;
   final String title;
   final String difficulty;
   final int targetScore;
@@ -2649,6 +2753,7 @@ class BlockLevel {
 
   const BlockLevel({
     required this.number,
+    this.sourceNumber,
     required this.title,
     required this.difficulty,
     required this.targetScore,

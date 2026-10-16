@@ -76,12 +76,12 @@ void main() {
       },
     );
 
-    test('new group race selects six unique games from eleven', () {
+    test('new group race selects six unique games from active catalog', () {
       final String service = _source('lib/services/arena_service.dart');
       final String rules = _source('firestore.rules');
 
-      expect(service, contains('shuffledGames.take(6)'));
-      expect(service, contains('requestedPool.length >= 6'));
+      expect(service, contains('.take(eventGameCount)'));
+      expect(service, contains('requestedPool.length >= eventGameCount'));
       expect(service, contains("'gameIds': games"));
       expect(service, contains("'schemaVersion': 2"));
 

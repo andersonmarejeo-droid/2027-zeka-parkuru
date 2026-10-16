@@ -7,6 +7,7 @@ import 'package:zeka_parkuru/content_engine/content_seed.dart';
 import 'package:zeka_parkuru/content_engine/content_version.dart';
 import 'package:zeka_parkuru/content_engine/recent_content_store.dart';
 import 'package:zeka_parkuru/services/unified_progress_service.dart';
+import 'package:zeka_parkuru/features/catalog/domain/studio_game_catalog.dart';
 
 import 'test_preferences.dart';
 
@@ -66,9 +67,9 @@ void main() {
       );
     });
 
-    test('eski ilerleme kapasitesi değişmez', () {
-      expect(UnifiedProgressData.maksimumSeviye, 110);
-      expect(UnifiedProgressData.maksimumYildiz, 330);
+    test('30 bölüm standardı aktif oyunların kapasitesini kapsar', () {
+      expect(UnifiedProgressData.maksimumSeviye, 1320);
+      expect(UnifiedProgressData.maksimumYildiz, 3960);
     });
   });
 
@@ -169,20 +170,18 @@ void main() {
       expect(catalog, contains('competitionLayoutCode: layoutCode'));
     });
 
-    test('Şeker ve petek düzenleri normalize edilmiş geçmiş taşır', () {
-      final String candy = _source(
-        'lib/games/candy_sort/candy_sort_game_page.dart',
-      );
-      final String numberSort = _source(
-        'lib/games/number_sort/number_sort_game_page.dart',
-      );
-      expect(candy, contains('normalizedColors'));
-      expect(candy, contains('historyLimit: 150'));
-      expect(candy, contains('flavor: candies[slot]'));
-      expect(numberSort, contains('_targetForLevel'));
-      expect(numberSort, contains('_targetTiles'));
-      expect(numberSort, contains('historyLimit: 150'));
-    });
+    test(
+      '15 taş hedefi ve şeker sıralama oyunu korunur',
+      () {
+        final String numberSort = _source(
+          'lib/games/number_sort/number_sort_game_page.dart',
+        );
+        expect(StudioGameCatalog.byId('candy_sort')?.isRetired, isFalse);
+        expect(numberSort, contains('_targetForLevel'));
+        expect(numberSort, contains('_targetTiles'));
+        expect(numberSort, contains('fingerprint: _lastGeneratedSignature'));
+      },
+    );
 
     test('sürekli oyunlar dengeli ve tekrarsız oturumlar kurar', () {
       final String blocks = _source('lib/games/blocks/block_game_page.dart');

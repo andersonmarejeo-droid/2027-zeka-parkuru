@@ -163,7 +163,10 @@ class ProfessionalIqQuestion {
   /// need the actual figure orientation to remain visible.
   ProfessionalIqScene get scene => switch (family) {
     ProfessionalIqFamily.rotation => ProfessionalIqScene.arrows,
-    ProfessionalIqFamily.shapeTransform => ProfessionalIqScene.parts,
+    // Shape transformation is now a real A→B / C→? analogy. Keep the
+    // original colours visible so the player can compare the silhouettes;
+    // applying a dark silhouette filter to every tile hid the rule.
+    ProfessionalIqFamily.shapeTransform => ProfessionalIqScene.symbols,
     ProfessionalIqFamily.sizePosition => ProfessionalIqScene.spatialGrid,
     ProfessionalIqFamily.matrix2 ||
     ProfessionalIqFamily.matrix3 ||

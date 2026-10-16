@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:zeka_parkuru/games/shared/parkur_game_kit.dart';
+import 'package:zeka_parkuru/games/shared/studio_game_session.dart';
+import 'package:zeka_parkuru/services/common_level_score_service.dart';
 import 'package:zeka_parkuru/services/daily_challenge_service.dart';
 import 'package:zeka_parkuru/services/daily_course_service.dart';
 import 'package:zeka_parkuru/services/player_progress_service.dart';
@@ -80,6 +82,110 @@ void main() {
       expect(result.unlockedLevel, 4);
       expect(result.stars.take(4), orderedEquals(<int>[3, 2, 1, 0]));
       expect(result.bestScores.take(4), orderedEquals(<int>[900, 700, 500, 0]));
+    });
+
+    test(
+      'kısa kampanya daha önce kaydedilen seviye kuyruğunu silmez',
+      () async {
+        final SharedPreferencesAsync preferences = SharedPreferencesAsync();
+        await preferences.setInt('archive_unlocked_level', 28);
+        await preferences.setStringList(
+          'archive_stars',
+          List<String>.generate(300, (int index) => index == 27 ? '3' : '0'),
+        );
+        await preferences.setStringList(
+          'archive_best_scores',
+          List<String>.generate(300, (int index) => index == 27 ? '850' : '0'),
+        );
+
+        final ParkurProgressStore shortCampaign = ParkurProgressStore(
+          prefix: 'archive',
+          levelCount: 20,
+        );
+        final ParkurProgressSnapshot visibleData = await shortCampaign.load();
+        expect(visibleData.unlockedLevel, 20);
+        expect(visibleData.stars, hasLength(20));
+
+        final List<int> updatedStars = List<int>.from(visibleData.stars);
+        final List<int> updatedScores = List<int>.from(visibleData.bestScores);
+        updatedStars[0] = 3;
+        updatedScores[0] = 900;
+        await shortCampaign.save(
+          ParkurProgressSnapshot(
+            unlockedLevel: visibleData.unlockedLevel,
+            stars: updatedStars,
+            bestScores: updatedScores,
+          ),
+        );
+
+        expect(await preferences.getInt('archive_unlocked_level'), 28);
+        expect(
+          await preferences.getStringList('archive_stars'),
+          hasLength(300),
+        );
+        expect((await preferences.getStringList('archive_stars'))![0], '3');
+        expect((await preferences.getStringList('archive_stars'))![27], '3');
+        expect(
+          (await preferences.getStringList('archive_best_scores'))![27],
+          '850',
+        );
+        final ParkurProgressSnapshot expandedData = await ParkurProgressStore(
+          prefix: 'archive',
+          levelCount: 300,
+        ).load();
+        expect(expandedData.unlockedLevel, 28);
+        expect(expandedData.stars[27], 3);
+        expect(expandedData.bestScores[27], 850);
+      },
+    );
+  });
+
+  group('Ortak bölüm puanı', () {
+    test('her ipucu iki puan düşürür ve puan sıfırda kalır', () {
+      final CommonLevelScoreSession score = CommonLevelScoreSession.begin();
+      expect(score.points, 10);
+
+      CommonLevelScoreSession.recordHint();
+      expect(score.points, 8);
+      CommonLevelScoreSession.recordHint();
+      expect(score.points, 6);
+      CommonLevelScoreSession.recordHint();
+      CommonLevelScoreSession.recordHint();
+      CommonLevelScoreSession.recordHint();
+      expect(score.points, 0);
+      expect(score.finish(), 0);
+
+      CommonLevelScoreSession.recordHint();
+      expect(score.points, 0);
+      expect(CommonLevelScoreSession.begin().finish(), 10);
+    });
+
+    test('yeni oyun oturumlarının ipuçları da ortak puanı düşürür', () {
+      final CommonLevelScoreSession score = CommonLevelScoreSession.begin();
+      final StudioGameSession game = StudioGameSession(level: 1, seed: 7)
+        ..start();
+
+      expect(game.useHint(pointCost: 300), isTrue);
+      expect(game.hintsUsed, 1);
+      expect(score.points, 8);
+      score.finish();
+    });
+
+    test('tamamlanan fakat sıfır puanlı bölüm kaydı korunur', () async {
+      await CommonLevelScoreStore.recordBest(
+        gameId: 'assisted_level',
+        levelIndex: 0,
+        points: 0,
+        levelCount: 1,
+        completedStars: <int>[0],
+      );
+      final List<int> points = await CommonLevelScoreStore.load(
+        gameId: 'assisted_level',
+        levelCount: 1,
+        completedStars: <int>[3],
+      );
+
+      expect(points, <int>[0]);
     });
   });
 
@@ -207,23 +313,27 @@ void main() {
 
       final int firstLevel = service.levelForDailyCourse(
         date: date,
-        gameId: 'logic',
+        gameId: 'numbers',
         runNumber: 0,
       );
       final int firstLayout = service.layoutCodeForDailyCourse(
         date: date,
-        gameId: 'logic',
+        gameId: 'numbers',
         runNumber: 0,
       );
 
       expect(
-        service.levelForDailyCourse(date: date, gameId: 'logic', runNumber: 0),
+        service.levelForDailyCourse(
+          date: date,
+          gameId: 'numbers',
+          runNumber: 0,
+        ),
         firstLevel,
       );
       expect(
         service.layoutCodeForDailyCourse(
           date: date,
-          gameId: 'logic',
+          gameId: 'numbers',
           runNumber: 0,
         ),
         firstLayout,
@@ -231,7 +341,7 @@ void main() {
       expect(
         service.layoutCodeForDailyCourse(
           date: date,
-          gameId: 'logic',
+          gameId: 'numbers',
           runNumber: 1,
         ),
         isNot(firstLayout),
@@ -255,24 +365,43 @@ void main() {
   });
 
   group('Puan ve ilerleme sınırları', () {
-    test('negatif bonus girdileri sıfıra, aşırı girdiler tavana çekilir', () {
+    test('yalnızca ortak bölüm puanları genel puana eklenir', () {
       final ZekaScoreBreakdown negative = ZekaScoringService.calculate(
         progress: _emptyProgress,
-        completedDailyCourses: -5,
-        bestStreak: -8,
-        perfectDays: -2,
       );
       final ZekaScoreBreakdown capped = ZekaScoringService.calculate(
         progress: _emptyProgress,
-        completedDailyCourses: 999,
-        bestStreak: 999,
-        perfectDays: 999,
       );
 
       expect(negative.total, 0);
-      expect(capped.dailyCoursePoints, 3000);
-      expect(capped.streakPoints, 600);
-      expect(capped.perfectDayPoints, 1500);
+      expect(capped.total, 0);
+      expect(capped.starPoints, 0);
+      expect(capped.bossPoints, 0);
+      expect(capped.varietyPoints, 0);
+      expect(capped.dailyCoursePoints, 0);
+      expect(capped.streakPoints, 0);
+      expect(capped.perfectDayPoints, 0);
+    });
+
+    test('13-15 seviyeleri artan puan gerektirir', () {
+      expect(PlayerProgressService.scoreForLevel(13), 3450);
+      expect(PlayerProgressService.scoreForLevel(14), 3900);
+      expect(PlayerProgressService.scoreForLevel(15), 4375);
+      expect(PlayerProgressService.levelForScore(3449), 12);
+      expect(PlayerProgressService.levelForScore(3450), 13);
+      expect(PlayerProgressService.levelForScore(4375), 15);
+    });
+
+    test('oyuncu panelinde yalnızca sekiz ana parkur rozeti bulunur', () async {
+      final PlayerDashboardData dashboard = await PlayerProgressService.instance
+          .load();
+
+      expect(dashboard.achievements, hasLength(8));
+      expect(
+        dashboard.achievements.map((item) => item.id).toSet(),
+        hasLength(8),
+      );
+      expect(dashboard.specialAchievements, isEmpty);
     });
 
     test('ilerleme ve rozet oranları 0-1 aralığında kalır', () {

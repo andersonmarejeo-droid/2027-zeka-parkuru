@@ -2,6 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_visual_theme.dart';
+import '../theme/studio_game_visuals.dart';
+import '../theme/studio_visuals.dart';
+import '../games/shared/game_visual_design.dart';
+import 'studio_game_artwork.dart';
+
 typedef DeferredGameBuilder = Widget Function();
 
 /// Shows a painted brand frame before mounting a potentially expensive game.
@@ -13,6 +19,7 @@ Route<T> buildFastGameRoute<T>({
   required String gameTitle,
   required IconData gameIcon,
   required Color accentColor,
+  String? gameId,
   bool reduceMotion = false,
   double animationScale = 1,
   RouteSettings? settings,
@@ -31,12 +38,28 @@ Route<T> buildFastGameRoute<T>({
       milliseconds: (150 * safeAnimationScale).round(),
     ),
     pageBuilder: (context, animation, secondaryAnimation) {
-      return _DeferredGameHost(
-        gameBuilder: gameBuilder,
-        gameTitle: gameTitle,
-        gameIcon: gameIcon,
-        accentColor: accentColor,
-        animationScale: safeAnimationScale,
+      return Theme(
+        data: ThemeData(
+          useMaterial3: true,
+          brightness: Brightness.light,
+          scaffoldBackgroundColor: StudioVisuals.canvas,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: accentColor,
+            brightness: Brightness.light,
+          ),
+          extensions: const <ThemeExtension<dynamic>>[ZpVisualPalette.garden],
+        ),
+        child: StudioGameTheme(
+          gameId: gameId ?? settings?.name?.split('/').last ?? '',
+          child: _DeferredGameHost(
+            gameId: gameId ?? settings?.name?.split('/').last ?? '',
+            gameBuilder: gameBuilder,
+            gameTitle: gameTitle,
+            gameIcon: gameIcon,
+            accentColor: accentColor,
+            animationScale: safeAnimationScale,
+          ),
+        ),
       );
     },
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -61,6 +84,7 @@ Route<T> buildFastGameRoute<T>({
 
 class _DeferredGameHost extends StatefulWidget {
   const _DeferredGameHost({
+    required this.gameId,
     required this.gameBuilder,
     required this.gameTitle,
     required this.gameIcon,
@@ -69,6 +93,7 @@ class _DeferredGameHost extends StatefulWidget {
   });
 
   final DeferredGameBuilder gameBuilder;
+  final String gameId;
   final String gameTitle;
   final IconData gameIcon;
   final Color accentColor;
@@ -123,6 +148,7 @@ class _DeferredGameHostState extends State<_DeferredGameHost> {
         child:
             gamePage ??
             _GameLaunchSurface(
+              gameId: widget.gameId,
               key: const ValueKey<String>('zp_fast_game_launch_surface'),
               gameTitle: widget.gameTitle,
               gameIcon: widget.gameIcon,
@@ -135,6 +161,7 @@ class _DeferredGameHostState extends State<_DeferredGameHost> {
 
 class _GameLaunchSurface extends StatelessWidget {
   const _GameLaunchSurface({
+    required this.gameId,
     required this.gameTitle,
     required this.gameIcon,
     required this.accentColor,
@@ -142,6 +169,7 @@ class _GameLaunchSurface extends StatelessWidget {
   });
 
   final String gameTitle;
+  final String gameId;
   final IconData gameIcon;
   final Color accentColor;
 
@@ -164,31 +192,19 @@ class _GameLaunchSurface extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Container(
-                    width: 86,
-                    height: 86,
-                    decoration: BoxDecoration(
-                      color: accentColor.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(27),
-                      border: Border.all(
-                        color: accentColor.withValues(alpha: 0.70),
-                        width: 1.6,
-                      ),
-                      boxShadow: <BoxShadow>[
-                        BoxShadow(
-                          color: accentColor.withValues(alpha: 0.24),
-                          blurRadius: 28,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Icon(gameIcon, color: accentColor, size: 44),
+                    width: 156,
+                    height: 132,
+                    decoration: StudioGameVisuals.artworkDecoration(
+                      accent: accentColor,
+                    ).copyWith(borderRadius: BorderRadius.circular(27)),
+                    child: StudioGameArtwork(gameId: gameId),
                   ),
                   const SizedBox(height: 18),
                   Text(
                     gameTitle,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: StudioVisuals.ink,
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.6,

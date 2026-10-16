@@ -3,12 +3,18 @@ import 'dart:math';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+
+import '../shared/game_visual_design.dart';
+
+import '../../theme/studio_visuals.dart';
+
 import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../services/game_audio_service.dart';
 import '../../services/replayability_service.dart';
 import '../shared/parkur_game_kit.dart';
+import '../shared/studio_game_contracts.dart';
 import 'word_hunt_locale_data.dart';
 
 class WordHuntGamePage extends StatelessWidget {
@@ -165,7 +171,7 @@ class WordHuntGamePage extends StatelessWidget {
       titleEn: 'WORD HUNT',
       taglineTr: 'Bul • Sürükle • Tamamla',
       taglineEn: 'Find • Swipe • Complete',
-      accent: const Color(0xFF00D9A6),
+      accent: const Color(0xFF34715D),
       icon: Icons.travel_explore_rounded,
       levels: levels,
       dailyCourseMode: dailyCourseMode,
@@ -182,7 +188,7 @@ class WordHuntGamePage extends StatelessWidget {
             return WordHuntPlayPage(
               level: level as WordHuntLevel,
               previousBestScore: previousBestScore,
-              fixedSessionSeed: fixedSessionSeed,
+              fixedSessionSeed: fixedSessionSeed ?? level.poolIndex,
               competitionMode: competitionMode,
             );
           },
@@ -198,6 +204,8 @@ class WordHuntLevel extends ParkurLevelSpec {
   final int targetSeconds;
 
   const WordHuntLevel({
+    super.sourceNumber,
+    super.poolIndex,
     required super.number,
     required super.titleTr,
     required super.titleEn,
@@ -210,6 +218,29 @@ class WordHuntLevel extends ParkurLevelSpec {
     required this.directions,
     required this.targetSeconds,
   }) : super(icon: Icons.grid_on_rounded);
+  @override
+  WordHuntLevel campaignCopy({
+    required int number,
+    int? sourceNumber,
+    int? poolIndex,
+    String? titleTr,
+    String? titleEn,
+    String? difficulty,
+  }) => WordHuntLevel(
+    number: number,
+    sourceNumber: sourceNumber,
+    poolIndex: poolIndex,
+    titleTr: titleTr ?? this.titleTr,
+    titleEn: titleEn ?? this.titleEn,
+    subtitleTr: subtitleTr,
+    subtitleEn: subtitleEn,
+    difficulty: difficulty ?? this.difficulty,
+    size: size,
+    wordCount: wordCount,
+    boardCount: boardCount,
+    directions: directions,
+    targetSeconds: targetSeconds,
+  );
 }
 
 class _WordPuzzle {
@@ -243,7 +274,7 @@ class WordHuntPlayPage extends StatefulWidget {
 }
 
 class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
-  static const Color _accent = Color(0xFF00D9A6);
+  static const Color _accent = Color(0xFF34715D);
   static String? _lastGeneratedSignature;
   static const List<String> _alphabetTr = <String>[
     'A',
@@ -1280,7 +1311,9 @@ class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
           _hints * 140,
     );
 
-    unawaited(_audio.play(GameSound.levelComplete));
+    unawaited(
+      _audio.playLevelComplete(levelNumber: widget.level.number),
+    );
     _sessionBestScore = max(_sessionBestScore, score);
     _sessionBestStars = max(_sessionBestStars, stars);
     if (!mounted) return;
@@ -1308,7 +1341,7 @@ class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
       stars: stars,
       score: score,
       previousBestScore: _sessionBestScore,
-      canGoNext: widget.level.number < WordHuntGamePage.levels.length,
+      canGoNext: widget.level.number < GameContentPolicy.campaignLevels,
     );
     if (!mounted || action == null) return;
     if (action == ParkurResultAction.replay) {
@@ -1356,6 +1389,7 @@ class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
   @override
   Widget build(BuildContext context) {
     final bool english = context.l10n.isEnglish;
+    final ColorScheme colors = Theme.of(context).colorScheme;
     if (!_ready) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -1367,8 +1401,12 @@ class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: Text(
-          '${context.l10n.gameUi(english ? widget.level.titleEn : widget.level.titleTr)}  •  ${widget.level.number}/10',
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+          '${context.l10n.gameUi(english ? widget.level.titleEn : widget.level.titleTr)}  •  ${widget.level.number}/${GameContentPolicy.campaignLevels}',
+          style: const TextStyle(
+            fontFamily: 'Roboto',
+            fontWeight: FontWeight.w900,
+            fontSize: 16,
+          ),
         ),
       ),
       body: SafeArea(
@@ -1405,17 +1443,20 @@ class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
                           ),
                           decoration: BoxDecoration(
                             color: found
-                                ? _accent.withValues(alpha: 0.18)
-                                : Colors.white.withValues(alpha: 0.05),
+                                ? colors.primary.withValues(alpha: 0.12)
+                                : colors.surface,
                             borderRadius: BorderRadius.circular(99),
                             border: Border.all(
-                              color: found ? _accent : Colors.white12,
+                              color: found
+                                  ? colors.primary
+                                  : colors.outlineVariant,
                             ),
                           ),
                           child: Text(
                             _targetLabel(word, found: found),
                             style: TextStyle(
-                              color: found ? _accent : Colors.white70,
+                              fontFamily: 'Roboto',
+                              color: found ? colors.primary : colors.onSurface,
                               decoration: found
                                   ? TextDecoration.lineThrough
                                   : null,
@@ -1457,8 +1498,8 @@ class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: <Color>[
-                                Color(0xFF102B50),
-                                Color(0xFF093E4B),
+                                Color(0xFFFFFFFF),
+                                Color(0xFFEEF3F0),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(24),
@@ -1491,12 +1532,12 @@ class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: hinted
-                                        ? const Color(0xFFFFD334)
+                                        ? const Color(0xFF8B622C)
                                               .withValues(alpha: 0.30)
                                         : selected
                                         ? _accent.withValues(alpha: 0.42)
                                         : found
-                                        ? const Color(0xFF6CFF9B)
+                                        ? const Color(0xFF34715D)
                                               .withValues(alpha: 0.20)
                                         : Colors.white.withValues(alpha: 0.045),
                                     borderRadius: BorderRadius.circular(
@@ -1504,10 +1545,10 @@ class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
                                     ),
                                     border: Border.all(
                                       color: hinted
-                                          ? const Color(0xFFFFD334)
+                                          ? const Color(0xFF8B622C)
                                           : selected || found
                                           ? _accent
-                                          : Colors.white10,
+                                          : StudioVisuals.line,
                                     ),
                                   ),
                                   child: FittedBox(
@@ -1515,12 +1556,11 @@ class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
                                     child: Text(
                                       _puzzle.grid[row][column],
                                       style: TextStyle(
+                                        fontFamily: 'Roboto',
                                         fontSize: widget.level.size >= 8
                                             ? 15
                                             : 19,
-                                        color: hinted
-                                            ? const Color(0xFFFFE98A)
-                                            : Colors.white,
+                                        color: StudioVisuals.ink,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
@@ -1535,7 +1575,7 @@ class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
                   ),
                 ),
                 const SizedBox(height: 13),
-                Row(
+                StudioGameActions(
                   children: <Widget>[
                     Expanded(
                       child: OutlinedButton.icon(
@@ -1570,9 +1610,10 @@ class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
                         : 'Kolay seçim için sürükle veya ilk ve son harfe dokun. Her yeni turda farklı tablo oluşur.',
                   ),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white38,
-                    fontSize: 10,
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: colors.onSurfaceVariant,
+                    fontSize: 12,
                     height: 1.35,
                   ),
                 ),
@@ -1609,9 +1650,9 @@ class _WordHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
       decoration: BoxDecoration(
-        color: const Color(0xFF102B50),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: StudioVisuals.line),
       ),
       child: Column(
         children: <Widget>[
@@ -1620,16 +1661,17 @@ class _WordHeader extends StatelessWidget {
             children: <Widget>[
               const Icon(
                 Icons.dashboard_customize_rounded,
-                color: Color(0xFF00D9A6),
+                color: Color(0xFF34715D),
                 size: 15,
               ),
               const SizedBox(width: 6),
               Text(
                 '${context.l10n.gameUi(english ? 'BOARD' : 'TABLO')} $boardNumber/$boardTotal',
                 style: const TextStyle(
-                  color: Colors.white70,
+                  fontFamily: 'Roboto',
+                  color: StudioVisuals.muted,
                   fontWeight: FontWeight.w900,
-                  fontSize: 9,
+                  fontSize: 11,
                   letterSpacing: 0.8,
                 ),
               ),
@@ -1642,13 +1684,13 @@ class _WordHeader extends StatelessWidget {
                 icon: Icons.search_rounded,
                 value: '$found/$total',
                 label: context.l10n.gameUi(english ? 'FOUND' : 'BULUNAN'),
-                color: const Color(0xFF00D9A6),
+                color: const Color(0xFF34715D),
               ),
               _WordStat(
                 icon: Icons.timer_outlined,
                 value: '${elapsed}s',
                 label: context.l10n.gameUi(english ? 'TIME' : 'SÜRE'),
-                color: const Color(0xFF00D9FF),
+                color: const Color(0xFF3D7183),
               ),
               _WordStat(
                 icon: Icons.close_rounded,
@@ -1691,6 +1733,7 @@ class _WordStat extends StatelessWidget {
               Text(
                 value,
                 style: TextStyle(
+                  fontFamily: 'Roboto',
                   color: color,
                   fontWeight: FontWeight.w900,
                   fontSize: 13,
@@ -1699,9 +1742,10 @@ class _WordStat extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  color: Colors.white38,
+                  fontFamily: 'Roboto',
+                  color: StudioVisuals.muted,
                   fontWeight: FontWeight.w800,
-                  fontSize: 7,
+                  fontSize: 10,
                 ),
               ),
             ],

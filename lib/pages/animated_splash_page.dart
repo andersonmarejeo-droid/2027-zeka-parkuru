@@ -6,11 +6,11 @@ import 'package:zeka_parkuru/animated_zp_logo.dart';
 import 'package:zeka_parkuru/pages/first_run_profile_page.dart';
 import 'package:zeka_parkuru/services/app_analytics_service.dart';
 import 'package:zeka_parkuru/services/app_error_monitoring_service.dart';
-import 'package:zeka_parkuru/services/app_experience_controller.dart';
 import 'package:zeka_parkuru/services/app_language_controller.dart';
 import 'package:zeka_parkuru/services/firebase_bootstrap_service.dart';
 import 'package:zeka_parkuru/services/game_audio_service.dart';
 import 'package:zeka_parkuru/services/onboarding_preference_service.dart';
+import 'package:zeka_parkuru/theme/studio_visuals.dart';
 
 /// Native açılış ekranından sonra çalışan hareketli ZP GAMES marka ekranı.
 /// Mevcut `AnimatedSplashPage(destination: AnaSayfa())` API'sini korur.
@@ -30,10 +30,22 @@ class _AnimatedSplashPageState extends State<AnimatedSplashPage> {
   @override
   void initState() {
     super.initState();
-    // Yerel tercih okuması animasyonla aynı anda başlar ve onu bekletmez.
-    _onboardingCompleted = _loadOnboardingState();
-    // Ağ servisleri animasyonu veya ana sayfaya geçişi bekletmez.
-    unawaited(_initializeServices());
+    final Completer<bool> onboarding = Completer<bool>();
+    _onboardingCompleted = onboarding.future;
+    // İlk Flutter karesi hazır olduktan sonra yalnızca yerel tercihleri oku.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_loadOnboardingState().then(onboarding.complete));
+      unawaited(_loadLanguage());
+    });
+  }
+
+  Future<void> _loadLanguage() async {
+    try {
+      await AppLanguageController.instance.init();
+    } catch (error) {
+      debugPrint('Startup language preference skipped: $error');
+    }
   }
 
   Future<bool> _loadOnboardingState() async {
@@ -67,8 +79,6 @@ class _AnimatedSplashPageState extends State<AnimatedSplashPage> {
 
     try {
       await Future.wait<void>(<Future<void>>[
-        AppLanguageController.instance.init(),
-        AppExperienceController.instance.init(),
         GameAudioService.instance.init(),
         firebaseInitialization,
       ]).timeout(const Duration(seconds: 4));
@@ -93,6 +103,12 @@ class _AnimatedSplashPageState extends State<AnimatedSplashPage> {
         ? widget.destination
         : FirstRunProfilePage(destination: widget.destination);
 
+    // Ağ ve ses ön yüklemesi marka animasyonu ile sayfa geçişini bölmesin.
+    unawaited(
+      Future<void>.delayed(const Duration(milliseconds: 350))
+          .then((_) => _initializeServices()),
+    );
+
     await Navigator.of(context).pushReplacement<void, void>(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 240),
@@ -114,15 +130,15 @@ class _AnimatedSplashPageState extends State<AnimatedSplashPage> {
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
-        statusBarColor: Color(0xFF000322),
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: Color(0xFF000322),
-        systemNavigationBarIconBrightness: Brightness.light,
+        statusBarColor: StudioVisuals.canvas,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: StudioVisuals.canvas,
+        systemNavigationBarIconBrightness: Brightness.dark,
       ),
       child: PopScope(
         canPop: false,
         child: Scaffold(
-          backgroundColor: const Color(0xFF000322),
+          backgroundColor: StudioVisuals.canvas,
           body: RepaintBoundary(
             child: AnimatedZpLogo(onCompleted: _openDestination),
           ),

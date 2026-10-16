@@ -38,41 +38,252 @@ void main() {
         preferences: preferences,
         unlockedLevels: const <String, int>{
           'logic': 10,
+          'hidden_masses': 10,
+          'kakuro': 20,
+          'reversi_arena': 20,
+          'picross_master': 20,
+          'tavla_master': 20,
+          'arrow_route': 20,
+          'mini_chess_tactics': 20,
+          'loop_master': 20,
+          'go_life_death': 20,
+          'code_breaker': 20,
+          'shogi_mate': 20,
+          'island_sea': 20,
+          'peg_solitaire': 20,
+          'futoshiki': 20,
+          'hex_connection': 20,
+          'skyscrapers': 20,
+          'hitori': 20,
           'numbers': 2,
           'hanoi': 5,
+          'meaning_match': 20,
+          'proverb_finish': 20,
+          'sentence_builder': 20,
+          'near_meaning': 20,
+          'letter_maze': 20,
+          'language_detective': 20,
+          'story_order': 20,
+          'card_pairs': 20,
+          'focus_filter': 20,
+          'spot_change': 20,
+          'rhythm_memory': 20,
+          'symbol_stream': 20,
+          'silent_count': 20,
+          'attention_tunnel': 20,
+          'dual_task': 20,
         },
         earnedStars: const <String, int>{
           'logic': 30,
+          'hidden_masses': 30,
+          'kakuro': 60,
+          'reversi_arena': 60,
+          'picross_master': 60,
+          'tavla_master': 60,
+          'arrow_route': 60,
+          'mini_chess_tactics': 60,
+          'loop_master': 60,
+          'go_life_death': 60,
+          'code_breaker': 60,
+          'shogi_mate': 60,
+          'island_sea': 60,
+          'peg_solitaire': 60,
+          'futoshiki': 60,
+          'hex_connection': 60,
+          'skyscrapers': 60,
+          'hitori': 60,
           'numbers': 3,
           'hanoi': 12,
+          'meaning_match': 60,
+          'proverb_finish': 60,
+          'sentence_builder': 60,
+          'near_meaning': 60,
+          'letter_maze': 60,
+          'language_detective': 60,
+          'story_order': 60,
+          'card_pairs': 60,
+          'focus_filter': 60,
+          'spot_change': 60,
+          'rhythm_memory': 60,
+          'symbol_stream': 60,
+          'silent_count': 60,
+          'attention_tunnel': 60,
+          'dual_task': 60,
         },
       );
       final HomeGameRecommendation ageFallback = service.recommend(
         preferences: preferences,
         unlockedLevels: const <String, int>{
           'logic': 10,
+          'hidden_masses': 10,
+          'kakuro': 20,
+          'reversi_arena': 20,
+          'picross_master': 20,
+          'tavla_master': 20,
+          'arrow_route': 20,
+          'mini_chess_tactics': 20,
+          'loop_master': 20,
+          'go_life_death': 20,
+          'code_breaker': 20,
+          'shogi_mate': 20,
+          'island_sea': 20,
+          'peg_solitaire': 20,
+          'futoshiki': 20,
+          'hex_connection': 20,
+          'skyscrapers': 20,
+          'hitori': 20,
           'numbers': 10,
           'hanoi': 10,
+          'meaning_match': 20,
+          'proverb_finish': 20,
+          'sentence_builder': 20,
+          'near_meaning': 20,
+          'letter_maze': 20,
+          'language_detective': 20,
+          'story_order': 20,
+          'card_pairs': 20,
+          'focus_filter': 20,
+          'spot_change': 20,
+          'rhythm_memory': 20,
+          'symbol_stream': 20,
+          'silent_count': 20,
+          'attention_tunnel': 20,
+          'dual_task': 20,
         },
         earnedStars: const <String, int>{
           'logic': 30,
+          'hidden_masses': 30,
+          'kakuro': 60,
+          'reversi_arena': 60,
+          'picross_master': 60,
+          'tavla_master': 60,
+          'arrow_route': 60,
+          'mini_chess_tactics': 60,
+          'loop_master': 60,
+          'go_life_death': 60,
+          'code_breaker': 60,
+          'shogi_mate': 60,
+          'island_sea': 60,
+          'peg_solitaire': 60,
+          'futoshiki': 60,
+          'hex_connection': 60,
+          'skyscrapers': 60,
+          'hitori': 60,
           'numbers': 30,
           'hanoi': 30,
+          'meaning_match': 60,
+          'proverb_finish': 60,
+          'sentence_builder': 60,
+          'near_meaning': 60,
+          'letter_maze': 60,
+          'language_detective': 60,
+          'story_order': 60,
+          'card_pairs': 60,
+          'focus_filter': 60,
+          'spot_change': 60,
+          'rhythm_memory': 60,
+          'symbol_stream': 60,
+          'silent_count': 60,
+          'attention_tunnel': 60,
+          'dual_task': 60,
         },
       );
 
-      expect(first.gameId, 'logic');
-      expect(balanced.gameId, 'numbers');
-      expect(ageFallback.gameId, 'number_sort');
-      expect(HomePersonalizationService.allGameIds.length, 11);
+      expect(first.gameId, 'hidden_masses');
+      expect(balanced.gameId, 'city_atlas');
+      expect(ageFallback.gameId, 'city_atlas');
+      expect(HomePersonalizationService.allGameIds.length, 36);
+
+      final HomeGameRecommendation halfwayThroughLongGame = service.recommend(
+        preferences: preferences,
+        unlockedLevels: const <String, int>{
+          'logic': 10,
+          'hidden_masses': 10,
+          'kakuro': 20,
+          'reversi_arena': 11,
+          'picross_master': 20,
+          'tavla_master': 20,
+          'arrow_route': 20,
+          'mini_chess_tactics': 20,
+          'loop_master': 20,
+          'go_life_death': 20,
+          'code_breaker': 20,
+          'shogi_mate': 20,
+          'island_sea': 20,
+          'peg_solitaire': 20,
+          'futoshiki': 20,
+          'hex_connection': 20,
+          'skyscrapers': 20,
+          'hitori': 20,
+          'numbers': 10,
+          'hanoi': 10,
+          'meaning_match': 20,
+          'proverb_finish': 20,
+          'sentence_builder': 20,
+          'near_meaning': 20,
+          'letter_maze': 20,
+          'language_detective': 20,
+          'story_order': 20,
+          'card_pairs': 20,
+          'focus_filter': 20,
+          'spot_change': 20,
+          'rhythm_memory': 20,
+          'symbol_stream': 20,
+          'silent_count': 20,
+          'attention_tunnel': 20,
+          'dual_task': 20,
+        },
+        earnedStars: const <String, int>{
+          'logic': 30,
+          'hidden_masses': 30,
+          'kakuro': 60,
+          'reversi_arena': 30,
+          'picross_master': 60,
+          'tavla_master': 60,
+          'arrow_route': 60,
+          'mini_chess_tactics': 60,
+          'loop_master': 60,
+          'go_life_death': 60,
+          'code_breaker': 60,
+          'shogi_mate': 60,
+          'island_sea': 60,
+          'peg_solitaire': 60,
+          'futoshiki': 60,
+          'hex_connection': 60,
+          'skyscrapers': 60,
+          'hitori': 60,
+          'numbers': 30,
+          'hanoi': 30,
+          'meaning_match': 60,
+          'proverb_finish': 60,
+          'sentence_builder': 60,
+          'near_meaning': 60,
+          'letter_maze': 60,
+          'language_detective': 60,
+          'story_order': 60,
+          'card_pairs': 60,
+          'focus_filter': 60,
+          'spot_change': 60,
+          'rhythm_memory': 60,
+          'symbol_stream': 60,
+          'silent_count': 60,
+          'attention_tunnel': 60,
+          'dual_task': 60,
+        },
+      );
+      expect(halfwayThroughLongGame.gameId, 'city_atlas');
     });
 
-    test('ana ekran öneri, seri ve 11 kart işaretlerini taşır', () {
+    test('ana ekran öneri, seri ve oynanabilir kart işaretlerini taşır', () {
       final String source = _source('lib/main.dart');
       expect(source, contains("'v9_personal_recommendation'"));
       expect(source, contains('currentStreak'));
       expect(source, contains("'v9_game_card_\$number'"));
-      expect(RegExp(r'_GameCard\(').allMatches(source).length, 12);
+      expect(
+        RegExp(r'_StudioPlayableGame\(').allMatches(source).length,
+        97,
+        reason: '95 oyun kartı, oluşturucu ve kayıt sınıfı yapıcısı bulunmalı',
+      );
     });
   });
 
@@ -229,7 +440,7 @@ void main() {
       await controller.setAnimationIntensity(AppAnimationIntensity.reduced);
       await controller.setHighContrast(true);
       await controller.setLargeText(true);
-      await controller.setVisualTheme(AppVisualTheme.pinkNeon);
+      await controller.setVisualTheme(AppVisualTheme.studioGarden);
 
       final SharedPreferencesAsync preferences = SharedPreferencesAsync();
       expect(
@@ -246,14 +457,14 @@ void main() {
       );
       expect(
         await preferences.getString(AppExperienceController.visualThemeKey),
-        'pink_neon',
+        'studio_garden',
       );
 
       await controller.resetDefaults();
-      expect(controller.visualTheme, AppVisualTheme.classicNeon);
+      expect(controller.visualTheme, AppVisualTheme.studioGarden);
       expect(
         await preferences.getString(AppExperienceController.visualThemeKey),
-        'classic_neon',
+        'studio_garden',
       );
     });
 

@@ -34,7 +34,7 @@ service cloud.firestore {
         && data.displayName.size() <= 18
         && data.avatar is string
         && data.avatar.size() >= 1
-        && data.avatar.size() <= 16
+        && data.avatar.size() <= 32
         && data.xp is int
         && data.xp >= 0
         && data.xp <= 1000000
@@ -46,10 +46,10 @@ service cloud.firestore {
         && data.score <= 10000000
         && data.stars is int
         && data.stars >= 0
-        && data.stars <= 330
+        && data.stars <= 3960
         && data.completedLevels is int
         && data.completedLevels >= 0
-        && data.completedLevels <= 110
+        && data.completedLevels <= 1320
         && data.bestStreak is int
         && data.bestStreak >= 0
         && data.bestStreak <= 10000
@@ -90,7 +90,7 @@ service cloud.firestore {
         && data.displayName.size() <= 18
         && data.avatar is string
         && data.avatar.size() >= 1
-        && data.avatar.size() <= 16
+        && data.avatar.size() <= 32
         && data.xp is int
         && data.xp >= 0
         && data.xp <= 1000000
@@ -103,10 +103,10 @@ service cloud.firestore {
         && data.level <= 50
         && data.stars is int
         && data.stars >= 0
-        && data.stars <= 330
+        && data.stars <= 3960
         && data.completedLevels is int
         && data.completedLevels >= 0
-        && data.completedLevels <= 110
+        && data.completedLevels <= 1320
         && data.bestStreak is int
         && data.bestStreak >= 0
         && data.bestStreak <= 10000
@@ -210,7 +210,7 @@ service cloud.firestore {
         && data.challengerName.size() <= 18
         && data.challengerAvatar is string
         && data.challengerAvatar.size() >= 1
-        && data.challengerAvatar.size() <= 16
+        && data.challengerAvatar.size() <= 32
         && data.participantIds is list
         && uid in data.participantIds
         && ((data.targetUid == null && data.participantIds.size() == 1)
@@ -229,8 +229,23 @@ service cloud.firestore {
               'logic',
               'blocks',
               'memory',
+              'card_pairs',
+              'focus_filter',
+              'spot_change',
+              'rhythm_memory',
+              'symbol_stream',
+              'silent_count',
+              'attention_tunnel',
+              'dual_task',
               'hanoi',
               'word_hunt',
+              'meaning_match',
+              'proverb_finish',
+              'sentence_builder',
+              'near_meaning',
+              'letter_maze',
+              'language_detective',
+              'story_order',
               'picture_iq',
               'candy_sort',
               'number_sort',
@@ -294,7 +309,7 @@ service cloud.firestore {
         && data.challengerName.size() <= 18
         && data.challengerAvatar is string
         && data.challengerAvatar.size() >= 1
-        && data.challengerAvatar.size() <= 16
+        && data.challengerAvatar.size() <= 32
 
         && data.participantIds is list
         && uid in data.participantIds
@@ -314,10 +329,23 @@ service cloud.firestore {
         && data.gameIds.toSet().size() == 8
         && data.gameIds.toSet().hasOnly([
           'logic',
+          'numbers',
           'blocks',
           'memory',
+          'card_pairs',
+          'focus_filter',
+          'rhythm_memory',
+          'attention_tunnel',
+          'reflex',
           'hanoi',
           'word_hunt',
+          'meaning_match',
+          'proverb_finish',
+          'sentence_builder',
+          'near_meaning',
+          'letter_maze',
+          'language_detective',
+          'story_order',
           'picture_iq',
           'candy_sort',
           'number_sort',
@@ -423,7 +451,7 @@ service cloud.firestore {
         && data.challengerName.size() <= 18
         && data.challengerAvatar is string
         && data.challengerAvatar.size() >= 1
-        && data.challengerAvatar.size() <= 16
+        && data.challengerAvatar.size() <= 32
 
         && data.participantIds is list
         && uid in data.participantIds
@@ -503,7 +531,7 @@ service cloud.firestore {
         && data.schemaVersion == 3;
     }
 
-    // V4: 11 oyunluk havuzdan tekrarsız seçilen 6 oyun.
+    // V4: genişleyen havuzdan tekrarsız seçilen 6 oyun.
     function validChallengeCreateV4(data, uid) {
       return data.keys().hasOnly([
           'challengerUid',
@@ -538,7 +566,7 @@ service cloud.firestore {
         && data.challengerName.size() <= 18
         && data.challengerAvatar is string
         && data.challengerAvatar.size() >= 1
-        && data.challengerAvatar.size() <= 16
+        && data.challengerAvatar.size() <= 32
 
         && data.participantIds is list
         && uid in data.participantIds
@@ -561,9 +589,24 @@ service cloud.firestore {
           'numbers',
           'blocks',
           'memory',
+          'card_pairs',
+          'focus_filter',
+          'spot_change',
+          'rhythm_memory',
+          'symbol_stream',
+          'silent_count',
+          'attention_tunnel',
+          'dual_task',
           'reflex',
           'hanoi',
           'word_hunt',
+          'meaning_match',
+          'proverb_finish',
+          'sentence_builder',
+          'near_meaning',
+          'letter_maze',
+          'language_detective',
+          'story_order',
           'picture_iq',
           'candy_sort',
           'number_sort',
@@ -657,7 +700,7 @@ service cloud.firestore {
         && request.resource.data.opponentName.size() <= 18
         && request.resource.data.opponentAvatar is string
         && request.resource.data.opponentAvatar.size() >= 1
-        && request.resource.data.opponentAvatar.size() <= 16
+        && request.resource.data.opponentAvatar.size() <= 32
         && request.resource.data.participantIds is list
         && request.resource.data.participantIds.size() == 2
         && request.resource.data.challengerUid
@@ -1504,12 +1547,50 @@ service cloud.firestore {
           'numbers',
           'blocks',
           'memory',
+          'card_pairs',
+          'focus_filter',
+          'spot_change',
+          'rhythm_memory',
+          'symbol_stream',
+          'silent_count',
+          'attention_tunnel',
+          'dual_task',
           'hanoi',
           'word_hunt',
+          'meaning_match',
+          'proverb_finish',
+          'sentence_builder',
+          'near_meaning',
+          'letter_maze',
+          'language_detective',
+          'story_order',
           'picture_iq',
           'candy_sort',
           'number_sort',
           'shape_puzzle',
+          'detective_notes',
+          'balance_scale',
+          'target_24',
+          'mini_sudoku',
+          'kenken_cube',
+          'hidden_masses',
+          'kakuro',
+          'parking_puzzle',
+          'mini_chess_tactics',
+          'word_wheel',
+          'slide_sweets',
+          'reversi_arena',
+          'picross_master',
+          'arrow_route',
+          'island_sea',
+          'futoshiki',
+          'skyscrapers',
+          'hitori',
+          'city_atlas',
+          'world_atlas',
+          'katamino_workshop',
+          'single_stroke',
+          'arrow_maze',
           'reflex'
         ])
         && data.participantIds is list
@@ -1576,7 +1657,7 @@ service cloud.firestore {
         && data.displayName.size() <= 18
         && data.avatar is string
         && data.avatar.size() >= 1
-        && data.avatar.size() <= 16
+        && data.avatar.size() <= 32
         && data.gameId is string
         && data.gameId in arenaEventData(data.eventId).gameIds
         && data.rawScore is int
@@ -1670,7 +1751,7 @@ service cloud.firestore {
         && data.displayName.size() <= 18
         && data.avatar is string
         && data.avatar.size() >= 1
-        && data.avatar.size() <= 16
+        && data.avatar.size() <= 32
         && data.reaction in [
           'good_game',
           'rematch',

@@ -1,3 +1,5 @@
+import '../games/shared/studio_game_contracts.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LogicProgressData {
@@ -11,11 +13,9 @@ class LogicProgressData {
     required this.enIyiPuanlar,
   });
 
-  int get toplamYildiz =>
-      yildizlar.fold(0, (toplam, deger) => toplam + deger);
+  int get toplamYildiz => yildizlar.fold(0, (toplam, deger) => toplam + deger);
 
-  int get toplamPuan =>
-      enIyiPuanlar.fold(0, (toplam, deger) => toplam + deger);
+  int get toplamPuan => enIyiPuanlar.fold(0, (toplam, deger) => toplam + deger);
 }
 
 class NumberProgressData {
@@ -29,11 +29,9 @@ class NumberProgressData {
     required this.enIyiPuanlar,
   });
 
-  int get toplamYildiz =>
-      yildizlar.fold(0, (toplam, deger) => toplam + deger);
+  int get toplamYildiz => yildizlar.fold(0, (toplam, deger) => toplam + deger);
 
-  int get toplamPuan =>
-      enIyiPuanlar.fold(0, (toplam, deger) => toplam + deger);
+  int get toplamPuan => enIyiPuanlar.fold(0, (toplam, deger) => toplam + deger);
 }
 
 class BlockProgressData {
@@ -47,11 +45,9 @@ class BlockProgressData {
     required this.enIyiPuanlar,
   });
 
-  int get toplamYildiz =>
-      yildizlar.fold(0, (toplam, deger) => toplam + deger);
+  int get toplamYildiz => yildizlar.fold(0, (toplam, deger) => toplam + deger);
 
-  int get toplamPuan =>
-      enIyiPuanlar.fold(0, (toplam, deger) => toplam + deger);
+  int get toplamPuan => enIyiPuanlar.fold(0, (toplam, deger) => toplam + deger);
 }
 
 class GenelProgressData {
@@ -79,31 +75,28 @@ class GenelProgressData {
 }
 
 class LocalProgressService {
-  final SharedPreferencesAsync _prefs =
-  SharedPreferencesAsync();
+  final SharedPreferencesAsync _prefs = SharedPreferencesAsync();
 
   // =========================================================
   // MANTIK LABİRENTİ
   // =========================================================
 
-  static const String _logicAcikSeviyeKey =
-      'logic_acik_seviye';
+  static const String _logicAcikSeviyeKey = 'logic_acik_seviye';
 
-  static const String _logicYildizlarKey =
-      'logic_yildizlar';
+  static const String _logicYildizlarKey = 'logic_yildizlar';
 
-  static const String _logicPuanlarKey =
-      'logic_en_iyi_puanlar';
+  static const String _logicPuanlarKey = 'logic_en_iyi_puanlar';
 
   Future<LogicProgressData> mantikIlerlemesiniYukle() async {
-    final int acikSeviye =
-        await _prefs.getInt(_logicAcikSeviyeKey) ?? 1;
+    final int acikSeviye = await _prefs.getInt(_logicAcikSeviyeKey) ?? 1;
 
-    final List<String>? yildizKaydi =
-    await _prefs.getStringList(_logicYildizlarKey);
+    final List<String>? yildizKaydi = await _prefs.getStringList(
+      _logicYildizlarKey,
+    );
 
-    final List<String>? puanKaydi =
-    await _prefs.getStringList(_logicPuanlarKey);
+    final List<String>? puanKaydi = await _prefs.getStringList(
+      _logicPuanlarKey,
+    );
 
     return LogicProgressData(
       acikSeviye: acikSeviye.clamp(1, 10),
@@ -117,49 +110,41 @@ class LocalProgressService {
     required List<int> yildizlar,
     required List<int> enIyiPuanlar,
   }) async {
-    await _prefs.setInt(
-      _logicAcikSeviyeKey,
-      acikSeviye,
-    );
+    await _prefs.setInt(_logicAcikSeviyeKey, acikSeviye);
 
-    await _prefs.setStringList(
-      _logicYildizlarKey,
-      _listeYaz(yildizlar),
-    );
+    await _prefs.setStringList(_logicYildizlarKey, _listeYaz(yildizlar));
 
-    await _prefs.setStringList(
-      _logicPuanlarKey,
-      _listeYaz(enIyiPuanlar),
-    );
+    await _prefs.setStringList(_logicPuanlarKey, _listeYaz(enIyiPuanlar));
   }
 
   // =========================================================
   // SAYI USTASI
   // =========================================================
 
-  static const String _numberAcikSeviyeKey =
-      'number_acik_seviye';
+  static const String _numberAcikSeviyeKey = 'number_acik_seviye';
 
-  static const String _numberYildizlarKey =
-      'number_yildizlar';
+  static const String _numberYildizlarKey = 'number_yildizlar';
 
-  static const String _numberPuanlarKey =
-      'number_en_iyi_puanlar';
+  static const String _numberPuanlarKey = 'number_en_iyi_puanlar';
 
   Future<NumberProgressData> sayiIlerlemesiniYukle() async {
-    final int acikSeviye =
-        await _prefs.getInt(_numberAcikSeviyeKey) ?? 1;
+    final int acikSeviye = await _prefs.getInt(_numberAcikSeviyeKey) ?? 1;
 
-    final List<String>? yildizKaydi =
-    await _prefs.getStringList(_numberYildizlarKey);
+    final List<String>? yildizKaydi = await _prefs.getStringList(
+      _numberYildizlarKey,
+    );
 
-    final List<String>? puanKaydi =
-    await _prefs.getStringList(_numberPuanlarKey);
+    final List<String>? puanKaydi = await _prefs.getStringList(
+      _numberPuanlarKey,
+    );
 
     return NumberProgressData(
-      acikSeviye: acikSeviye.clamp(1, 10),
-      yildizlar: _listeOku(yildizKaydi, 10),
-      enIyiPuanlar: _listeOku(puanKaydi, 10),
+      acikSeviye: GameContentPolicy.safeUnlocked(
+        acikSeviye,
+        _listeOku(yildizKaydi, GameContentPolicy.campaignLevels),
+      ),
+      yildizlar: _listeOku(yildizKaydi, GameContentPolicy.campaignLevels),
+      enIyiPuanlar: _listeOku(puanKaydi, GameContentPolicy.campaignLevels),
     );
   }
 
@@ -168,49 +153,41 @@ class LocalProgressService {
     required List<int> yildizlar,
     required List<int> enIyiPuanlar,
   }) async {
-    await _prefs.setInt(
-      _numberAcikSeviyeKey,
-      acikSeviye,
-    );
+    await _prefs.setInt(_numberAcikSeviyeKey, acikSeviye);
 
-    await _prefs.setStringList(
-      _numberYildizlarKey,
-      _listeYaz(yildizlar),
-    );
+    await _prefs.setStringList(_numberYildizlarKey, _listeYaz(yildizlar));
 
-    await _prefs.setStringList(
-      _numberPuanlarKey,
-      _listeYaz(enIyiPuanlar),
-    );
+    await _prefs.setStringList(_numberPuanlarKey, _listeYaz(enIyiPuanlar));
   }
 
   // =========================================================
   // BLOK ATÖLYESİ
   // =========================================================
 
-  static const String _blockAcikSeviyeKey =
-      'block_acik_seviye';
+  static const String _blockAcikSeviyeKey = 'block_acik_seviye';
 
-  static const String _blockYildizlarKey =
-      'block_yildizlar';
+  static const String _blockYildizlarKey = 'block_yildizlar';
 
-  static const String _blockPuanlarKey =
-      'block_en_iyi_puanlar';
+  static const String _blockPuanlarKey = 'block_en_iyi_puanlar';
 
   Future<BlockProgressData> blokIlerlemesiniYukle() async {
-    final int acikSeviye =
-        await _prefs.getInt(_blockAcikSeviyeKey) ?? 1;
+    final int acikSeviye = await _prefs.getInt(_blockAcikSeviyeKey) ?? 1;
 
-    final List<String>? yildizKaydi =
-    await _prefs.getStringList(_blockYildizlarKey);
+    final List<String>? yildizKaydi = await _prefs.getStringList(
+      _blockYildizlarKey,
+    );
 
-    final List<String>? puanKaydi =
-    await _prefs.getStringList(_blockPuanlarKey);
+    final List<String>? puanKaydi = await _prefs.getStringList(
+      _blockPuanlarKey,
+    );
 
     return BlockProgressData(
-      acikSeviye: acikSeviye.clamp(1, 10),
-      yildizlar: _listeOku(yildizKaydi, 10),
-      enIyiPuanlar: _listeOku(puanKaydi, 10),
+      acikSeviye: GameContentPolicy.safeUnlocked(
+        acikSeviye,
+        _listeOku(yildizKaydi, GameContentPolicy.campaignLevels),
+      ),
+      yildizlar: _listeOku(yildizKaydi, GameContentPolicy.campaignLevels),
+      enIyiPuanlar: _listeOku(puanKaydi, GameContentPolicy.campaignLevels),
     );
   }
 
@@ -219,20 +196,11 @@ class LocalProgressService {
     required List<int> yildizlar,
     required List<int> enIyiPuanlar,
   }) async {
-    await _prefs.setInt(
-      _blockAcikSeviyeKey,
-      acikSeviye,
-    );
+    await _prefs.setInt(_blockAcikSeviyeKey, acikSeviye);
 
-    await _prefs.setStringList(
-      _blockYildizlarKey,
-      _listeYaz(yildizlar),
-    );
+    await _prefs.setStringList(_blockYildizlarKey, _listeYaz(yildizlar));
 
-    await _prefs.setStringList(
-      _blockPuanlarKey,
-      _listeYaz(enIyiPuanlar),
-    );
+    await _prefs.setStringList(_blockPuanlarKey, _listeYaz(enIyiPuanlar));
   }
 
   // =========================================================
@@ -240,25 +208,16 @@ class LocalProgressService {
   // =========================================================
 
   Future<GenelProgressData> genelIlerlemeyiYukle() async {
-    final LogicProgressData mantik =
-    await mantikIlerlemesiniYukle();
+    final LogicProgressData mantik = await mantikIlerlemesiniYukle();
 
-    final NumberProgressData sayi =
-    await sayiIlerlemesiniYukle();
+    final NumberProgressData sayi = await sayiIlerlemesiniYukle();
 
-    final BlockProgressData blok =
-    await blokIlerlemesiniYukle();
+    final BlockProgressData blok = await blokIlerlemesiniYukle();
 
     return GenelProgressData(
-      toplamPuan:
-      mantik.toplamPuan +
-          sayi.toplamPuan +
-          blok.toplamPuan,
+      toplamPuan: mantik.toplamPuan + sayi.toplamPuan + blok.toplamPuan,
 
-      toplamYildiz:
-      mantik.toplamYildiz +
-          sayi.toplamYildiz +
-          blok.toplamYildiz,
+      toplamYildiz: mantik.toplamYildiz + sayi.toplamYildiz + blok.toplamYildiz,
 
       mantikAcikSeviye: mantik.acikSeviye,
       sayiAcikSeviye: sayi.acikSeviye,
@@ -274,33 +233,17 @@ class LocalProgressService {
   // YARDIMCI FONKSİYONLAR
   // =========================================================
 
-  List<int> _listeOku(
-      List<String>? kayit,
-      int uzunluk,
-      ) {
-    return List<int>.generate(
-      uzunluk,
-          (index) {
-        if (kayit == null ||
-            index >= kayit.length) {
-          return 0;
-        }
+  List<int> _listeOku(List<String>? kayit, int uzunluk) {
+    return List<int>.generate(uzunluk, (index) {
+      if (kayit == null || index >= kayit.length) {
+        return 0;
+      }
 
-        return int.tryParse(
-          kayit[index],
-        ) ??
-            0;
-      },
-    );
+      return int.tryParse(kayit[index]) ?? 0;
+    });
   }
 
-  List<String> _listeYaz(
-      List<int> liste,
-      ) {
-    return liste
-        .map(
-          (deger) => deger.toString(),
-    )
-        .toList();
+  List<String> _listeYaz(List<int> liste) {
+    return liste.map((deger) => deger.toString()).toList();
   }
 }

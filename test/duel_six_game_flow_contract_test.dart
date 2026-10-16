@@ -5,8 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 String _source(String path) => File(path).readAsStringSync();
 
 void main() {
-  group('1e1 duello V4 alti oyun sozlesmesi', () {
-    test('on bir oyundan tekrarsiz alti oyun secilir', () {
+  group('1e1 duello 8 oyun sozlesmesi', () {
+    test('yirmi bir oyun havuzundan tekrarsiz sekiz oyun secilir', () {
       final String service = _source(
         'lib/services/social_challenge_service.dart',
       );
@@ -17,11 +17,21 @@ void main() {
         'numbers',
         'blocks',
         'memory',
+        'card_pairs',
+        'focus_filter',
+        'rhythm_memory',
+        'attention_tunnel',
         'reflex',
         'hanoi',
         'word_hunt',
+        'meaning_match',
+        'proverb_finish',
+        'sentence_builder',
+        'near_meaning',
+        'letter_maze',
+        'language_detective',
+        'story_order',
         'picture_iq',
-        'candy_sort',
         'number_sort',
         'shape_puzzle',
       ];
@@ -32,20 +42,23 @@ void main() {
       }
 
       expect(catalog, contains('challengeGameDefinitions'));
-      expect(RegExp(r'dailyCourseMode: true').allMatches(catalog).length, 11);
+      expect(
+        RegExp(r"^\s*id: '[^']+',", multiLine: true).allMatches(catalog).length,
+        gameIds.length,
+      );
       expect(service, contains('List<String>.from(pool)..shuffle(_random)'));
-      expect(service, contains('shuffled.take(6)'));
+      expect(service, contains('shuffled.take(8)'));
       expect(
         RegExp(
-          r'List<int>\.generate\(\s*6,',
+          r'List<int>\.generate\(\s*8,',
           multiLine: true,
         ).allMatches(service).length,
         2,
       );
-      expect(service, contains("'schemaVersion': 4"));
+      expect(service, contains("'schemaVersion': 2"));
     });
 
-    test('eski duello surumlerinin oyun sayisi korunur', () {
+    test('eski duello sürümleri ve seri uzunlukları korunur', () {
       final String service = _source(
         'lib/services/social_challenge_service.dart',
       );

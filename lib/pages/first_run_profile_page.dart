@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../services/app_experience_controller.dart';
 import '../services/onboarding_preference_service.dart';
 import '../theme/app_visual_theme.dart';
+import '../theme/studio_visuals.dart';
 
 class FirstRunProfilePage extends StatefulWidget {
   const FirstRunProfilePage({required this.destination, super.key})
@@ -27,7 +28,6 @@ class _FirstRunProfilePageState extends State<FirstRunProfilePage> {
 
   PlayerAgeGroup? _ageGroup;
   PlayerGameGoal? _gameGoal;
-  AppVisualTheme _visualTheme = AppVisualTheme.classicNeon;
   int _step = 0;
   bool _loading = true;
   bool _saving = false;
@@ -49,7 +49,6 @@ class _FirstRunProfilePageState extends State<FirstRunProfilePage> {
       setState(() {
         _ageGroup = saved.ageGroup;
         _gameGoal = saved.gameGoal;
-        _visualTheme = _experience.visualTheme;
         _loading = false;
       });
     } catch (_) {
@@ -67,9 +66,6 @@ class _FirstRunProfilePageState extends State<FirstRunProfilePage> {
     }
     if (_step == 1 && !widget.editMode) {
       if (_gameGoal == null) return;
-      HapticFeedback.selectionClick();
-      setState(() => _step = 2);
-      return;
     }
     _save();
   }
@@ -81,7 +77,7 @@ class _FirstRunProfilePageState extends State<FirstRunProfilePage> {
 
     setState(() => _saving = true);
     try {
-      await _experience.setVisualTheme(_visualTheme);
+      await _experience.setVisualTheme(AppVisualTheme.studioGarden);
       await _preferences.save(ageGroup: ageGroup, gameGoal: gameGoal);
       if (!mounted) return;
       HapticFeedback.lightImpact();
@@ -124,19 +120,18 @@ class _FirstRunProfilePageState extends State<FirstRunProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final ZpVisualPalette palette = ZpVisualPalette.forTheme(_visualTheme);
+    final ZpVisualPalette palette = ZpVisualPalette.garden;
     final bool canContinue = switch (_step) {
       0 => _ageGroup != null,
-      1 => _gameGoal != null,
-      _ => true,
+      _ => _gameGoal != null,
     };
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
+        statusBarColor: palette.onboardingBackground,
+        statusBarIconBrightness: Brightness.dark,
         systemNavigationBarColor: palette.onboardingBackground,
-        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarIconBrightness: Brightness.dark,
       ),
       child: PopScope(
         canPop: widget.editMode,
@@ -155,7 +150,7 @@ class _FirstRunProfilePageState extends State<FirstRunProfilePage> {
                         step: _step,
                         editMode: widget.editMode,
                         isTurkish: _isTurkish,
-                        totalSteps: widget.editMode ? 2 : 3,
+                        totalSteps: 2,
                         accent: palette.onboardingAccent,
                         onBack: () {
                           if (_step > 0) {
@@ -194,7 +189,7 @@ class _FirstRunProfilePageState extends State<FirstRunProfilePage> {
                                 setState(() => _ageGroup = value);
                               },
                             ),
-                            1 => _GoalStep(
+                            _ => _GoalStep(
                               key: const ValueKey<String>('goal'),
                               selected: _gameGoal,
                               isTurkish: _isTurkish,
@@ -203,15 +198,6 @@ class _FirstRunProfilePageState extends State<FirstRunProfilePage> {
                               onSelected: (value) {
                                 HapticFeedback.selectionClick();
                                 setState(() => _gameGoal = value);
-                              },
-                            ),
-                            _ => _ThemeStep(
-                              key: const ValueKey<String>('theme'),
-                              selected: _visualTheme,
-                              isTurkish: _isTurkish,
-                              onSelected: (value) {
-                                HapticFeedback.selectionClick();
-                                setState(() => _visualTheme = value);
                               },
                             ),
                           },
@@ -230,8 +216,7 @@ class _FirstRunProfilePageState extends State<FirstRunProfilePage> {
                                     : null,
                                 style: FilledButton.styleFrom(
                                   backgroundColor: palette.onboardingAccent,
-                                  disabledBackgroundColor: Colors.white
-                                      .withValues(alpha: 0.08),
+                                  disabledBackgroundColor: StudioVisuals.line,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(18),
@@ -262,7 +247,7 @@ class _FirstRunProfilePageState extends State<FirstRunProfilePage> {
                                   : 'These choices stay on this device and do not affect scores, rankings or Arena results.',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                color: Colors.white54,
+                                color: StudioVisuals.muted,
                                 fontSize: 10.5,
                                 height: 1.35,
                               ),
@@ -280,9 +265,6 @@ class _FirstRunProfilePageState extends State<FirstRunProfilePage> {
 
   String get _buttonLabel {
     if (_step == 0) return _isTurkish ? 'DEVAM ET' : 'CONTINUE';
-    if (_step == 1 && !widget.editMode) {
-      return _isTurkish ? 'DEVAM ET' : 'CONTINUE';
-    }
     if (widget.editMode) return _isTurkish ? 'KAYDET' : 'SAVE';
     return _isTurkish ? 'OYUNA BAŞLA' : 'START PLAYING';
   }
@@ -335,9 +317,7 @@ class _TopBar extends StatelessWidget {
               width: index == step ? 28 : 9,
               height: 9,
               decoration: BoxDecoration(
-                color: index <= step
-                    ? accent
-                    : Colors.white.withValues(alpha: 0.16),
+                color: index <= step ? accent : StudioVisuals.line,
                 borderRadius: BorderRadius.circular(20),
               ),
             ),
@@ -350,7 +330,7 @@ class _TopBar extends StatelessWidget {
               '${step + 1}/$totalSteps',
               textAlign: TextAlign.right,
               style: const TextStyle(
-                color: Colors.white54,
+                color: StudioVisuals.muted,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -502,7 +482,7 @@ class _ChoiceStep<T> extends StatelessWidget {
               title,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Colors.white,
+                color: StudioVisuals.ink,
                 fontSize: 27,
                 height: 1.12,
                 fontWeight: FontWeight.w900,
@@ -514,7 +494,7 @@ class _ChoiceStep<T> extends StatelessWidget {
               subtitle,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Colors.white60,
+                color: StudioVisuals.muted,
                 fontSize: 13,
                 height: 1.35,
               ),
@@ -573,7 +553,7 @@ class _ChoiceTile extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: selected ? accent : Colors.white.withValues(alpha: 0.09),
+                color: selected ? accent : StudioVisuals.line,
                 width: selected ? 1.6 : 1,
               ),
               boxShadow: selected
@@ -592,14 +572,12 @@ class _ChoiceTile extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: selected
-                        ? accent
-                        : Colors.white.withValues(alpha: 0.07),
+                    color: selected ? accent : StudioVisuals.surfaceSoft,
                     borderRadius: BorderRadius.circular(13),
                   ),
                   child: Icon(
                     icon,
-                    color: selected ? Colors.white : Colors.white70,
+                    color: selected ? Colors.white : StudioVisuals.teal,
                     size: 23,
                   ),
                 ),
@@ -608,7 +586,7 @@ class _ChoiceTile extends StatelessWidget {
                   child: Text(
                     label,
                     style: TextStyle(
-                      color: Colors.white,
+                      color: StudioVisuals.ink,
                       fontSize: 14.5,
                       fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
                     ),
@@ -622,7 +600,7 @@ class _ChoiceTile extends StatelessWidget {
                         ? Icons.check_circle_rounded
                         : Icons.circle_outlined,
                     key: ValueKey<bool>(selected),
-                    color: selected ? accent : Colors.white24,
+                    color: selected ? accent : StudioVisuals.muted,
                     size: 24,
                   ),
                 ),
@@ -631,170 +609,6 @@ class _ChoiceTile extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _ThemeStep extends StatelessWidget {
-  const _ThemeStep({
-    required this.selected,
-    required this.isTurkish,
-    required this.onSelected,
-    super.key,
-  });
-
-  final AppVisualTheme selected;
-  final bool isTurkish;
-  final ValueChanged<AppVisualTheme> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Text(
-              isTurkish ? 'Renk temanı seç' : 'Choose your color theme',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 27,
-                height: 1.12,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.4,
-              ),
-            ),
-            const SizedBox(height: 9),
-            Text(
-              isTurkish
-                  ? 'Bu seçim yalnızca görünümü değiştirir; oyun ve puanlar aynı kalır.'
-                  : 'This changes only the appearance; games and scores stay the same.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white60,
-                fontSize: 13,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 22),
-            for (final AppVisualTheme theme
-                in AppVisualTheme.values) ...<Widget>[
-              _ThemeChoiceTile(
-                theme: theme,
-                selected: selected == theme,
-                isTurkish: isTurkish,
-                onTap: () => onSelected(theme),
-              ),
-              const SizedBox(height: 12),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ThemeChoiceTile extends StatelessWidget {
-  const _ThemeChoiceTile({
-    required this.theme,
-    required this.selected,
-    required this.isTurkish,
-    required this.onTap,
-  });
-
-  final AppVisualTheme theme;
-  final bool selected;
-  final bool isTurkish;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final ZpVisualPalette palette = ZpVisualPalette.forTheme(theme);
-    final String label = switch (theme) {
-      AppVisualTheme.classicNeon =>
-        isTurkish ? 'Mavi–Mor Neon' : 'Blue–Purple Neon',
-      AppVisualTheme.pinkNeon => isTurkish ? 'Pembe Neon' : 'Pink Neon',
-    };
-
-    return Semantics(
-      selected: selected,
-      button: true,
-      label: label,
-      child: Material(
-        color: palette.onboardingSurface,
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            constraints: const BoxConstraints(minHeight: 82),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: selected ? palette.onboardingAccent : Colors.white12,
-                width: selected ? 2 : 1,
-              ),
-            ),
-            child: Row(
-              children: <Widget>[
-                Container(
-                  width: 58,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: palette.background,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  padding: const EdgeInsets.all(8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: <Widget>[
-                      _ColorDot(color: palette.primary),
-                      _ColorDot(color: palette.secondary),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                Icon(
-                  selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                  color: selected ? palette.onboardingAccent : Colors.white24,
-                  size: 25,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ColorDot extends StatelessWidget {
-  const _ColorDot({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 15,
-      height: 15,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

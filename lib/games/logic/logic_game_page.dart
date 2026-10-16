@@ -11,8 +11,10 @@ import '../../services/daily_challenge_service.dart';
 import '../../services/daily_course_service.dart';
 import '../../services/game_audio_service.dart';
 import '../../theme/app_visual_theme.dart';
+import '../../theme/studio_visuals.dart';
 import '../../services/local_progress_service.dart';
 import '../../services/replayability_service.dart';
+import '../shared/studio_game_contracts.dart';
 
 Set<String> labirentBombaKonumlariniSec({
   required Set<String> engeller,
@@ -364,10 +366,6 @@ class _LogicGamePageState extends State<LogicGamePage> {
       score: sonuc.puan,
     );
 
-    if (!widget.dailyCourseMode && index + 1 == seviyeler.length) {
-      await GameAudioService.instance.playMashallahCelebration();
-    }
-
     if (sonuc.sonrakiSeviye && index + 1 < seviyeler.length) {
       await Future.delayed(const Duration(milliseconds: 180));
 
@@ -381,81 +379,94 @@ class _LogicGamePageState extends State<LogicGamePage> {
   Widget build(BuildContext context) {
     if (yukleniyor) {
       return Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: StudioVisuals.canvas,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LText(
               'MANTIK LABİRENTİ',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+              style: TextStyle(
+                color: StudioVisuals.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+              ),
             ),
             LText(
               'Zihin yolculuğun',
-              style: TextStyle(color: Colors.white60, fontSize: 12),
+              style: TextStyle(color: StudioVisuals.muted, fontSize: 12),
             ),
           ],
         ),
       ),
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final bool darEkran = constraints.maxWidth < 360;
-            final double yatayBosluk = darEkran ? 12 : 18;
-            final double izgaraBoslugu = darEkran ? 10 : 14;
+        top: false,
+        child: ResponsiveGameFrame(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final bool darEkran = constraints.maxWidth < 360;
+              final double yatayBosluk = darEkran ? 12 : 18;
+              final double izgaraBoslugu = darEkran ? 10 : 14;
 
-            return Column(
-              children: [
-                Padding(
-                  padding: EdgeInsets.all(yatayBosluk),
-                  child: _IlerlemePaneli(
-                    acikSeviye: acikSeviye,
-                    toplamYildiz: toplamYildiz,
-                    toplamPuan: toplamPuan,
-                    darEkran: darEkran,
+              return Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.all(yatayBosluk),
+                    child: _IlerlemePaneli(
+                      acikSeviye: acikSeviye,
+                      toplamYildiz: toplamYildiz,
+                      toplamPuan: toplamPuan,
+                      darEkran: darEkran,
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: GridView.builder(
-                    padding: EdgeInsets.fromLTRB(
-                      yatayBosluk,
-                      0,
-                      yatayBosluk,
-                      30,
-                    ),
-                    itemCount: seviyeler.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: izgaraBoslugu,
-                      mainAxisSpacing: izgaraBoslugu,
-                      mainAxisExtent: 165,
-                    ),
-                    itemBuilder: (context, index) {
-                      final bool acik = index + 1 <= acikSeviye;
+                  Expanded(
+                    child: GridView.builder(
+                      padding: EdgeInsets.fromLTRB(
+                        yatayBosluk,
+                        0,
+                        yatayBosluk,
+                        30,
+                      ),
+                      itemCount: seviyeler.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: izgaraBoslugu,
+                        mainAxisSpacing: izgaraBoslugu,
+                        mainAxisExtent:
+                            104 *
+                            MediaQuery.textScalerOf(context)
+                                .scale(1)
+                                .clamp(1.0, 1.6),
+                      ),
+                      itemBuilder: (context, index) {
+                        final bool acik = index + 1 <= acikSeviye;
 
-                      return _SeviyeKarti(
-                        seviye: seviyeler[index],
-                        acik: acik,
-                        yildiz: kazanilanYildizlar[index],
-                        enIyiPuan: enIyiPuanlar[index],
-                        onTap: () {
-                          seviyeAc(index);
-                        },
-                      );
-                    },
+                        return _SeviyeKarti(
+                          seviye: seviyeler[index],
+                          acik: acik,
+                          yildiz: kazanilanYildizlar[index],
+                          enIyiPuan: enIyiPuanlar[index],
+                          onTap: () {
+                            seviyeAc(index);
+                          },
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -1284,7 +1295,11 @@ class _LabirentOyunEkraniState extends State<LabirentOyunEkrani> {
     final int puan = puanHesapla();
 
     unawaited(
-      _audio.playVictory(stars: yildiz, boss: widget.seviye.zorluk == 'BOSS'),
+      _audio.playVictory(
+        stars: yildiz,
+        boss: widget.seviye.zorluk == 'BOSS',
+        levelNumber: widget.seviye.numara,
+      ),
     );
 
     if (widget.competitionMode) {
@@ -1490,7 +1505,10 @@ class _LabirentOyunEkraniState extends State<LabirentOyunEkrani> {
             ),
             LText(
               'Seviye ${widget.seviye.numara} / ${widget.toplamSeviye}',
-              style: const TextStyle(color: Colors.white60, fontSize: 11),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 11,
+              ),
             ),
           ],
         ),
@@ -1820,16 +1838,28 @@ class _IlerlemePaneli extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(darEkran ? 14 : 18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF5427C7), Color(0xFF1968DA)],
-        ),
-        borderRadius: BorderRadius.circular(24),
+        color: StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Column(
         children: [
           Row(
             children: [
-              Icon(Icons.extension_rounded, size: darEkran ? 34 : 42),
+              Container(
+                width: darEkran ? 42 : 52,
+                height: darEkran ? 42 : 52,
+                decoration: const BoxDecoration(
+                  color: StudioVisuals.tealSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.extension_rounded,
+                  size: darEkran ? 24 : 29,
+                  color: StudioVisuals.teal,
+                ),
+              ),
               SizedBox(width: darEkran ? 8 : 12),
               Expanded(
                 child: LText(
@@ -1837,6 +1867,7 @@ class _IlerlemePaneli extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
+                    color: StudioVisuals.ink,
                     fontWeight: FontWeight.w900,
                     fontSize: darEkran ? 15 : 17,
                   ),
@@ -1849,7 +1880,7 @@ class _IlerlemePaneli extends StatelessWidget {
                   child: LText(
                     '$toplamPuan',
                     style: TextStyle(
-                      color: const Color(0xFFFFD334),
+                      color: StudioVisuals.amber,
                       fontWeight: FontWeight.w900,
                       fontSize: darEkran ? 17 : 20,
                     ),
@@ -1864,13 +1895,16 @@ class _IlerlemePaneli extends StatelessWidget {
               Expanded(
                 child: Row(
                   children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFFD334)),
+                    const Icon(Icons.star_rounded, color: StudioVisuals.amber),
                     const SizedBox(width: 5),
                     Flexible(
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
-                        child: LText('$toplamYildiz / 30'),
+                        child: LText(
+                          '$toplamYildiz / 30',
+                          style: const TextStyle(color: StudioVisuals.muted),
+                        ),
                       ),
                     ),
                   ],
@@ -1881,7 +1915,10 @@ class _IlerlemePaneli extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerRight,
-                  child: LText('Seviye $acikSeviye / 10'),
+                  child: LText(
+                    'Seviye $acikSeviye / 10',
+                    style: const TextStyle(color: StudioVisuals.muted),
+                  ),
                 ),
               ),
             ],
@@ -1932,14 +1969,14 @@ class _SeviyeKarti extends StatelessWidget {
         onTap: acik ? onTap : null,
         borderRadius: BorderRadius.circular(22),
         child: Ink(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: acik
-                ? ZpVisualPalette.of(context).surface
-                : ZpVisualPalette.of(context).surfaceAlternative,
+            color: acik ? StudioVisuals.surface : StudioVisuals.surfaceSoft,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: acik ? anaRenk.withValues(alpha: 0.65) : Colors.white12,
+              color: acik
+                  ? anaRenk.withValues(alpha: 0.42)
+                  : StudioVisuals.line,
             ),
           ),
           child: Column(
@@ -1950,7 +1987,7 @@ class _SeviyeKarti extends StatelessWidget {
                     acik ? '${seviye.numara}' : '🔒',
                     style: const TextStyle(
                       fontWeight: FontWeight.w900,
-                      fontSize: 17,
+                      fontSize: 14,
                     ),
                   ),
                   const Spacer(),
@@ -1970,24 +2007,28 @@ class _SeviyeKarti extends StatelessWidget {
                 seviye.zorluk == 'BOSS'
                     ? Icons.local_fire_department_rounded
                     : Icons.route_rounded,
-                color: acik ? anaRenk : Colors.white12,
-                size: 32,
+                color: acik ? anaRenk : StudioVisuals.line,
+                size: 22,
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 3),
               LText(
                 seviye.baslik,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: acik ? Colors.white : Colors.white24,
+                  color: acik ? StudioVisuals.ink : StudioVisuals.muted,
                   fontWeight: FontWeight.w800,
+                  fontSize: 13,
                 ),
               ),
               const Spacer(),
               if (enIyiPuan > 0)
                 LText(
                   'En iyi: $enIyiPuan',
-                  style: const TextStyle(color: Colors.white54, fontSize: 9),
+                  style: const TextStyle(
+                    color: StudioVisuals.muted,
+                    fontSize: 8,
+                  ),
                 ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1997,8 +2038,8 @@ class _SeviyeKarti extends StatelessWidget {
                     index < yildiz
                         ? Icons.star_rounded
                         : Icons.star_border_rounded,
-                    color: acik ? const Color(0xFFFFD334) : Colors.white12,
-                    size: 19,
+                    color: acik ? StudioVisuals.amber : StudioVisuals.line,
+                    size: 15,
                   ),
                 ),
               ),
@@ -2403,7 +2444,9 @@ class _CanGostergesi extends StatelessWidget {
                     scale: dolu ? 1 : 0.82,
                     child: Icon(
                       dolu ? Icons.favorite_rounded : Icons.favorite_border,
-                      color: dolu ? const Color(0xFFFF5C66) : Colors.white24,
+                      color: dolu
+                          ? const Color(0xFFFF5C66)
+                          : Theme.of(context).colorScheme.outlineVariant,
                       size: 16,
                     ),
                   ),
@@ -2411,9 +2454,12 @@ class _CanGostergesi extends StatelessWidget {
               }),
             ),
           ),
-          const LText(
+          LText(
             'CAN',
-            style: TextStyle(color: Colors.white54, fontSize: 9),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 9,
+            ),
           ),
         ],
       ),
@@ -2483,7 +2529,10 @@ class _BilgiKutusu extends StatelessWidget {
           ),
           LText(
             baslik,
-            style: const TextStyle(color: Colors.white54, fontSize: 9),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 9,
+            ),
           ),
         ],
       ),
@@ -2520,7 +2569,10 @@ class _SonucKutusu extends StatelessWidget {
           ),
           LText(
             baslik,
-            style: const TextStyle(color: Colors.white54, fontSize: 8),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 8,
+            ),
           ),
         ],
       ),

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../features/catalog/domain/studio_game_catalog.dart';
 import 'app_analytics_service.dart';
 import 'zeka_scoring_service.dart';
 
@@ -36,10 +37,7 @@ class DailyTaskProgress {
   final DailyTaskDefinition task;
   final int current;
 
-  const DailyTaskProgress({
-    required this.task,
-    required this.current,
-  });
+  const DailyTaskProgress({required this.task, required this.current});
 
   int get shownCurrent => current > task.target ? task.target : current;
 
@@ -82,8 +80,7 @@ class DailyChallengeData {
     required this.tasks,
   });
 
-  int get completedTaskCount =>
-      tasks.where((task) => task.completed).length;
+  int get completedTaskCount => tasks.where((task) => task.completed).length;
 
   bool get allTasksCompleted =>
       tasks.isNotEmpty && completedTaskCount == tasks.length;
@@ -106,35 +103,35 @@ class DailyRecordResult {
 class DailyChallengeService {
   DailyChallengeService._();
 
-  static final DailyChallengeService instance =
-      DailyChallengeService._();
+  static final DailyChallengeService instance = DailyChallengeService._();
 
   final SharedPreferencesAsync _prefs = SharedPreferencesAsync();
 
-  static const List<String> _gameIds = <String>[
-    'logic',
-    'numbers',
-    'blocks',
-    'memory',
-    'hanoi',
-    'word_hunt',
-    'picture_iq',
-    'candy_sort',
-    'number_sort',
-    'shape_puzzle',
-    'reflex',
-  ];
+  static final List<String> _gameIds = List<String>.unmodifiable(
+    StudioGameCatalog.playable.map((GameDefinition game) => game.id),
+  );
 
   static const Map<String, String> gameLabels = <String, String>{
     'logic': 'Mantık Labirenti',
     'numbers': 'Sayı Ustası',
     'blocks': 'Blok Fırtınası',
     'memory': 'Hafıza Labirenti',
+    'card_pairs': 'Kart Çifti',
+    'focus_filter': 'Odak Filtresi',
+    'rhythm_memory': 'Ritim Hafızası',
+    'attention_tunnel': 'Dikkat Tüneli',
     'hanoi': 'Hanoi Kulesi',
     'word_hunt': 'Kelime Avı',
+    'meaning_match': 'Anlam Eşleştir',
+    'proverb_finish': 'Atasözü Tamamla',
+    'sentence_builder': 'Cümle Kur',
+    'near_meaning': 'Yakın Anlam',
+    'letter_maze': 'Harf Labirenti',
+    'language_detective': 'Dil Dedektifi',
+    'story_order': 'Hikâye Sırası',
     'picture_iq': 'Görsel IQ',
     'candy_sort': 'Şeker Sıralama',
-    'number_sort': 'Sayı Peteği',
+    'number_sort': '15 Taş Ustası',
     'shape_puzzle': 'Şekil Birleştir',
     'reflex': 'Refleks Avı',
   };
@@ -145,8 +142,7 @@ class DailyChallengeService {
   static const String _dailyScoreKey = 'daily_v2_brain_score';
   static const String _dailyThreeStarsKey = 'daily_v1_three_stars';
   static const String _dailyGamesKey = 'daily_v1_unique_games';
-  static const String _dailyPerfectRecordedKey =
-      'daily_v1_perfect_recorded';
+  static const String _dailyPerfectRecordedKey = 'daily_v1_perfect_recorded';
 
   static const String _streakCurrentKey = 'daily_v1_streak_current';
   static const String _streakBestKey = 'daily_v1_streak_best';
@@ -186,64 +182,46 @@ class DailyChallengeService {
         .toSet();
 
     final String today = _dateKey(now);
-    final String yesterday =
-        _dateKey(now.subtract(const Duration(days: 1)));
+    final String yesterday = _dateKey(now.subtract(const Duration(days: 1)));
 
-    final String? lastActive =
-        await _prefs.getString(_streakLastDateKey);
+    final String? lastActive = await _prefs.getString(_streakLastDateKey);
 
     bool streakAdvanced = false;
 
     if (lastActive != today) {
-      final int current =
-          await _prefs.getInt(_streakCurrentKey) ?? 0;
+      final int current = await _prefs.getInt(_streakCurrentKey) ?? 0;
 
-      final int next =
-          lastActive == yesterday ? (current <= 0 ? 1 : current + 1) : 1;
+      final int next = lastActive == yesterday
+          ? (current <= 0 ? 1 : current + 1)
+          : 1;
 
-      final int oldBest =
-          await _prefs.getInt(_streakBestKey) ?? 0;
+      final int oldBest = await _prefs.getInt(_streakBestKey) ?? 0;
 
       await _prefs.setInt(_streakCurrentKey, next);
-      await _prefs.setInt(
-        _streakBestKey,
-        next > oldBest ? next : oldBest,
-      );
+      await _prefs.setInt(_streakBestKey, next > oldBest ? next : oldBest);
       await _prefs.setString(_streakLastDateKey, today);
       streakAdvanced = true;
     }
 
-    final int oldLevels =
-        await _prefs.getInt(_dailyLevelsKey) ?? 0;
-    final int oldStars =
-        await _prefs.getInt(_dailyStarsKey) ?? 0;
-    final int oldScore =
-        await _prefs.getInt(_dailyScoreKey) ?? 0;
-    final int oldThreeStars =
-        await _prefs.getInt(_dailyThreeStarsKey) ?? 0;
+    final int oldLevels = await _prefs.getInt(_dailyLevelsKey) ?? 0;
+    final int oldStars = await _prefs.getInt(_dailyStarsKey) ?? 0;
+    final int oldScore = await _prefs.getInt(_dailyScoreKey) ?? 0;
+    final int oldThreeStars = await _prefs.getInt(_dailyThreeStarsKey) ?? 0;
 
     await _prefs.setInt(_dailyLevelsKey, oldLevels + 1);
-    await _prefs.setInt(
-      _dailyStarsKey,
-      oldStars + stars.clamp(0, 3).toInt(),
-    );
+    await _prefs.setInt(_dailyStarsKey, oldStars + stars.clamp(0, 3).toInt());
     await _prefs.setInt(
       _dailyScoreKey,
       oldScore + ZekaScoringService.dailyResultPoints(stars),
     );
 
     if (stars >= 3) {
-      await _prefs.setInt(
-        _dailyThreeStarsKey,
-        oldThreeStars + 1,
-      );
+      await _prefs.setInt(_dailyThreeStarsKey, oldThreeStars + 1);
     }
 
-    final List<String> uniqueGames =
-        List<String>.from(
-          await _prefs.getStringList(_dailyGamesKey) ??
-              const <String>[],
-        );
+    final List<String> uniqueGames = List<String>.from(
+      await _prefs.getStringList(_dailyGamesKey) ?? const <String>[],
+    );
 
     if (!uniqueGames.contains(gameId)) {
       uniqueGames.add(gameId);
@@ -251,8 +229,7 @@ class DailyChallengeService {
     }
 
     final String gameCountKey = _gameCountKey(gameId);
-    final int oldGameCount =
-        await _prefs.getInt(gameCountKey) ?? 0;
+    final int oldGameCount = await _prefs.getInt(gameCountKey) ?? 0;
 
     await _prefs.setInt(gameCountKey, oldGameCount + 1);
 
@@ -260,9 +237,7 @@ class DailyChallengeService {
 
     final int newlyCompleted = after.tasks
         .where(
-          (task) =>
-              task.completed &&
-              !beforeCompleted.contains(task.task.id),
+          (task) => task.completed && !beforeCompleted.contains(task.task.id),
         )
         .length;
 
@@ -271,8 +246,7 @@ class DailyChallengeService {
         await _prefs.getBool(_dailyPerfectRecordedKey) ?? false;
 
     if (after.allTasksCompleted && !perfectAlreadyRecorded) {
-      final int oldPerfectDays =
-          await _prefs.getInt(_perfectDaysKey) ?? 0;
+      final int oldPerfectDays = await _prefs.getInt(_perfectDaysKey) ?? 0;
 
       await _prefs.setInt(_perfectDaysKey, oldPerfectDays + 1);
       await _prefs.setBool(_dailyPerfectRecordedKey, true);
@@ -298,8 +272,7 @@ class DailyChallengeService {
 
   Future<void> _ensureToday(DateTime now) async {
     final String today = _dateKey(now);
-    final String? savedDate =
-        await _prefs.getString(_dailyDateKey);
+    final String? savedDate = await _prefs.getString(_dailyDateKey);
 
     if (savedDate == today) return;
 
@@ -308,10 +281,7 @@ class DailyChallengeService {
     await _prefs.setInt(_dailyStarsKey, 0);
     await _prefs.setInt(_dailyScoreKey, 0);
     await _prefs.setInt(_dailyThreeStarsKey, 0);
-    await _prefs.setStringList(
-      _dailyGamesKey,
-      const <String>[],
-    );
+    await _prefs.setStringList(_dailyGamesKey, const <String>[]);
     await _prefs.setBool(_dailyPerfectRecordedKey, false);
 
     for (final String gameId in _gameIds) {
@@ -320,14 +290,12 @@ class DailyChallengeService {
   }
 
   Future<void> _normalizeExpiredStreak(DateTime now) async {
-    final String? lastActive =
-        await _prefs.getString(_streakLastDateKey);
+    final String? lastActive = await _prefs.getString(_streakLastDateKey);
 
     if (lastActive == null) return;
 
     final String today = _dateKey(now);
-    final String yesterday =
-        _dateKey(now.subtract(const Duration(days: 1)));
+    final String yesterday = _dateKey(now.subtract(const Duration(days: 1)));
 
     if (lastActive != today && lastActive != yesterday) {
       await _prefs.setInt(_streakCurrentKey, 0);
@@ -337,10 +305,8 @@ class DailyChallengeService {
   Future<DailyChallengeData> _buildData(DateTime now) async {
     final String today = _dateKey(now);
 
-    final int levels =
-        await _prefs.getInt(_dailyLevelsKey) ?? 0;
-    final int stars =
-        await _prefs.getInt(_dailyStarsKey) ?? 0;
+    final int levels = await _prefs.getInt(_dailyLevelsKey) ?? 0;
+    final int stars = await _prefs.getInt(_dailyStarsKey) ?? 0;
     final int? storedScore = await _prefs.getInt(_dailyScoreKey);
     final int score;
     if (storedScore == null) {
@@ -351,65 +317,55 @@ class DailyChallengeService {
     } else {
       score = storedScore;
     }
-    final int threeStars =
-        await _prefs.getInt(_dailyThreeStarsKey) ?? 0;
+    final int threeStars = await _prefs.getInt(_dailyThreeStarsKey) ?? 0;
 
     final Set<String> uniqueGames =
-        (await _prefs.getStringList(_dailyGamesKey) ??
-                const <String>[])
+        (await _prefs.getStringList(_dailyGamesKey) ?? const <String>[])
             .where(_gameIds.contains)
             .toSet();
 
     final Map<String, int> gameCounts = <String, int>{};
 
     for (final String gameId in _gameIds) {
-      gameCounts[gameId] =
-          await _prefs.getInt(_gameCountKey(gameId)) ?? 0;
+      gameCounts[gameId] = await _prefs.getInt(_gameCountKey(gameId)) ?? 0;
     }
 
-    final int currentStreak =
-        await _prefs.getInt(_streakCurrentKey) ?? 0;
-    final int bestStreak =
-        await _prefs.getInt(_streakBestKey) ?? 0;
-    final int perfectDays =
-        await _prefs.getInt(_perfectDaysKey) ?? 0;
+    final int currentStreak = await _prefs.getInt(_streakCurrentKey) ?? 0;
+    final int bestStreak = await _prefs.getInt(_streakBestKey) ?? 0;
+    final int perfectDays = await _prefs.getInt(_perfectDaysKey) ?? 0;
 
-    final String? lastActive =
-        await _prefs.getString(_streakLastDateKey);
+    final String? lastActive = await _prefs.getString(_streakLastDateKey);
 
-    final List<DailyTaskDefinition> definitions =
-        _tasksForDate(now);
+    final List<DailyTaskDefinition> definitions = _tasksForDate(now);
 
-    final List<DailyTaskProgress> tasks =
-        definitions.map((task) {
-      int current = 0;
+    final List<DailyTaskProgress> tasks = definitions
+        .map((task) {
+          int current = 0;
 
-      switch (task.type) {
-        case DailyTaskType.completeLevels:
-          current = levels;
-          break;
-        case DailyTaskType.earnStars:
-          current = stars;
-          break;
-        case DailyTaskType.playDifferentGames:
-          current = uniqueGames.length;
-          break;
-        case DailyTaskType.earnScore:
-          current = score;
-          break;
-        case DailyTaskType.playSpecificGame:
-          current = gameCounts[task.gameId] ?? 0;
-          break;
-        case DailyTaskType.threeStarLevel:
-          current = threeStars;
-          break;
-      }
+          switch (task.type) {
+            case DailyTaskType.completeLevels:
+              current = levels;
+              break;
+            case DailyTaskType.earnStars:
+              current = stars;
+              break;
+            case DailyTaskType.playDifferentGames:
+              current = uniqueGames.length;
+              break;
+            case DailyTaskType.earnScore:
+              current = score;
+              break;
+            case DailyTaskType.playSpecificGame:
+              current = gameCounts[task.gameId] ?? 0;
+              break;
+            case DailyTaskType.threeStarLevel:
+              current = threeStars;
+              break;
+          }
 
-      return DailyTaskProgress(
-        task: task,
-        current: current,
-      );
-    }).toList(growable: false);
+          return DailyTaskProgress(task: task, current: current);
+        })
+        .toList(growable: false);
 
     return DailyChallengeData(
       dateKey: today,
@@ -428,11 +384,9 @@ class DailyChallengeService {
   }
 
   List<DailyTaskDefinition> _tasksForDate(DateTime date) {
-    final int seed =
-        date.year * 372 + date.month * 31 + date.day;
+    final int seed = date.year * 372 + date.month * 31 + date.day;
 
-    final List<DailyTaskDefinition> tasks =
-        <DailyTaskDefinition>[
+    final List<DailyTaskDefinition> tasks = <DailyTaskDefinition>[
       const DailyTaskDefinition(
         id: 'complete_2',
         title: 'Isınma Turu',
@@ -493,7 +447,7 @@ class DailyChallengeService {
             id: 'specific_$gameId',
             title: 'Günün Parkuru',
             description:
-                '${gameLabels[gameId]} bölümünü en az 1 kez tamamla.',
+                '${gameLabels[gameId] ?? StudioGameCatalog.byId(gameId)?.titleTr ?? 'Oyunu'} bölümünü en az 1 kez tamamla.',
             type: DailyTaskType.playSpecificGame,
             target: 1,
             gameId: gameId,
@@ -504,14 +458,11 @@ class DailyChallengeService {
     return tasks;
   }
 
-  String _gameCountKey(String gameId) =>
-      'daily_v1_game_count_$gameId';
+  String _gameCountKey(String gameId) => 'daily_v1_game_count_$gameId';
 
   String _dateKey(DateTime date) {
-    final String month =
-        date.month.toString().padLeft(2, '0');
-    final String day =
-        date.day.toString().padLeft(2, '0');
+    final String month = date.month.toString().padLeft(2, '0');
+    final String day = date.day.toString().padLeft(2, '0');
 
     return '${date.year}-$month-$day';
   }

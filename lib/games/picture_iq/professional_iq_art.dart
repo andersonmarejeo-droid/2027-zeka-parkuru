@@ -50,10 +50,7 @@ class ProfessionalIqMotif extends StatelessWidget {
       );
     }
     if (!const <int>{0, 2, 8, 10}.contains(motif % 20)) {
-      child = Transform.rotate(
-        angle: rotation * math.pi / 2,
-        child: child,
-      );
+      child = Transform.rotate(angle: rotation * math.pi / 2, child: child);
     }
     return child;
   }
@@ -142,7 +139,11 @@ class _MotifPainter extends CustomPainter {
   void _orb(Canvas c) {
     c.drawCircle(Offset.zero, 21, _fill);
     c.drawCircle(Offset.zero, 21, _stroke);
-    c.drawCircle(Offset.zero, 10, Paint()..color = Colors.white.withValues(alpha: .92));
+    c.drawCircle(
+      Offset.zero,
+      10,
+      Paint()..color = Colors.white.withValues(alpha: .92),
+    );
     c.drawCircle(Offset.zero, 5, Paint()..color = color.withValues(alpha: .92));
   }
 
@@ -167,7 +168,11 @@ class _MotifPainter extends CustomPainter {
       c.drawOval(const Rect.fromLTWH(-7, -25, 14, 25), _fill);
       c.restore();
     }
-    c.drawCircle(Offset.zero, 9, Paint()..color = Colors.white.withValues(alpha: .94));
+    c.drawCircle(
+      Offset.zero,
+      9,
+      Paint()..color = Colors.white.withValues(alpha: .94),
+    );
     c.drawCircle(Offset.zero, 4.5, Paint()..color = color);
   }
 
@@ -211,8 +216,18 @@ class _MotifPainter extends CustomPainter {
     c.drawRRect(body, _stroke);
     c.drawCircle(const Offset(0, -21), 8, _fill);
     c.drawCircle(const Offset(0, -21), 8, _stroke);
-    c.drawCircle(const Offset(21, 8), 7, Paint()..color = const Color(0xFFF7FAFD));
-    c.drawArc(const Rect.fromLTWH(14, 1, 14, 14), math.pi / 2, math.pi, false, _stroke);
+    c.drawCircle(
+      const Offset(21, 8),
+      7,
+      Paint()..color = const Color(0xFFF7FAFD),
+    );
+    c.drawArc(
+      const Rect.fromLTWH(14, 1, 14, 14),
+      math.pi / 2,
+      math.pi,
+      false,
+      _stroke,
+    );
   }
 
   void _leaf(Canvas c) {
@@ -224,7 +239,11 @@ class _MotifPainter extends CustomPainter {
     c.drawPath(p, _fill);
     c.drawPath(p, _stroke);
     c.drawLine(const Offset(-16, 11), const Offset(17, -15), _detail);
-    c.drawLine(const Offset(1, -2), const Offset(13, -2), _detail..strokeWidth = 1.5);
+    c.drawLine(
+      const Offset(1, -2),
+      const Offset(13, -2),
+      _detail..strokeWidth = 1.5,
+    );
   }
 
   void _ribbon(Canvas c) {
@@ -284,11 +303,19 @@ class _MotifPainter extends CustomPainter {
         ..quadraticBezierTo(9, -23, 26, -20)
         ..quadraticBezierTo(22, -5, 0, 0)
         ..close();
-      c.drawPath(p, i == 0 ? _fill : Paint()..color = color.withValues(alpha: .70));
+      c.drawPath(
+        p,
+        i == 0 ? _fill : Paint()
+          ..color = color.withValues(alpha: .70),
+      );
       c.restore();
     }
     c.drawCircle(Offset.zero, 5, Paint()..color = Colors.white);
-    c.drawCircle(const Offset(18, -15), 3, Paint()..color = const Color(0xFF17324D));
+    c.drawCircle(
+      const Offset(18, -15),
+      3,
+      Paint()..color = const Color(0xFF17324D),
+    );
   }
 
   void _key(Canvas c) {
@@ -296,7 +323,10 @@ class _MotifPainter extends CustomPainter {
     c.drawCircle(const Offset(-14, 0), 12, _stroke);
     c.drawCircle(const Offset(-14, 0), 5, Paint()..color = Colors.white);
     c.drawRRect(
-      RRect.fromRectAndRadius(const Rect.fromLTWH(-2, -4, 28, 8), const Radius.circular(4)),
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-2, -4, 28, 8),
+        const Radius.circular(4),
+      ),
       _fill,
     );
     c.drawLine(const Offset(-2, -4), const Offset(26, -4), _stroke);
@@ -324,8 +354,18 @@ class _MotifPainter extends CustomPainter {
     c.drawPath(tail, _stroke);
     c.drawPath(body, _stroke);
     c.drawCircle(const Offset(14, -2), 3.2, Paint()..color = Colors.white);
-    c.drawCircle(const Offset(15, -2), 1.4, Paint()..color = const Color(0xFF17324D));
-    c.drawArc(const Rect.fromLTWH(-5, -8, 16, 16), -.8, 1.6, false, _detail..strokeWidth = 1.5);
+    c.drawCircle(
+      const Offset(15, -2),
+      1.4,
+      Paint()..color = const Color(0xFF17324D),
+    );
+    c.drawArc(
+      const Rect.fromLTWH(-5, -8, 16, 16),
+      -.8,
+      1.6,
+      false,
+      _detail..strokeWidth = 1.5,
+    );
   }
 
   void _bird(Canvas c) {
@@ -381,13 +421,25 @@ class _MotifPainter extends CustomPainter {
       ..close();
     c.drawPath(canopy, _fill);
     c.drawPath(canopy, _stroke);
-    c.drawLine(const Offset(0, 0), const Offset(0, 22), _stroke..strokeWidth = 2.5);
+    c.drawLine(
+      const Offset(0, 0),
+      const Offset(0, 22),
+      _stroke..strokeWidth = 2.5,
+    );
     c.drawArc(const Rect.fromLTWH(-1, 14, 14, 14), 0, math.pi, false, _stroke);
-    c.drawLine(const Offset(0, -20), const Offset(0, -1), _detail..strokeWidth = 1.4);
+    c.drawLine(
+      const Offset(0, -20),
+      const Offset(0, -1),
+      _detail..strokeWidth = 1.4,
+    );
   }
 
   void _flag(Canvas c) {
-    c.drawLine(const Offset(-14, -26), const Offset(-14, 26), _stroke..strokeWidth = 3);
+    c.drawLine(
+      const Offset(-14, -26),
+      const Offset(-14, 26),
+      _stroke..strokeWidth = 3,
+    );
     final Path flag = Path()
       ..moveTo(-12, -22)
       ..quadraticBezierTo(5, -29, 23, -18)
@@ -410,7 +462,11 @@ class _MotifPainter extends CustomPainter {
     c.drawPath(body, _fill);
     c.drawPath(body, _stroke);
     c.drawCircle(const Offset(0, -7), 6, Paint()..color = Colors.white);
-    c.drawCircle(const Offset(0, -7), 3, Paint()..color = color.withValues(alpha: .65));
+    c.drawCircle(
+      const Offset(0, -7),
+      3,
+      Paint()..color = color.withValues(alpha: .65),
+    );
     final Path flame = Path()
       ..moveTo(-6, 20)
       ..lineTo(0, 31)
@@ -422,9 +478,23 @@ class _MotifPainter extends CustomPainter {
 
   void _crescent(Canvas c) {
     c.drawCircle(Offset.zero, 24, _fill);
-    c.drawCircle(const Offset(10, -5), 22, Paint()..color = const Color(0xFFF7FAFD));
-    c.drawArc(const Rect.fromLTWH(-24, -24, 48, 48), .45, math.pi * 1.45, false, _stroke);
-    c.drawCircle(const Offset(-10, -8), 2.7, Paint()..color = Colors.white.withValues(alpha: .9));
+    c.drawCircle(
+      const Offset(10, -5),
+      22,
+      Paint()..color = const Color(0xFFF7FAFD),
+    );
+    c.drawArc(
+      const Rect.fromLTWH(-24, -24, 48, 48),
+      .45,
+      math.pi * 1.45,
+      false,
+      _stroke,
+    );
+    c.drawCircle(
+      const Offset(-10, -8),
+      2.7,
+      Paint()..color = Colors.white.withValues(alpha: .9),
+    );
   }
 
   void _cup(Canvas c) {
@@ -434,9 +504,23 @@ class _MotifPainter extends CustomPainter {
     );
     c.drawRRect(cup, _fill);
     c.drawRRect(cup, _stroke);
-    c.drawArc(const Rect.fromLTWH(4, -10, 25, 22), -math.pi / 2, math.pi, false, _stroke..strokeWidth = 3);
-    c.drawLine(const Offset(-17, -5), const Offset(4, -5), _detail..strokeWidth = 1.7);
-    c.drawLine(const Offset(-17, 3), const Offset(-3, 3), _detail..strokeWidth = 1.7);
+    c.drawArc(
+      const Rect.fromLTWH(4, -10, 25, 22),
+      -math.pi / 2,
+      math.pi,
+      false,
+      _stroke..strokeWidth = 3,
+    );
+    c.drawLine(
+      const Offset(-17, -5),
+      const Offset(4, -5),
+      _detail..strokeWidth = 1.7,
+    );
+    c.drawLine(
+      const Offset(-17, 3),
+      const Offset(-3, 3),
+      _detail..strokeWidth = 1.7,
+    );
   }
 
   @override

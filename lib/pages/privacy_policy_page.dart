@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_visual_theme.dart';
+import '../theme/studio_visuals.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/account_data_service.dart';
@@ -104,13 +104,18 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
     ];
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
           tr ? 'Gizlilik Politikası' : 'Privacy Policy',
-          style: const TextStyle(fontWeight: FontWeight.w900),
+          style: const TextStyle(
+            color: StudioVisuals.ink,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ),
       body: SafeArea(
@@ -121,24 +126,27 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: ZpVisualPalette.of(context).surface,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: Colors.white10),
+                color: StudioVisuals.surface,
+                borderRadius: StudioVisuals.cardRadius,
+                border: Border.all(color: StudioVisuals.line),
+                boxShadow: StudioVisuals.softShadow,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
                     'ZEKA PARKURU',
-                    style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w900),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: StudioVisuals.ink,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     tr
                         ? 'Uygulama içi gizlilik özeti • 25 Ağustos 2026'
                         : 'In-app privacy summary • 25 August 2026',
-                    style: const TextStyle(color: Colors.white60),
+                    style: const TextStyle(color: StudioVisuals.muted),
                   ),
                 ],
               ),
@@ -170,7 +178,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
                   ? 'Not: Play Store yayını öncesi destek e-postası ve web gizlilik politikası URL’si son kez doğrulanmalıdır.'
                   : 'Note: Before Google Play release, verify the support email and the hosted privacy-policy URL one final time.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white38, fontSize: 11),
+              style: const TextStyle(color: StudioVisuals.muted, fontSize: 11),
             ),
           ],
         ),
@@ -197,21 +205,26 @@ class _PolicyCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
-        color: ZpVisualPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white10),
+        color: StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
             section.title,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+            style: const TextStyle(
+              color: StudioVisuals.ink,
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             section.body,
-            style: const TextStyle(color: Colors.white70, height: 1.5),
+            style: const TextStyle(color: StudioVisuals.ink, height: 1.5),
           ),
         ],
       ),

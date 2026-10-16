@@ -3,10 +3,13 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../theme/studio_visuals.dart';
+
 import '../../l10n/app_localizations.dart';
 import '../../services/game_audio_service.dart';
 import '../../services/replayability_service.dart';
 import '../../widgets/advanced_result_banner.dart';
+import '../../widgets/realistic_game_object.dart';
 
 class ShapeMatchGamePage extends StatefulWidget {
   final int levelNumber;
@@ -40,49 +43,57 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
   static const List<_ShapeTheme> _shapeThemes = <_ShapeTheme>[
     _ShapeTheme(
       icon: Icons.circle_rounded,
-      color: Color(0xFF00D9FF),
+      color: Color(0xFF3D7183),
+      tokenIndex: 0,
       nameTr: 'Daire',
       nameEn: 'Circle',
     ),
     _ShapeTheme(
       icon: Icons.change_history_rounded,
-      color: Color(0xFFFFD93D),
+      color: Color(0xFF8B622C),
+      tokenIndex: 2,
       nameTr: 'Üçgen',
       nameEn: 'Triangle',
     ),
     _ShapeTheme(
       icon: Icons.stop_rounded,
-      color: Color(0xFFFF6B6B),
+      color: Color(0xFFAD7271),
+      tokenIndex: 1,
       nameTr: 'Kare',
       nameEn: 'Square',
     ),
     _ShapeTheme(
       icon: Icons.star_rounded,
-      color: Color(0xFFB06CFF),
+      color: Color(0xFF665AA2),
+      tokenIndex: 4,
       nameTr: 'Yıldız',
       nameEn: 'Star',
     ),
     _ShapeTheme(
       icon: Icons.favorite_rounded,
-      color: Color(0xFFFF4F9A),
+      color: Color(0xFF9C5471),
+      tokenIndex: 6,
       nameTr: 'Kalp',
       nameEn: 'Heart',
     ),
     _ShapeTheme(
       icon: Icons.bolt_rounded,
-      color: Color(0xFFFF9F1C),
+      color: Color(0xFFB98548),
+      tokenIndex: 9,
       nameTr: 'Şimşek',
       nameEn: 'Bolt',
     ),
     _ShapeTheme(
       icon: Icons.hexagon_rounded,
-      color: Color(0xFF52E86B),
+      color: Color(0xFF34715D),
+      tokenIndex: 5,
       nameTr: 'Altıgen',
       nameEn: 'Hexagon',
     ),
     _ShapeTheme(
       icon: Icons.diamond_rounded,
-      color: Color(0xFF4D7CFE),
+      color: Color(0xFF4E7FC1),
+      tokenIndex: 3,
       nameTr: 'Elmas',
       nameEn: 'Diamond',
     ),
@@ -432,7 +443,13 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
     final int score = _calculateScore(stars);
     final bool english = context.l10n.isEnglish;
 
-    unawaited(_audio.playVictory(stars: stars, boss: false));
+    unawaited(
+      _audio.playVictory(
+        stars: stars,
+        boss: false,
+        levelNumber: widget.levelNumber,
+      ),
+    );
     _audio.hapticHeavy();
 
     if (widget.competitionMode) {
@@ -465,12 +482,12 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: <Color>[Color(0xFF173D70), Color(0xFF382567)],
+                  colors: <Color>[Color(0xFFF6F8F6), Color(0xFFE8EFEB)],
                 ),
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: const Color(0xFFFFD93D), width: 2),
+                border: Border.all(color: const Color(0xFF8B622C), width: 2),
                 boxShadow: const <BoxShadow>[
-                  BoxShadow(color: Color(0x55745CFF), blurRadius: 28),
+                  BoxShadow(color: Color(0x55665AA2), blurRadius: 28),
                 ],
               ),
               child: Column(
@@ -478,7 +495,7 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                 children: <Widget>[
                   const Icon(
                     Icons.style_rounded,
-                    color: Color(0xFFFFD93D),
+                    color: Color(0xFF8B622C),
                     size: 52,
                   ),
                   const SizedBox(height: 8),
@@ -486,6 +503,7 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                     english ? 'ALL PAIRS FOUND!' : 'BÜTÜN ÇİFTLER BULUNDU!',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
+                      fontFamily: 'Roboto',
                       fontWeight: FontWeight.w900,
                       fontSize: 20,
                     ),
@@ -498,7 +516,8 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                         : '${widget.stageCount} aşama • '
                               '${pairCount * widget.stageCount} çift',
                     style: const TextStyle(
-                      color: Colors.white60,
+                      fontFamily: 'Roboto',
+                      color: StudioVisuals.muted,
                       fontWeight: FontWeight.w700,
                       fontSize: 11,
                     ),
@@ -508,7 +527,7 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                     score: score,
                     previousBestScore: widget.previousBestScore,
                     english: english,
-                    accentColor: const Color(0xFFB06CFF),
+                    accentColor: const Color(0xFF665AA2),
                   ),
                   const SizedBox(height: 11),
                   Row(
@@ -519,7 +538,7 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                         index < stars
                             ? Icons.star_rounded
                             : Icons.star_border_rounded,
-                        color: const Color(0xFFFFD93D),
+                        color: const Color(0xFF8B622C),
                         size: 39,
                       ),
                     ),
@@ -561,7 +580,7 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                     width: double.infinity,
                     child: FilledButton.icon(
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF745CFF),
+                        backgroundColor: const Color(0xFF665AA2),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       onPressed: () {
@@ -629,7 +648,7 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
     final String status = english ? statusEn : statusTr;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF06152B),
+      backgroundColor: const Color(0xFFF6F8F6),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -646,7 +665,11 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                     ? 'SHAPE MATCHING'
                     : 'ŞEKİL EŞLEŞTİRME',
               ),
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+              ),
             ),
             Text(
               english
@@ -654,7 +677,11 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                         'Stage $currentStage/${widget.stageCount}'
                   : 'Seviye ${widget.levelNumber}/${widget.totalLevels} • '
                         'Aşama $currentStage/${widget.stageCount}',
-              style: const TextStyle(color: Colors.white60, fontSize: 10),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 10,
+              ),
             ),
           ],
         ),
@@ -708,9 +735,9 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                                           pairsFound) /
                                       (pairCount * widget.stageCount),
                             minHeight: 7,
-                            backgroundColor: Colors.white12,
+                            backgroundColor: StudioVisuals.line,
                             valueColor: const AlwaysStoppedAnimation<Color>(
-                              Color(0xFF52E86B),
+                              Color(0xFF34715D),
                             ),
                           ),
                         ),
@@ -725,17 +752,17 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                           ),
                           decoration: BoxDecoration(
                             color: previewing
-                                ? const Color(0x3300D9FF)
+                                ? const Color(0x333D7183)
                                 : wrongCards.isNotEmpty
-                                ? const Color(0x33FF5E57)
-                                : const Color(0x22745CFF),
+                                ? const Color(0x33A84640)
+                                : const Color(0x22665AA2),
                             borderRadius: BorderRadius.circular(15),
                             border: Border.all(
                               color: previewing
-                                  ? const Color(0x8800D9FF)
+                                  ? const Color(0x883D7183)
                                   : wrongCards.isNotEmpty
-                                  ? const Color(0x99FF5E57)
-                                  : const Color(0x66745CFF),
+                                  ? const Color(0x99A84640)
+                                  : const Color(0x66665AA2),
                             ),
                           ),
                           child: Row(
@@ -747,10 +774,10 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                                     ? Icons.refresh_rounded
                                     : Icons.psychology_alt_rounded,
                                 color: previewing
-                                    ? const Color(0xFF00D9FF)
+                                    ? const Color(0xFF3D7183)
                                     : wrongCards.isNotEmpty
-                                    ? const Color(0xFFFF7474)
-                                    : const Color(0xFFFFD93D),
+                                    ? const Color(0xFFA84640)
+                                    : const Color(0xFF8B622C),
                                 size: 21,
                               ),
                               const SizedBox(width: 9),
@@ -758,7 +785,8 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                                 child: Text(
                                   status,
                                   style: const TextStyle(
-                                    color: Colors.white70,
+                                    fontFamily: 'Roboto',
+                                    color: StudioVisuals.muted,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 11,
                                   ),
@@ -784,17 +812,17 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                     colors: <Color>[
-                                      Color(0xFF122E52),
-                                      Color(0xFF0B203D),
+                                      Color(0xFFF9FAF6),
+                                      Color(0xFFEDF3ED),
                                     ],
                                   ),
                                   borderRadius: BorderRadius.circular(22),
                                   border: Border.all(
-                                    color: const Color(0x44745CFF),
+                                    color: const Color(0x44665AA2),
                                   ),
                                   boxShadow: const <BoxShadow>[
                                     BoxShadow(
-                                      color: Color(0x3300D9FF),
+                                      color: Color(0x333D7183),
                                       blurRadius: 20,
                                       offset: Offset(0, 8),
                                     ),
@@ -843,7 +871,7 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                           children: <Widget>[
                             const Icon(
                               Icons.touch_app_rounded,
-                              color: Colors.white38,
+                              color: StudioVisuals.muted,
                               size: 16,
                             ),
                             const SizedBox(width: 6),
@@ -854,8 +882,9 @@ class _ShapeMatchGamePageState extends State<ShapeMatchGamePage> {
                                     : 'İki kart aç ve aynı şekilleri eşleştir.',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
-                                  color: Colors.white38,
-                                  fontSize: 10,
+                                  fontFamily: 'Roboto',
+                                  color: StudioVisuals.muted,
+                                  fontSize: 12,
                                 ),
                               ),
                             ),
@@ -946,7 +975,7 @@ class _ShapeMatchCard extends StatelessWidget {
 
   Widget _buildFront(BuildContext context) {
     final Color borderColor = wrong
-        ? const Color(0xFFFF5E57)
+        ? const Color(0xFFA84640)
         : matched
         ? const Color(0xFF76FF8A)
         : theme.color;
@@ -982,17 +1011,14 @@ class _ShapeMatchCard extends StatelessWidget {
       child: Stack(
         children: <Widget>[
           Center(
-            child: Icon(
-              theme.icon,
-              color: Colors.white,
-              size: compact ? 33 : 42,
-              shadows: const <Shadow>[
-                Shadow(
-                  color: Colors.black38,
-                  blurRadius: 7,
-                  offset: Offset(0, 3),
-                ),
-              ],
+            child: Padding(
+              padding: EdgeInsets.all(compact ? 10 : 13),
+              child: RealisticGameObject(
+                sheet: RealisticObjectSheet.tokens,
+                index: theme.tokenIndex,
+                borderRadius: compact ? 12 : 15,
+                overlayColor: theme.color.withValues(alpha: .16),
+              ),
             ),
           ),
           if (matched)
@@ -1023,13 +1049,13 @@ class _ShapeMatchCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: <Color>[
-            Color(0xFF263F73),
-            Color(0xFF162C55),
-            Color(0xFF10213F),
+            Color(0xFFF8FAF6),
+            Color(0xFFF3F5EF),
+            Color(0xFFEEF3F0),
           ],
         ),
         borderRadius: BorderRadius.circular(compact ? 14 : 17),
-        border: Border.all(color: const Color(0x66745CFF), width: 1.4),
+        border: Border.all(color: const Color(0x66665AA2), width: 1.4),
         boxShadow: const <BoxShadow>[
           BoxShadow(color: Colors.black26, blurRadius: 7, offset: Offset(0, 4)),
         ],
@@ -1044,9 +1070,9 @@ class _ShapeMatchCard extends StatelessWidget {
             width: compact ? 34 : 43,
             height: compact ? 34 : 43,
             decoration: BoxDecoration(
-              color: const Color(0x22745CFF),
+              color: const Color(0x22665AA2),
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0x88745CFF)),
+              border: Border.all(color: const Color(0x88665AA2)),
             ),
             child: Icon(
               Icons.psychology_alt_rounded,
@@ -1084,7 +1110,7 @@ class _ShapeMatchStats extends StatelessWidget {
             label: context.l10n.gameUi(english ? 'ATTEMPTS' : 'HAMLE'),
             value: '$attempts',
             icon: Icons.touch_app_rounded,
-            color: const Color(0xFF00D9FF),
+            color: const Color(0xFF3D7183),
           ),
         ),
         const SizedBox(width: 8),
@@ -1093,7 +1119,7 @@ class _ShapeMatchStats extends StatelessWidget {
             label: context.l10n.gameUi(english ? 'PAIRS' : 'ÇİFT'),
             value: '$pairsFound / $pairCount',
             icon: Icons.style_rounded,
-            color: const Color(0xFF52E86B),
+            color: const Color(0xFF34715D),
           ),
         ),
         const SizedBox(width: 8),
@@ -1102,7 +1128,7 @@ class _ShapeMatchStats extends StatelessWidget {
             label: context.l10n.gameUi(english ? 'TIME' : 'SÜRE'),
             value: elapsed,
             icon: Icons.timer_outlined,
-            color: const Color(0xFFFFD93D),
+            color: const Color(0xFF8B622C),
           ),
         ),
       ],
@@ -1129,7 +1155,7 @@ class _ShapeStatBox extends StatelessWidget {
       height: 58,
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFF102A4A),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: color.withValues(alpha: 0.30)),
       ),
@@ -1148,6 +1174,7 @@ class _ShapeStatBox extends StatelessWidget {
                   child: Text(
                     value,
                     style: const TextStyle(
+                      fontFamily: 'Roboto',
                       fontWeight: FontWeight.w900,
                       fontSize: 15,
                       height: 1,
@@ -1160,9 +1187,10 @@ class _ShapeStatBox extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white38,
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.muted,
                     fontWeight: FontWeight.w800,
-                    fontSize: 7,
+                    fontSize: 10,
                     letterSpacing: 0.4,
                   ),
                 ),
@@ -1196,12 +1224,16 @@ class _ShapeResultBox extends StatelessWidget {
       ),
       child: Column(
         children: <Widget>[
-          Icon(icon, color: const Color(0xFF00D9FF), size: 19),
+          Icon(icon, color: const Color(0xFF3D7183), size: 19),
           const SizedBox(height: 4),
           FittedBox(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w900,
+                fontSize: 15,
+              ),
             ),
           ),
           const SizedBox(height: 2),
@@ -1210,8 +1242,9 @@ class _ShapeResultBox extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Colors.white38,
-              fontSize: 7,
+              fontFamily: 'Roboto',
+              color: StudioVisuals.muted,
+              fontSize: 10,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1226,7 +1259,7 @@ class _ShapeMatchBackgroundPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint dotPaint = Paint()..color = const Color(0x1000D9FF);
+    final Paint dotPaint = Paint()..color = const Color(0x103D7183);
     const double step = 27;
 
     for (double x = 10; x < size.width; x += step) {
@@ -1238,7 +1271,7 @@ class _ShapeMatchBackgroundPainter extends CustomPainter {
     final Paint glowPaint = Paint()
       ..shader =
           const RadialGradient(
-            colors: <Color>[Color(0x22745CFF), Color(0x0007162E)],
+            colors: <Color>[Color(0x22665AA2), Color(0x00EEF3F0)],
           ).createShader(
             Rect.fromCircle(
               center: Offset(size.width / 2, size.height * 0.55),
@@ -1260,7 +1293,7 @@ class _CardBackPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Paint paint = Paint()
-      ..color = const Color(0x16745CFF)
+      ..color = const Color(0x16665AA2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
@@ -1281,12 +1314,14 @@ class _CardBackPainter extends CustomPainter {
 class _ShapeTheme {
   final IconData icon;
   final Color color;
+  final int tokenIndex;
   final String nameTr;
   final String nameEn;
 
   const _ShapeTheme({
     required this.icon,
     required this.color,
+    required this.tokenIndex,
     required this.nameTr,
     required this.nameEn,
   });

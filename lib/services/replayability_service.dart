@@ -3,6 +3,9 @@ import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../content_engine/content_seed.dart';
+import '../games/shared/campaign_round_store.dart';
+import '../games/shared/studio_game_contracts.dart';
+import '../games/shared/content_seed.dart' as campaign;
 
 class ReplayabilityService {
   final SharedPreferencesAsync _prefs = SharedPreferencesAsync();
@@ -11,6 +14,13 @@ class ReplayabilityService {
   static final Random _entropy = Random.secure();
 
   Future<int> newSeed({required String gameId, required int level}) async {
+    if (GameContentPolicy.standardGames.contains(gameId)) {
+      final index = await CampaignRoundStore.reserve(gameId, level);
+      return campaign.ContentSeed.forLevel(
+        gameId: '$gameId:campaign30',
+        level: index,
+      );
+    }
     final String key = 'replay_history_${gameId}_$level';
 
     final List<String> saved = await _prefs.getStringList(key) ?? <String>[];

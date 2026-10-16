@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="zeka_parkuru_icon_background">#000322</color>
+    <!-- Açılış küpünün açık mint uygulama ikonu zemini. -->
+    <color name="zeka_parkuru_icon_background">#E5F4F1</color>
 </resources>

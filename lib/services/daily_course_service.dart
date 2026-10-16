@@ -1,8 +1,11 @@
+import '../games/shared/studio_game_contracts.dart';
+
 import 'dart:convert';
 import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../features/catalog/domain/studio_game_catalog.dart';
 import 'zeka_scoring_service.dart';
 
 class DailyCourseGameResult {
@@ -133,19 +136,11 @@ class DailyCourseService {
   Future<void>? _countingFuture;
   Future<DailyCourseData>? _recordingFuture;
 
-  static const List<String> gameIds = <String>[
-    'logic',
-    'numbers',
-    'blocks',
-    'memory',
-    'hanoi',
-    'word_hunt',
-    'picture_iq',
-    'candy_sort',
-    'number_sort',
-    'shape_puzzle',
-    'reflex',
-  ];
+  /// Every active catalog game can appear in the daily course. Retired and
+  /// planned entries are excluded by [StudioGameCatalog.playable].
+  static final List<String> gameIds = List<String>.unmodifiable(
+    StudioGameCatalog.playable.map((GameDefinition game) => game.id),
+  );
 
   static const String _stateKey = 'daily_course_v3_state';
   static const String _dateKeyName = 'daily_course_v1_date';
@@ -334,7 +329,9 @@ class DailyCourseService {
     final int dateSeed = date.year * 10000 + date.month * 100 + date.day;
     final int normalizedRun = runNumber < 0 ? 0 : runNumber;
 
-    return ((dateSeed + (gameIndex * 3) + (normalizedRun * 7)) % 10) + 1;
+    return ((dateSeed + (gameIndex * 3) + (normalizedRun * 7)) %
+            GameContentPolicy.campaignLevels) +
+        1;
   }
 
   /// Stable across app restarts so leaving and returning opens the same

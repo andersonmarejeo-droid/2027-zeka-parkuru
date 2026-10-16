@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../theme/app_visual_theme.dart';
+import '../theme/studio_visuals.dart';
 
 import '../l10n/app_localizations.dart';
 import 'challenge_center_page.dart';
@@ -11,6 +12,8 @@ import '../services/firebase_bootstrap_service.dart';
 import '../services/game_audio_service.dart';
 import '../services/online_leaderboard_service.dart';
 import '../services/player_progress_service.dart';
+import '../widgets/studio_card.dart';
+import '../widgets/avatar_icon.dart';
 
 class LeaderboardPage extends StatefulWidget {
   const LeaderboardPage({super.key});
@@ -159,154 +162,86 @@ class _LeaderboardPageState extends State<LeaderboardPage>
     _retryTimer = Timer(const Duration(seconds: 15), () => _load(silent: true));
   }
 
-  Color _gameColor(String id) {
-    switch (id) {
-      case 'logic':
-        return const Color(0xFF8A4FFF);
-      case 'numbers':
-        return const Color(0xFF39B54A);
-      case 'blocks':
-        return const Color(0xFF168CFF);
-      case 'memory':
-        return const Color(0xFFE748CF);
-      case 'hanoi':
-        return const Color(0xFFFF5A3C);
-      case 'word_hunt':
-        return const Color(0xFF00D9A6);
-      case 'picture_iq':
-        return const Color(0xFFFF4FA3);
-      case 'candy_sort':
-        return const Color(0xFFFF8A3D);
-      case 'number_sort':
-        return const Color(0xFFFFD334);
-      case 'shape_puzzle':
-        return const Color(0xFF8C6CFF);
-      case 'reflex':
-        return const Color(0xFFFF5B5B);
-      default:
-        return const Color(0xFF00D9FF);
-    }
-  }
-
-  String _medal(int index) {
-    if (index == 0) return '🥇';
-    if (index == 1) return '🥈';
-    if (index == 2) return '🥉';
-    return '${index + 1}.';
-  }
-
   @override
   Widget build(BuildContext context) {
     final PlayerDashboardData? data = _data;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
           context.l10n.leaderboardCenter,
-          style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.6),
+          style: const TextStyle(
+            color: StudioVisuals.ink,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.2,
+          ),
         ),
       ),
-      body: _loading || data == null
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _retryNow,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(18, 8, 18, 30),
-                children: [
-                  _LeagueHero(data: data),
-                  const SizedBox(height: 12),
-                  _SocialArenaCard(
-                    onOpen: () async {
-                      await _audio.play(GameSound.uiClick);
-                      if (!context.mounted) return;
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => const ChallengeCenterPage(),
-                        ),
-                      );
-                      if (mounted) _load(silent: true);
-                    },
+      body: StudioPageFrame(
+        child: _loading || data == null
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                color: StudioVisuals.teal,
+                backgroundColor: StudioVisuals.surface,
+                onRefresh: _retryNow,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(
+                    StudioVisuals.pageGutter,
+                    12,
+                    StudioVisuals.pageGutter,
+                    32,
                   ),
-                  const SizedBox(height: 18),
-                  Text(
-                    context.l10n.personalPodium,
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    context.l10n.podiumDescription,
-                    style: TextStyle(color: Colors.white54, fontSize: 10),
-                  ),
-                  const SizedBox(height: 13),
-                  _Podium(
-                    entries: data.parkurRanking.take(3).toList(),
-                    colorFor: _gameColor,
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          context.l10n.fiveCourseRanking,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 16,
+                  children: [
+                    _LeagueHero(data: data),
+                    const SizedBox(height: 12),
+                    _SocialArenaCard(
+                      onOpen: () async {
+                        await _audio.play(GameSound.uiClick);
+                        if (!context.mounted) return;
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => const ChallengeCenterPage(),
+                          ),
+                        );
+                        if (mounted) _load(silent: true);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _GlobalLeaderboardSection(
+                      data: _onlineData,
+                      refreshing: _refreshingSilently,
+                      onRetry: _retryNow,
+                    ),
+                    const SizedBox(height: 16),
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 18),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.tonalIcon(
+                            onPressed: _leavingPage ? null : _returnHome,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: StudioVisuals.teal,
+                              foregroundColor: Colors.white,
+                            ),
+                            icon: const Icon(Icons.home_rounded),
+                            label: Text(context.l10n.backHome),
                           ),
                         ),
                       ),
-                      Text(
-                        '${data.progress.toplamYildiz}/330 ⭐',
-                        style: const TextStyle(
-                          color: Color(0xFFFFD334),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  ...List.generate(data.parkurRanking.length, (index) {
-                    final ParkurLeaderboardEntry entry =
-                        data.parkurRanking[index];
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _RankingRow(
-                        position: _medal(index),
-                        entry: entry,
-                        color: _gameColor(entry.gameId),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 12),
-                  _GlobalLeaderboardSection(
-                    data: _onlineData,
-                    refreshing: _refreshingSilently,
-                    onRetry: _retryNow,
-                  ),
-                  const SizedBox(height: 16),
-                  SafeArea(
-                    top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 18),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.tonalIcon(
-                          onPressed: _leavingPage ? null : _returnHome,
-                          icon: const Icon(Icons.home_rounded),
-                          label: Text(context.l10n.backHome),
-                        ),
-                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }
@@ -318,43 +253,36 @@ class _SocialArenaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onOpen,
-        child: Ink(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF5C42E8), Color(0xFF0D8FA9)],
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.bolt_rounded, size: 34),
-              SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'ARKADAŞLAR & DÜELLOLAR',
-                      style: TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      'WhatsApp daveti • arkadaş kodu • canlı skor',
-                      style: TextStyle(color: Colors.white70, fontSize: 11),
-                    ),
-                  ],
+    return StudioCard(
+      onTap: onOpen,
+      semanticLabel: 'Arkadaşlar ve düellolar',
+      minHeight: 88,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      child: const Row(
+        children: [
+          Icon(Icons.bolt_rounded, size: 34, color: StudioVisuals.amber),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ARKADAŞLAR & DÜELLOLAR',
+                  style: TextStyle(
+                    color: StudioVisuals.ink,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-              Icon(Icons.chevron_right_rounded),
-            ],
+                SizedBox(height: 3),
+                Text(
+                  'WhatsApp daveti • arkadaş kodu • canlı skor',
+                  style: TextStyle(color: StudioVisuals.muted, fontSize: 12),
+                ),
+              ],
+            ),
           ),
-        ),
+          Icon(Icons.chevron_right_rounded, color: StudioVisuals.ink),
+        ],
       ),
     );
   }
@@ -367,23 +295,14 @@ class _LeagueHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String nextText = data.nextLeague == null
-        ? context.l10n.highestLeague
-        : context.l10n.nextLeague(
-            context.l10n.leagueLabel(data.nextLeague!.shortName),
-            data.nextLeague!.minXp,
-          );
+    final bool english = context.l10n.isEnglish;
+    final double levelProgress = data.xpForNextLevel <= 0
+        ? 1
+        : (data.xpIntoLevel / data.xpForNextLevel).clamp(0.0, 1.0).toDouble();
 
-    return Container(
-      padding: const EdgeInsets.all(19),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF472DB7), Color(0xFF155CC8), Color(0xFF0A9DB7)],
-        ),
-        borderRadius: BorderRadius.circular(27),
-      ),
+    return StudioCard(
+      minHeight: 154,
+      padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           Row(
@@ -393,16 +312,20 @@ class _LeagueHero extends StatelessWidget {
                 height: 67,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.13),
+                  color: StudioVisuals.tealSoft,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white24, width: 2),
+                  border: Border.all(
+                    color: StudioVisuals.teal.withValues(alpha: 0.22),
+                    width: 2,
+                  ),
                 ),
-                child: Text(
+                child: AvatarIcon(
                   data.profile.avatar,
-                  style: const TextStyle(fontSize: 35),
+                  size: 67,
+                  borderRadius: 33.5,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,26 +333,18 @@ class _LeagueHero extends StatelessWidget {
                     Text(
                       data.profile.displayName,
                       style: const TextStyle(
+                        color: StudioVisuals.ink,
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      context.l10n.rankLabel(data.rankTitle),
+                      context.l10n.levelValue(data.level),
                       style: const TextStyle(
-                        color: Color(0xFFFFD334),
+                        color: StudioVisuals.teal,
                         fontWeight: FontWeight.w900,
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      context.l10n.leagueLabel(data.league.shortName),
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11,
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -441,7 +356,7 @@ class _LeagueHero extends StatelessWidget {
                   vertical: 9,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.14),
+                  color: StudioVisuals.surfaceSoft,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
@@ -449,6 +364,7 @@ class _LeagueHero extends StatelessWidget {
                     Text(
                       '${data.level}',
                       style: const TextStyle(
+                        color: StudioVisuals.ink,
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
                       ),
@@ -456,7 +372,7 @@ class _LeagueHero extends StatelessWidget {
                     Text(
                       context.l10n.level.toUpperCase(),
                       style: TextStyle(
-                        color: Colors.white60,
+                        color: StudioVisuals.muted,
                         fontSize: 8,
                         fontWeight: FontWeight.w800,
                       ),
@@ -466,17 +382,24 @@ class _LeagueHero extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 15),
           Row(
             children: [
               Text(
-                '${data.zekaScore} ${context.l10n.isEnglish ? 'BP' : 'ZP'}',
-                style: const TextStyle(fontWeight: FontWeight.w900),
+                '${data.zekaScore} ${english ? 'points' : 'puan'}',
+                style: const TextStyle(
+                  color: StudioVisuals.ink,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const Spacer(),
               Text(
-                nextText,
-                style: const TextStyle(color: Colors.white60, fontSize: 9),
+                data.xpForNextLevel <= 0
+                    ? (english ? 'Maximum level' : 'En yüksek seviye')
+                    : english
+                    ? '${data.xpForNextLevel - data.xpIntoLevel} to level ${data.level + 1}'
+                    : 'Seviye ${data.level + 1} için ${data.xpForNextLevel - data.xpIntoLevel} puan',
+                style: const TextStyle(color: StudioVisuals.muted, fontSize: 9),
               ),
             ],
           ),
@@ -484,32 +407,13 @@ class _LeagueHero extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
             child: LinearProgressIndicator(
-              value: data.leagueProgress,
+              value: levelProgress,
               minHeight: 8,
-              backgroundColor: Colors.white12,
+              backgroundColor: StudioVisuals.surfaceSoft,
               valueColor: const AlwaysStoppedAnimation<Color>(
-                Color(0xFFFFD334),
+                StudioVisuals.teal,
               ),
             ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              _HeroStat(
-                value: '${data.zekaScore}',
-                title: context.l10n.mindScore,
-              ),
-              const SizedBox(width: 8),
-              _HeroStat(
-                value: '${data.progress.toplamYildiz}/330',
-                title: context.l10n.stars.toUpperCase(),
-              ),
-              const SizedBox(width: 8),
-              _HeroStat(
-                value: '${data.progress.tamamlananSeviye}/110',
-                title: context.l10n.completedLevels.toUpperCase(),
-              ),
-            ],
           ),
         ],
       ),
@@ -517,42 +421,8 @@ class _LeagueHero extends StatelessWidget {
   }
 }
 
-class _HeroStat extends StatelessWidget {
-  final String value;
-  final String title;
-
-  const _HeroStat({required this.value, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-            ),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontWeight: FontWeight.w800,
-                fontSize: 7,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
+// Retained for the legacy leaderboard layout.
+// ignore: unused_element
 class _Podium extends StatelessWidget {
   final List<ParkurLeaderboardEntry> entries;
   final Color Function(String id) colorFor;
@@ -580,7 +450,9 @@ class _Podium extends StatelessWidget {
           child: _PodiumItem(
             medal: '🥈',
             entry: second,
-            color: second == null ? Colors.white24 : colorFor(second.gameId),
+            color: second == null
+                ? StudioVisuals.line
+                : colorFor(second.gameId),
             height: 128,
           ),
         ),
@@ -598,7 +470,7 @@ class _Podium extends StatelessWidget {
           child: _PodiumItem(
             medal: '🥉',
             entry: third,
-            color: third == null ? Colors.white24 : colorFor(third.gameId),
+            color: third == null ? StudioVisuals.line : colorFor(third.gameId),
             height: 112,
           ),
         ),
@@ -626,10 +498,10 @@ class _PodiumItem extends StatelessWidget {
 
     return Container(
       height: height,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: ZpVisualPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: StudioVisuals.cardRadius,
         border: Border.all(color: color.withValues(alpha: 0.6)),
       ),
       child: item == null
@@ -648,7 +520,7 @@ class _PodiumItem extends StatelessWidget {
                     style: TextStyle(
                       color: color,
                       fontWeight: FontWeight.w900,
-                      fontSize: 10,
+                      fontSize: 11,
                       height: 1.05,
                     ),
                   ),
@@ -660,7 +532,7 @@ class _PodiumItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
-                    fontSize: 9,
+                    fontSize: 10,
                   ),
                 ),
                 Text(
@@ -669,8 +541,8 @@ class _PodiumItem extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 7,
+                    color: StudioVisuals.muted,
+                    fontSize: 8,
                     height: 1.05,
                   ),
                 ),
@@ -680,6 +552,8 @@ class _PodiumItem extends StatelessWidget {
   }
 }
 
+// Retained for the legacy leaderboard layout.
+// ignore: unused_element
 class _RankingRow extends StatelessWidget {
   final String position;
   final ParkurLeaderboardEntry entry;
@@ -696,10 +570,10 @@ class _RankingRow extends StatelessWidget {
     final double progress = (entry.stars / 30).clamp(0.0, 1.0).toDouble();
 
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: ZpVisualPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(19),
+        borderRadius: StudioVisuals.cardRadius,
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
@@ -714,8 +588,8 @@ class _RankingRow extends StatelessWidget {
           ),
           const SizedBox(width: 7),
           Container(
-            width: 43,
-            height: 43,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(13),
@@ -731,7 +605,7 @@ class _RankingRow extends StatelessWidget {
                   context.l10n.gameTitle(entry.gameId),
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
-                    fontSize: 13,
+                    fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -740,7 +614,7 @@ class _RankingRow extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 5,
-                    backgroundColor: Colors.white10,
+                    backgroundColor: StudioVisuals.surfaceSoft,
                     valueColor: AlwaysStoppedAnimation<Color>(color),
                   ),
                 ),
@@ -750,7 +624,10 @@ class _RankingRow extends StatelessWidget {
                     entry.completedLevels,
                     entry.unlockedLevel,
                   ),
-                  style: const TextStyle(color: Colors.white54, fontSize: 8),
+                  style: const TextStyle(
+                    color: StudioVisuals.muted,
+                    fontSize: 9,
+                  ),
                 ),
               ],
             ),
@@ -762,14 +639,14 @@ class _RankingRow extends StatelessWidget {
               Text(
                 '⭐ ${entry.stars}',
                 style: const TextStyle(
-                  color: Color(0xFFFFD334),
+                  color: StudioVisuals.amber,
                   fontWeight: FontWeight.w900,
-                  fontSize: 11,
+                  fontSize: 12,
                 ),
               ),
               Text(
                 context.l10n.points(entry.score),
-                style: const TextStyle(color: Colors.white54, fontSize: 8),
+                style: const TextStyle(color: StudioVisuals.muted, fontSize: 9),
               ),
             ],
           ),
@@ -838,16 +715,12 @@ class _GlobalLeaderboardSection extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
               decoration: BoxDecoration(
-                color:
-                    (cached ? const Color(0xFFFFA726) : const Color(0xFF52E86B))
-                        .withValues(alpha: 0.12),
+                color: (cached ? StudioVisuals.amber : StudioVisuals.teal)
+                    .withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(99),
                 border: Border.all(
-                  color:
-                      (cached
-                              ? const Color(0xFFFFA726)
-                              : const Color(0xFF52E86B))
-                          .withValues(alpha: 0.35),
+                  color: (cached ? StudioVisuals.amber : StudioVisuals.teal)
+                      .withValues(alpha: 0.35),
                 ),
               ),
               child: Row(
@@ -855,18 +728,14 @@ class _GlobalLeaderboardSection extends StatelessWidget {
                 children: [
                   Icon(
                     cached ? Icons.cloud_off_rounded : Icons.circle,
-                    color: cached
-                        ? const Color(0xFFFFA726)
-                        : const Color(0xFF52E86B),
+                    color: cached ? StudioVisuals.amber : StudioVisuals.teal,
                     size: 7,
                   ),
                   const SizedBox(width: 5),
                   Text(
                     cached ? context.l10n.cached : context.l10n.online,
                     style: TextStyle(
-                      color: cached
-                          ? const Color(0xFFFFA726)
-                          : const Color(0xFF52E86B),
+                      color: cached ? StudioVisuals.amber : StudioVisuals.teal,
                       fontSize: 8,
                       fontWeight: FontWeight.w900,
                     ),
@@ -901,7 +770,7 @@ class _GlobalLeaderboardSection extends StatelessWidget {
         Text(
           context.l10n.leaderboardSyncInfo,
           style: const TextStyle(
-            color: Colors.white54,
+            color: StudioVisuals.muted,
             fontSize: 9,
             height: 1.35,
           ),
@@ -912,14 +781,15 @@ class _GlobalLeaderboardSection extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(17),
             decoration: BoxDecoration(
-              color: const Color(0xFF0D213F),
+              color: StudioVisuals.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(color: StudioVisuals.line),
+              boxShadow: StudioVisuals.softShadow,
             ),
             child: Text(
               context.l10n.noOnlinePlayers,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white60, fontSize: 10),
+              style: const TextStyle(color: StudioVisuals.muted, fontSize: 10),
             ),
           )
         else ...[
@@ -928,7 +798,7 @@ class _GlobalLeaderboardSection extends StatelessWidget {
               Text(
                 english ? 'TOP PLAYERS' : 'EN İYİ OYUNCULAR',
                 style: const TextStyle(
-                  color: Colors.white70,
+                  color: StudioVisuals.ink,
                   fontSize: 10,
                   fontWeight: FontWeight.w900,
                 ),
@@ -937,7 +807,7 @@ class _GlobalLeaderboardSection extends StatelessWidget {
               Text(
                 english ? '$totalPlayers players' : '$totalPlayers oyuncu',
                 style: const TextStyle(
-                  color: Colors.white38,
+                  color: StudioVisuals.muted,
                   fontSize: 8,
                   fontWeight: FontWeight.w800,
                 ),
@@ -977,7 +847,7 @@ class _GlobalLeaderboardSection extends StatelessWidget {
                     child: Text(
                       english ? 'YOUR RANK' : 'SIRALAMADAKİ YERİN',
                       style: const TextStyle(
-                        color: Color(0xFF00D9FF),
+                        color: StudioVisuals.teal,
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
                       ),
@@ -1040,18 +910,16 @@ class _CachedLeaderboardNotice extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(13, 11, 9, 11),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFA726).withValues(alpha: 0.08),
+        color: StudioVisuals.amberSoft,
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(
-          color: const Color(0xFFFFA726).withValues(alpha: 0.28),
-        ),
+        border: Border.all(color: StudioVisuals.amber.withValues(alpha: 0.28)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const Icon(
             Icons.offline_bolt_rounded,
-            color: Color(0xFFFFA726),
+            color: StudioVisuals.amber,
             size: 22,
           ),
           const SizedBox(width: 10),
@@ -1062,7 +930,7 @@ class _CachedLeaderboardNotice extends StatelessWidget {
                 Text(
                   context.l10n.cachedLeaderboardInfo,
                   style: const TextStyle(
-                    color: Colors.white70,
+                    color: StudioVisuals.ink,
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
                     height: 1.3,
@@ -1076,7 +944,7 @@ class _CachedLeaderboardNotice extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(0xFFFFC56D),
+                    color: StudioVisuals.amber,
                     fontSize: 8,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1093,7 +961,7 @@ class _CachedLeaderboardNotice extends StatelessWidget {
                     padding: EdgeInsets.all(9),
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Color(0xFFFFA726),
+                      color: StudioVisuals.amber,
                     ),
                   )
                 : IconButton(
@@ -1104,7 +972,7 @@ class _CachedLeaderboardNotice extends StatelessWidget {
                     },
                     icon: const Icon(
                       Icons.sync_rounded,
-                      color: Color(0xFFFFA726),
+                      color: StudioVisuals.amber,
                       size: 21,
                     ),
                   ),
@@ -1130,17 +998,15 @@ class _PendingLeaderboardSyncNotice extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(13, 9, 9, 9),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFA726).withValues(alpha: 0.07),
+        color: StudioVisuals.amberSoft,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: const Color(0xFFFFA726).withValues(alpha: 0.22),
-        ),
+        border: Border.all(color: StudioVisuals.amber.withValues(alpha: 0.22)),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.cloud_upload_outlined,
-            color: Color(0xFFFFA726),
+            color: StudioVisuals.amber,
             size: 19,
           ),
           const SizedBox(width: 9),
@@ -1148,7 +1014,7 @@ class _PendingLeaderboardSyncNotice extends StatelessWidget {
             child: Text(
               context.l10n.scoreWaitingToSync,
               style: const TextStyle(
-                color: Colors.white70,
+                color: StudioVisuals.ink,
                 fontSize: 9,
                 fontWeight: FontWeight.w800,
               ),
@@ -1162,7 +1028,7 @@ class _PendingLeaderboardSyncNotice extends StatelessWidget {
                     padding: EdgeInsets.all(9),
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Color(0xFFFFA726),
+                      color: StudioVisuals.amber,
                     ),
                   )
                 : IconButton(
@@ -1173,7 +1039,7 @@ class _PendingLeaderboardSyncNotice extends StatelessWidget {
                     },
                     icon: const Icon(
                       Icons.sync_rounded,
-                      color: Color(0xFFFFA726),
+                      color: StudioVisuals.amber,
                       size: 20,
                     ),
                   ),
@@ -1206,12 +1072,10 @@ class _WorldRankSummaryCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF153455), Color(0xFF23315E)],
+          colors: [Color(0xFFE5F4F1), Color(0xFFFFFFFF)],
         ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: const Color(0xFF00D9FF).withValues(alpha: 0.28),
-        ),
+        border: Border.all(color: StudioVisuals.teal.withValues(alpha: 0.20)),
       ),
       child: Row(
         children: [
@@ -1220,12 +1084,12 @@ class _WorldRankSummaryCard extends StatelessWidget {
             height: 56,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFD334).withValues(alpha: 0.10),
+              color: StudioVisuals.amberSoft,
               borderRadius: BorderRadius.circular(17),
             ),
             child: const Icon(
               Icons.public_rounded,
-              color: Color(0xFFFFD334),
+              color: StudioVisuals.teal,
               size: 30,
             ),
           ),
@@ -1237,7 +1101,7 @@ class _WorldRankSummaryCard extends StatelessWidget {
                 Text(
                   english ? 'YOUR WORLD RANK' : 'DÜNYA SIRALAMAN',
                   style: const TextStyle(
-                    color: Colors.white60,
+                    color: StudioVisuals.muted,
                     fontSize: 9,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.4,
@@ -1247,7 +1111,7 @@ class _WorldRankSummaryCard extends StatelessWidget {
                 Text(
                   rankText,
                   style: const TextStyle(
-                    color: Color(0xFFFFD334),
+                    color: StudioVisuals.ink,
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1258,7 +1122,7 @@ class _WorldRankSummaryCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
+              color: StudioVisuals.surface.withValues(alpha: 0.74),
               borderRadius: BorderRadius.circular(15),
             ),
             child: Column(
@@ -1267,7 +1131,7 @@ class _WorldRankSummaryCard extends StatelessWidget {
                 Text(
                   '$totalPlayers',
                   style: const TextStyle(
-                    color: Color(0xFF52E86B),
+                    color: StudioVisuals.teal,
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1275,7 +1139,7 @@ class _WorldRankSummaryCard extends StatelessWidget {
                 Text(
                   english ? 'PLAYERS' : 'OYUNCU',
                   style: const TextStyle(
-                    color: Colors.white38,
+                    color: StudioVisuals.muted,
                     fontSize: 7,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1284,7 +1148,7 @@ class _WorldRankSummaryCard extends StatelessWidget {
                 Text(
                   english ? 'BY BRAIN SCORE' : 'ZEKA PUANI BAZLI',
                   style: const TextStyle(
-                    color: Colors.white30,
+                    color: StudioVisuals.muted,
                     fontSize: 7,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1319,20 +1183,16 @@ class _GlobalPlayerRow extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: isCurrent
-            ? const LinearGradient(
-                colors: [Color(0xFF1B3C67), Color(0xFF3D2F74)],
-              )
-            : null,
-        color: isCurrent ? null : ZpVisualPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(19),
+        color: isCurrent ? StudioVisuals.tealSoft : StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
         border: Border.all(
           color: isCurrent
-              ? const Color(0xFF00D9FF).withValues(alpha: 0.55)
-              : Colors.white10,
+              ? StudioVisuals.teal.withValues(alpha: 0.38)
+              : StudioVisuals.line,
         ),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         children: [
@@ -1349,14 +1209,14 @@ class _GlobalPlayerRow extends StatelessWidget {
           ),
           const SizedBox(width: 7),
           Container(
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
+              color: StudioVisuals.surfaceSoft,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Text(entry.avatar, style: const TextStyle(fontSize: 25)),
+            child: AvatarIcon(entry.avatar, size: 48, borderRadius: 14),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -1372,7 +1232,7 @@ class _GlobalPlayerRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
-                          fontSize: 12,
+                          fontSize: 13,
                         ),
                       ),
                     ),
@@ -1384,15 +1244,14 @@ class _GlobalPlayerRow extends StatelessWidget {
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF00D9FF)
-                              .withValues(alpha: 0.13),
+                          color: StudioVisuals.teal.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(99),
                         ),
                         child: Text(
                           context.l10n.you,
                           style: const TextStyle(
-                            color: Color(0xFF00D9FF),
-                            fontSize: 7,
+                            color: StudioVisuals.teal,
+                            fontSize: 8,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
@@ -1402,11 +1261,13 @@ class _GlobalPlayerRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '${context.l10n.leagueLabel(entry.leagueShortName)}'
-                  '  •  ${context.l10n.levelValue(entry.level)}',
+                  context.l10n.levelValue(entry.level),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white54, fontSize: 8),
+                  style: const TextStyle(
+                    color: StudioVisuals.muted,
+                    fontSize: 9,
+                  ),
                 ),
               ],
             ),
@@ -1418,14 +1279,10 @@ class _GlobalPlayerRow extends StatelessWidget {
               Text(
                 '${entry.score} ${context.l10n.isEnglish ? 'BP' : 'ZP'}',
                 style: const TextStyle(
-                  color: Color(0xFFFFD334),
+                  color: StudioVisuals.amber,
                   fontWeight: FontWeight.w900,
                   fontSize: 11,
                 ),
-              ),
-              Text(
-                '⭐ ${entry.stars}  •  ${entry.completedLevels}/110',
-                style: const TextStyle(color: Colors.white54, fontSize: 8),
               ),
             ],
           ),
@@ -1459,9 +1316,10 @@ class _FirebaseOfflineCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D213F),
+        color: StudioVisuals.surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1470,12 +1328,12 @@ class _FirebaseOfflineCard extends StatelessWidget {
             width: 53,
             height: 53,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFA726).withValues(alpha: 0.10),
+              color: StudioVisuals.amberSoft,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
               configured ? Icons.cloud_off_rounded : Icons.cloud_sync_rounded,
-              color: const Color(0xFFFFA726),
+              color: StudioVisuals.amber,
               size: 29,
             ),
           ),
@@ -1501,13 +1359,13 @@ class _FirebaseOfflineCard extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFA726).withValues(alpha: 0.08),
+                        color: StudioVisuals.amberSoft,
                         borderRadius: BorderRadius.circular(99),
                       ),
                       child: Text(
                         context.l10n.offline,
                         style: const TextStyle(
-                          color: Color(0xFFFFA726),
+                          color: StudioVisuals.amber,
                           fontSize: 7,
                           fontWeight: FontWeight.w900,
                         ),
@@ -1519,7 +1377,7 @@ class _FirebaseOfflineCard extends StatelessWidget {
                 Text(
                   message,
                   style: const TextStyle(
-                    color: Colors.white54,
+                    color: StudioVisuals.muted,
                     fontSize: 9,
                     height: 1.35,
                   ),

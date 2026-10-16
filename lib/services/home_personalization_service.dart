@@ -1,3 +1,5 @@
+import '../games/shared/studio_game_contracts.dart';
+import '../features/catalog/domain/studio_game_catalog.dart';
 import 'onboarding_preference_service.dart';
 
 class HomeGameRecommendation {
@@ -18,18 +20,90 @@ class HomeGameRecommendation {
 class HomePersonalizationService {
   const HomePersonalizationService();
 
+  static const Map<String, int> _campaignLevelCounts = <String, int>{
+    'kakuro': 20,
+    'reversi_arena': 20,
+    'picross_master': 20,
+    'tavla_master': 20,
+    'arrow_route': 20,
+    'mini_chess_tactics': 20,
+    'loop_master': 20,
+    'go_life_death': 20,
+    'code_breaker': 20,
+    'shogi_mate': 20,
+    'island_sea': 20,
+    'peg_solitaire': 20,
+    'futoshiki': 20,
+    'hex_connection': 20,
+    'skyscrapers': 20,
+    'hitori': 20,
+    // Retained as a legacy progress scale; retired games are not recommended.
+    'ball_merge': 10,
+    'mini_golf_route': 10,
+    'slide_sweets': 10,
+    'neon_pinball': 10,
+    'drift_league': 10,
+    'air_hockey_arena': 10,
+    'lighthouse_defense': 10,
+    'boardwalk_builder': 10,
+    'secret_room_party': 10,
+    'deckforge_duel': 10,
+    'meaning_match': 20,
+    'proverb_finish': 20,
+    'sentence_builder': 20,
+    'near_meaning': 20,
+    'letter_maze': 20,
+    'language_detective': 20,
+    'story_order': 20,
+    'card_pairs': 20,
+    'focus_filter': 20,
+    'rhythm_memory': 20,
+    'attention_tunnel': 20,
+    'city_atlas': 10,
+    'world_atlas': 10,
+    'katamino_workshop': 10,
+    'single_stroke': 10,
+    'arrow_maze': 10,
+    'bubble_shooter': 10,
+  };
+
   static const List<String> allGameIds = <String>[
-    'logic',
     'numbers',
     'blocks',
     'memory',
+    'card_pairs',
+    'focus_filter',
+    'rhythm_memory',
+    'attention_tunnel',
     'hanoi',
     'word_hunt',
+    'meaning_match',
+    'proverb_finish',
+    'sentence_builder',
+    'near_meaning',
+    'letter_maze',
+    'language_detective',
+    'story_order',
     'picture_iq',
-    'candy_sort',
     'number_sort',
     'shape_puzzle',
     'reflex',
+    'hidden_masses',
+    'kakuro',
+    'reversi_arena',
+    'picross_master',
+    'arrow_route',
+    'mini_chess_tactics',
+    'island_sea',
+    'futoshiki',
+    'skyscrapers',
+    'hitori',
+    'slide_sweets',
+    'city_atlas',
+    'world_atlas',
+    'katamino_workshop',
+    'single_stroke',
+    'arrow_maze',
   ];
 
   HomeGameRecommendation recommend({
@@ -84,25 +158,33 @@ class HomePersonalizationService {
     required Map<String, int> unlockedLevels,
     required Map<String, int> earnedStars,
   }) {
+    bool isAvailable(String gameId) =>
+        StudioGameCatalog.byId(gameId)?.isPlayable ?? true;
+
     bool isIncomplete(String gameId) {
-      return (unlockedLevels[gameId] ?? 1) < 10 ||
-          (earnedStars[gameId] ?? 0) < 30;
+      final int levelCount = GameContentPolicy.standardGames.contains(gameId)
+          ? GameContentPolicy.campaignLevels
+          : (_campaignLevelCounts[gameId] ?? 10);
+      return (unlockedLevels[gameId] ?? 1) < levelCount ||
+          (earnedStars[gameId] ?? 0) < levelCount * 3;
     }
 
     final List<String> primary = primaryCandidates
-        .where(isIncomplete)
+        .where((String gameId) => isAvailable(gameId) && isIncomplete(gameId))
         .toList(growable: false);
     if (primary.isNotEmpty) return primary;
 
     final List<String> secondary = secondaryCandidates
-        .where(isIncomplete)
+        .where((String gameId) => isAvailable(gameId) && isIncomplete(gameId))
         .toList(growable: false);
     if (secondary.isNotEmpty) return secondary;
 
     final List<String> remaining = allGameIds
-        .where(isIncomplete)
+        .where((String gameId) => isAvailable(gameId) && isIncomplete(gameId))
         .toList(growable: false);
-    return remaining.isEmpty ? allGameIds.toList() : remaining;
+    return remaining.isEmpty
+        ? allGameIds.where(isAvailable).toList(growable: false)
+        : remaining;
   }
 
   int _progressScore(
@@ -110,45 +192,119 @@ class HomePersonalizationService {
     required Map<String, int> unlockedLevels,
     required Map<String, int> earnedStars,
   }) {
-    final int stars = (earnedStars[gameId] ?? 0).clamp(0, 30).toInt();
-    final int level = (unlockedLevels[gameId] ?? 1).clamp(1, 10).toInt();
-    return stars * 100 + level * 10;
+    final int levelCount = GameContentPolicy.standardGames.contains(gameId)
+        ? GameContentPolicy.campaignLevels
+        : (_campaignLevelCounts[gameId] ?? 10);
+    final int stars = (earnedStars[gameId] ?? 0)
+        .clamp(0, levelCount * 3)
+        .toInt();
+    final int level = (unlockedLevels[gameId] ?? 1)
+        .clamp(1, levelCount)
+        .toInt();
+    final int levelScore = levelCount == 1
+        ? 100
+        : 10 + (level - 1) * 90 ~/ (levelCount - 1);
+    return stars * 3000 ~/ (levelCount * 3) + levelScore;
   }
 
   List<String> _goalCandidates(PlayerGameGoal? goal) => switch (goal) {
     PlayerGameGoal.haveFun => const <String>[
-      'candy_sort',
       'word_hunt',
       'reflex',
+      'slide_sweets',
     ],
-    PlayerGameGoal.improveMind => const <String>['logic', 'numbers', 'hanoi'],
+    PlayerGameGoal.improveMind => const <String>[
+      'hidden_masses',
+      'kakuro',
+      'reversi_arena',
+      'picross_master',
+      'arrow_route',
+      'mini_chess_tactics',
+      'island_sea',
+      'futoshiki',
+      'skyscrapers',
+      'hitori',
+      'numbers',
+      'hanoi',
+      'meaning_match',
+      'proverb_finish',
+      'sentence_builder',
+      'near_meaning',
+      'letter_maze',
+      'language_detective',
+      'story_order',
+      'card_pairs',
+      'focus_filter',
+      'rhythm_memory',
+      'attention_tunnel',
+      'city_atlas',
+      'world_atlas',
+      'katamino_workshop',
+      'single_stroke',
+      'arrow_maze',
+    ],
     PlayerGameGoal.dailyExercise => const <String>[
       'memory',
+      'card_pairs',
+      'focus_filter',
+      'rhythm_memory',
+      'attention_tunnel',
       'shape_puzzle',
       'number_sort',
     ],
     PlayerGameGoal.competeWithFriends => const <String>[
       'reflex',
       'blocks',
-      'logic',
+      'reversi_arena',
+      'picross_master',
+      'arrow_route',
+      'mini_chess_tactics',
+      'island_sea',
+      'futoshiki',
+      'skyscrapers',
+      'hitori',
     ],
-    null => const <String>['logic', 'memory', 'numbers'],
+    null => const <String>['memory', 'numbers'],
   };
 
   List<String> _ageCandidates(PlayerAgeGroup? age) => switch (age) {
-    PlayerAgeGroup.age6To8 => const <String>[
-      'memory',
-      'candy_sort',
-      'shape_puzzle',
-    ],
+    PlayerAgeGroup.age6To8 => const <String>['memory', 'shape_puzzle'],
     PlayerAgeGroup.age9To12 => const <String>[
       'blocks',
       'word_hunt',
       'picture_iq',
     ],
-    PlayerAgeGroup.age13To17 => const <String>['logic', 'numbers', 'reflex'],
-    PlayerAgeGroup.age18To40 ||
-    PlayerAgeGroup.age40Plus => const <String>['logic', 'hanoi', 'number_sort'],
+    PlayerAgeGroup.age13To17 => const <String>[
+      'hidden_masses',
+      'kakuro',
+      'reversi_arena',
+      'picross_master',
+      'arrow_route',
+      'mini_chess_tactics',
+      'island_sea',
+      'futoshiki',
+      'skyscrapers',
+      'hitori',
+      'numbers',
+      'reflex',
+      'city_atlas',
+      'world_atlas',
+      'katamino_workshop',
+      'single_stroke',
+      'arrow_maze',
+    ],
+    PlayerAgeGroup.age18To40 || PlayerAgeGroup.age40Plus => const <String>[
+      'hidden_masses',
+      'kakuro',
+      'reversi_arena',
+      'hanoi',
+      'number_sort',
+      'city_atlas',
+      'world_atlas',
+      'katamino_workshop',
+      'single_stroke',
+      'arrow_maze',
+    ],
     PlayerAgeGroup.preferNotToSay || null => const <String>[],
   };
 

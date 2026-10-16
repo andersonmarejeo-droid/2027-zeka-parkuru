@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../theme/app_visual_theme.dart';
+import '../theme/studio_visuals.dart';
+import '../features/catalog/domain/studio_game_catalog.dart';
 
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -16,6 +18,9 @@ import '../services/social_notification_service.dart';
 import '../widgets/champion_celebration_card.dart';
 import '../widgets/competition_exit_decision.dart';
 import '../widgets/competition_stage_transition.dart';
+import '../widgets/competition_stage_page.dart';
+import '../widgets/studio_card.dart';
+import '../widgets/avatar_icon.dart';
 import 'challenge_game_catalog.dart';
 import 'challenge_center_page.dart';
 
@@ -239,12 +244,18 @@ class _ArenaPageState extends State<ArenaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         title: const Text(
           'ARKADAŞLARINA MEYDAN OKU',
-          style: TextStyle(fontWeight: FontWeight.w900),
+          style: TextStyle(
+            color: StudioVisuals.ink,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         actions: <Widget>[
           IconButton(
@@ -254,110 +265,125 @@ class _ArenaPageState extends State<ArenaPage> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : !_online
-          ? _ArenaOffline(
-              reason: _offlineReason,
-              onRetry: () => _initialize(forceRetry: true),
-            )
-          : ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context)
-                  .copyWith(overscroll: false),
-              child: ListView(
-                key: const PageStorageKey<String>('arena_home_scroll'),
-                physics: const ClampingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                children: <Widget>[
-                  const _ArenaHero(),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    height: 104,
-                    child: _ArenaActionCard(
-                      icon: Icons.bolt_rounded,
-                      color: const Color(0xFFFF5A3C),
-                      title: 'BİREBİR DÜELLO',
-                      subtitle:
-                          'Arkadaşına veya dünyadan bir oyuncuya meydan oku.',
-                      trailing: 'AÇ',
-                      onTap: () => Navigator.push<void>(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => const ChallengeCenterPage(),
+      body: StudioPageFrame(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : !_online
+            ? _ArenaOffline(
+                reason: _offlineReason,
+                onRetry: () => _initialize(forceRetry: true),
+              )
+            : ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context)
+                    .copyWith(overscroll: false),
+                child: ListView(
+                  key: const PageStorageKey<String>('arena_home_scroll'),
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(
+                    StudioVisuals.pageGutter,
+                    12,
+                    StudioVisuals.pageGutter,
+                    32,
+                  ),
+                  children: <Widget>[
+                    const _ArenaHero(),
+                    const SizedBox(height: 14),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 104),
+                      child: _ArenaActionCard(
+                        icon: Icons.bolt_rounded,
+                        color: StudioVisuals.teal,
+                        imageAsset:
+                            'assets/branding/studio_parkur_one_to_one_duel.png',
+                        title: 'BİREBİR DÜELLO',
+                        subtitle:
+                            'Arkadaşına veya dünyadan bir oyuncuya meydan oku.',
+                        trailing: 'AÇ',
+                        onTap: () => Navigator.push<void>(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => const ChallengeCenterPage(),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 104,
-                    child: _ArenaActionCard(
-                      icon: Icons.group_add_rounded,
-                      color: const Color(0xFF8C6CFF),
-                      title: 'GRUP OLUŞTUR',
-                      subtitle: 'Arkadaşlarınla aynı parkurda yarış.',
-                      trailing: 'OLUŞTUR',
-                      onTap: _createGroup,
+                    const SizedBox(height: 12),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 104),
+                      child: _ArenaActionCard(
+                        icon: Icons.group_add_rounded,
+                        color: StudioVisuals.amber,
+                        imageAsset:
+                            'assets/branding/studio_parkur_group_arena.png',
+                        title: 'GRUP OLUŞTUR',
+                        subtitle: 'Arkadaşlarınla aynı parkurda yarış.',
+                        trailing: 'OLUŞTUR',
+                        onTap: _createGroup,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 104,
-                    child: _ArenaActionCard(
-                      icon: Icons.login_rounded,
-                      color: const Color(0xFF00D9FF),
-                      title: 'KODLA KATIL',
-                      subtitle: 'Davet kodunla mevcut bir gruba katıl.',
-                      trailing: 'KATIL',
-                      onTap: _joinGroup,
+                    const SizedBox(height: 12),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 104),
+                      child: _ArenaActionCard(
+                        icon: Icons.login_rounded,
+                        color: StudioVisuals.teal,
+                        imageAsset:
+                            'assets/branding/studio_parkur_join_code.png',
+                        title: 'KODLA KATIL',
+                        subtitle: 'Davet kodunla mevcut bir gruba katıl.',
+                        trailing: 'KATIL',
+                        onTap: _joinGroup,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  const _ArenaSectionTitle(
-                    icon: Icons.groups_rounded,
-                    title: 'GRUPLARIM',
-                  ),
-                  const SizedBox(height: 9),
-                  StreamBuilder<List<ArenaGroup>>(
-                    stream: _groups,
-                    builder:
-                        (
-                          BuildContext context,
-                          AsyncSnapshot<List<ArenaGroup>> snapshot,
-                        ) {
-                          if (snapshot.hasError) {
-                            return _ArenaInfo(
-                              text: 'Gruplar yüklenemedi: ${snapshot.error}',
-                            );
-                          }
-                          final List<ArenaGroup> groups =
-                              snapshot.data ?? const <ArenaGroup>[];
-                          if (groups.isEmpty) {
-                            return const _ArenaInfo(
-                              text:
-                                  'Henüz bir grubun yok. Grup oluştur veya '
-                                  'WhatsApp’tan gelen 6 karakterli kodla katıl.',
-                            );
-                          }
-                          return Column(
-                            children: groups
-                                .map(
-                                  (ArenaGroup group) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 10),
-                                    child: _GroupCard(
-                                      group: group,
-                                      currentUid: _arena.currentUid,
-                                      onTap: () => _openGroup(group),
+                    const SizedBox(height: 24),
+                    const _ArenaSectionTitle(
+                      icon: Icons.groups_rounded,
+                      title: 'GRUPLARIM',
+                    ),
+                    const SizedBox(height: 9),
+                    StreamBuilder<List<ArenaGroup>>(
+                      stream: _groups,
+                      builder:
+                          (
+                            BuildContext context,
+                            AsyncSnapshot<List<ArenaGroup>> snapshot,
+                          ) {
+                            if (snapshot.hasError) {
+                              return _ArenaInfo(
+                                text: 'Gruplar yüklenemedi: ${snapshot.error}',
+                              );
+                            }
+                            final List<ArenaGroup> groups =
+                                snapshot.data ?? const <ArenaGroup>[];
+                            if (groups.isEmpty) {
+                              return const _ArenaInfo(
+                                text:
+                                    'Henüz bir grubun yok. Grup oluştur veya '
+                                    'WhatsApp’tan gelen 6 karakterli kodla katıl.',
+                              );
+                            }
+                            return Column(
+                              children: groups
+                                  .map(
+                                    (ArenaGroup group) => Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 10,
+                                      ),
+                                      child: _GroupCard(
+                                        group: group,
+                                        currentUid: _arena.currentUid,
+                                        onTap: () => _openGroup(group),
+                                      ),
                                     ),
-                                  ),
-                                )
-                                .toList(growable: false),
-                          );
-                        },
-                  ),
-                ],
+                                  )
+                                  .toList(growable: false),
+                            );
+                          },
+                    ),
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }
@@ -453,8 +479,11 @@ class _ArenaGroupPageState extends State<ArenaGroupPage> {
       );
       if (!mounted) return;
       if (event == null) {
+        final String? cause = _arena.lastEventError;
         _message(
-          'Yarışma oluşturulamadı. Grup üyelerini ve bağlantıyı kontrol et.',
+          cause == 'permission-denied'
+              ? 'Yarışma oluşturulamadı: sunucu izinleri güncel değil.'
+              : 'Yarışma oluşturulamadı. Grup üyelerini ve bağlantıyı kontrol et.',
         );
         return;
       }
@@ -476,12 +505,19 @@ class _ArenaGroupPageState extends State<ArenaGroupPage> {
       builder: (BuildContext context, AsyncSnapshot<ArenaGroup?> snapshot) {
         final ArenaGroup? group = snapshot.data;
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: StudioVisuals.canvas,
           appBar: AppBar(
-            backgroundColor: Colors.transparent,
+            backgroundColor: StudioVisuals.canvas,
+            foregroundColor: StudioVisuals.ink,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
             title: Text(
               group?.name.toUpperCase() ?? 'GRUP YÜKLENİYOR',
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+              style: const TextStyle(
+                color: StudioVisuals.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 17,
+              ),
             ),
             actions: <Widget>[
               if (group != null)
@@ -498,7 +534,12 @@ class _ArenaGroupPageState extends State<ArenaGroupPage> {
                     : const Center(child: CircularProgressIndicator())
               : ListView(
                   key: PageStorageKey<String>('arena_group_${group.id}'),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                  padding: const EdgeInsets.fromLTRB(
+                    StudioVisuals.pageGutter,
+                    12,
+                    StudioVisuals.pageGutter,
+                    32,
+                  ),
                   children: <Widget>[
                     _GroupHero(
                       group: group,
@@ -522,8 +563,8 @@ class _ArenaGroupPageState extends State<ArenaGroupPage> {
                         ),
                         style: FilledButton.styleFrom(
                           minimumSize: const Size.fromHeight(56),
-                          backgroundColor: const Color(0xFFFF8A3D),
-                          foregroundColor: const Color(0xFF07162E),
+                          backgroundColor: StudioVisuals.amber,
+                          foregroundColor: Colors.white,
                           textStyle: const TextStyle(
                             fontWeight: FontWeight.w900,
                           ),
@@ -558,7 +599,11 @@ class _ArenaGroupPageState extends State<ArenaGroupPage> {
                                     final OnlineLeaderboardEntry? player =
                                         profiles[uid];
                                     return Chip(
-                                      avatar: Text(player?.avatar ?? '🧠'),
+                                      avatar: AvatarIcon(
+                                        player?.avatar ?? '🧠',
+                                        size: 28,
+                                        borderRadius: 9,
+                                      ),
                                       label: Text(
                                         player?.displayName ??
                                             (uid == _arena.currentUid
@@ -567,8 +612,8 @@ class _ArenaGroupPageState extends State<ArenaGroupPage> {
                                       ),
                                       side: BorderSide(
                                         color: uid == group.ownerUid
-                                            ? const Color(0xFFFFD93D)
-                                            : Colors.white12,
+                                            ? StudioVisuals.amber
+                                            : StudioVisuals.line,
                                       ),
                                     );
                                   })
@@ -636,10 +681,13 @@ class _ArenaGroupPageState extends State<ArenaGroupPage> {
                             final List<ArenaEvent> events =
                                 eventSnapshot.data ?? const <ArenaEvent>[];
                             if (events.isEmpty) {
-                              return const _ArenaInfo(
+                              return _ArenaInfo(
                                 text:
-                                    'Henüz yarışma yok. Grup yöneticisi 11 oyunluk '
-                                    'havuzdan 6 farklı oyun seçilen ortak parkuru başlatabilir.',
+                                    'Henüz yarışma yok. Grup yöneticisi '
+                                    '${ArenaService.allGameIds.length} oyunluk '
+                                    'havuzdan ${ArenaService.eventGameCount} farklı '
+                                    'oyun seçilen ortak '
+                                    'parkuru başlatabilir.',
                               );
                             }
                             return Column(
@@ -735,8 +783,13 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
       widget.initialEvent.participantIds,
     );
     _eventStream = _arena.watchEvent(eventId);
-    _attemptsStream = _arena.watchAttempts(eventId);
-    _reactionsStream = _arena.watchReactions(eventId).asBroadcastStream();
+    _attemptsStream = _arena.watchAttempts(
+      eventId: eventId,
+      groupId: widget.initialEvent.groupId,
+    );
+    _reactionsStream = _arena
+        .watchReactions(eventId: eventId, groupId: widget.initialEvent.groupId)
+        .asBroadcastStream();
     _reactionNoticeSubscription = _reactionsStream.listen(
       _handleReactionNotices,
       onError: (Object error) {
@@ -915,7 +968,7 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
         continue;
       }
       SocialNotificationService.instance.showForegroundNotice(
-        title: '${reaction.avatar} ${reaction.displayName}',
+        title: reaction.displayName,
         body:
             _reactionLabels[reaction.reaction] ??
             'Yeni bir grup yarışması mesajı geldi.',
@@ -992,6 +1045,12 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
 
   Future<void> _playParkour(ArenaEvent event) async {
     if (_playingGameId != null || !event.active || _checkpointLoading) return;
+    if (!event.isPlayable) {
+      _message(
+        'Bu eski yarışma kaldırılmış oyun içeriyor. Güncel oyunlarla yeni bir yarışma başlat.',
+      );
+      return;
+    }
     final String uid = _arena.currentUid ?? '';
     if (uid.isEmpty || !event.participantIds.contains(uid)) return;
 
@@ -1016,7 +1075,7 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
       int index = currentCheckpoint.nextStationIndex;
       while (index < event.gameIds.length) {
         final ArenaEvent activeEvent = _latestEvent ?? event;
-        if (!mounted || !activeEvent.active) {
+        if (!mounted || !activeEvent.active || !activeEvent.isPlayable) {
           _message('Yarışma artık aktif değil; kayıtlı ilerleme korunuyor.');
           return;
         }
@@ -1032,14 +1091,26 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
           final Object? rawResult = await Navigator.push<Object?>(
             context,
             MaterialPageRoute<Object?>(
-              builder: (_) => buildChallengeCompetitionPage(
+              builder: (_) => CompetitionStagePage(
                 gameId: gameId,
-                level: event.level,
-                layoutCode: event.layoutCodeFor(gameId),
+                gameName: gameName,
+                stageNumber: index + 1,
+                stageCount: event.gameIds.length,
+                gameBuilder: (_) => buildChallengeCompetitionPage(
+                  gameId: gameId,
+                  level: event.level,
+                  layoutCode: event.layoutCodeFor(gameId),
+                ),
               ),
             ),
           );
           if (!mounted) return;
+          if (rawResult == CompetitionStageAction.leave) {
+            _message(
+              'İlerlemen kaydedildi. Parkura daha sonra devam edebilirsin.',
+            );
+            return;
+          }
 
           DailyStageOutcome outcome = DailyStageOutcome.exited;
           int resultStars = 0;
@@ -1222,7 +1293,7 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
     for (int index = 0; index < podiumCount; index++) {
       final ArenaStanding item = standings[index];
       result.writeln(
-        '${index + 1}. ${item.avatar} ${item.displayName} — '
+        '${index + 1}. ${item.displayName} — '
         '${item.totalPoints} TP • ${item.totalStars} ⭐',
       );
     }
@@ -1247,19 +1318,26 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
         final ArenaEvent? event = eventSnapshot.data;
         if (event == null) {
           return Scaffold(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            backgroundColor: StudioVisuals.canvas,
             body: const Center(child: CircularProgressIndicator()),
           );
         }
         _latestEvent = event;
 
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: StudioVisuals.canvas,
           appBar: AppBar(
-            backgroundColor: Colors.transparent,
+            backgroundColor: StudioVisuals.canvas,
+            foregroundColor: StudioVisuals.ink,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
             title: Text(
               event.title.toUpperCase(),
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+              style: const TextStyle(
+                color: StudioVisuals.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 17,
+              ),
             ),
             actions: <Widget>[
               IconButton(
@@ -1347,7 +1425,12 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
                               resolvedByMe.length < event.gameIds.length;
 
                           return ListView(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                            padding: const EdgeInsets.fromLTRB(
+                              StudioVisuals.pageGutter,
+                              12,
+                              StudioVisuals.pageGutter,
+                              32,
+                            ),
                             children: <Widget>[
                               _EventHero(
                                 event: event,
@@ -1393,7 +1476,8 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
                                   ),
                                   label: Text(
                                     resolvedByMe.isEmpty
-                                        ? '6 OYUNLUK PARKURU BAŞLAT'
+                                        ? '${ArenaService.eventGameCount} '
+                                              'OYUNLUK PARKURU BAŞLAT'
                                         : 'PARKURA DEVAM ET • '
                                               '${resolvedByMe.length}/'
                                               '${event.gameIds.length}',
@@ -1403,8 +1487,8 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
                                   ),
                                   style: FilledButton.styleFrom(
                                     minimumSize: const Size.fromHeight(54),
-                                    backgroundColor: const Color(0xFF6CFF9B),
-                                    foregroundColor: const Color(0xFF07162E),
+                                    backgroundColor: StudioVisuals.teal,
+                                    foregroundColor: Colors.white,
                                   ),
                                 ),
                                 const SizedBox(height: 10),
@@ -1490,10 +1574,12 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
                                   ),
                               ],
                               const SizedBox(height: 16),
-                              const _ArenaInfo(
+                              _ArenaInfo(
                                 icon: Icons.verified_rounded,
                                 text:
-                                    '11 oyunluk havuzdan seçilen 6 farklı '
+                                    '${ArenaService.allGameIds.length} oyunluk '
+                                    'havuzdan seçilen '
+                                    '${ArenaService.eventGameCount} farklı '
                                     'oyunu herkes aynı sıra, seviye ve '
                                     'düzenle oynar. Tamamlanan, canları '
                                     'biten veya geçilen bölüm ikinci kez '
@@ -1515,7 +1601,7 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
                                   ),
                                   style: OutlinedButton.styleFrom(
                                     minimumSize: const Size.fromHeight(52),
-                                    foregroundColor: const Color(0xFFFFD93D),
+                                    foregroundColor: StudioVisuals.amber,
                                   ),
                                 ),
                               ],
@@ -1594,12 +1680,14 @@ class _CreateArenaEventDialogState extends State<_CreateArenaEventDialog> {
                   border: OutlineInputBorder(),
                 ),
               ),
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: _ArenaInfo(
                     icon: Icons.shuffle_rounded,
                     text:
-                        'Sistem 11 oyunluk havuzdan 6 farklı oyunu rastgele '
+                        'Sistem ${ArenaService.allGameIds.length} oyunluk '
+                        'havuzdan ${ArenaService.eventGameCount} farklı oyunu '
+                        'rastgele '
                         'seçecek. Gruptaki herkes aynı oyunları, aynı sırada '
                         've aynı ortak düzenlerle oynayacak.',
                   ),
@@ -1613,10 +1701,10 @@ class _CreateArenaEventDialogState extends State<_CreateArenaEventDialog> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '6 OYUNLUK RASTGELE PARKUR • 48 SAAT',
+                  '${ArenaService.eventGameCount} OYUNLUK RASTGELE PARKUR • 48 SAAT',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: Color(0xFF6CFF9B),
+                    color: StudioVisuals.teal,
                     fontWeight: FontWeight.w900,
                     fontSize: 12,
                   ),
@@ -1699,6 +1787,34 @@ const List<_ArenaGameInfo> _gameCatalog = <_ArenaGameInfo>[
     color: Color(0xFFE748CF),
   ),
   _ArenaGameInfo(
+    id: 'card_pairs',
+    name: 'Kart Çifti',
+    subtitle: 'Değişen kuralla eşleri bul',
+    icon: Icons.style_rounded,
+    color: Color(0xFFE748CF),
+  ),
+  _ArenaGameInfo(
+    id: 'focus_filter',
+    name: 'Odak Filtresi',
+    subtitle: 'Sinyali ele, hatalı alarmdan kaçın',
+    icon: Icons.filter_center_focus_rounded,
+    color: Color(0xFFD96767),
+  ),
+  _ArenaGameInfo(
+    id: 'rhythm_memory',
+    name: 'Ritim Hafızası',
+    subtitle: 'Nota, aralık ve vurguyu tekrar et',
+    icon: Icons.graphic_eq_rounded,
+    color: Color(0xFF8974C9),
+  ),
+  _ArenaGameInfo(
+    id: 'attention_tunnel',
+    name: 'Dikkat Tüneli',
+    subtitle: 'Kesişen hatlarda aynı hedefi izle',
+    icon: Icons.blur_on_rounded,
+    color: Color(0xFF6478C8),
+  ),
+  _ArenaGameInfo(
     id: 'hanoi',
     name: 'Hanoi Kulesi',
     subtitle: 'En az hamle',
@@ -1713,6 +1829,55 @@ const List<_ArenaGameInfo> _gameCatalog = <_ArenaGameInfo>[
     color: Color(0xFF00D9A6),
   ),
   _ArenaGameInfo(
+    id: 'meaning_match',
+    name: 'Anlam Eşleştir',
+    subtitle: 'Anlam kümelerini bul',
+    icon: Icons.hub_rounded,
+    color: Color(0xFF5B88C8),
+  ),
+  _ArenaGameInfo(
+    id: 'proverb_finish',
+    name: 'Atasözü Tamamla',
+    subtitle: 'Sözü ve anlamını tamamla',
+    icon: Icons.menu_book_rounded,
+    color: Color(0xFF648B72),
+  ),
+  _ArenaGameInfo(
+    id: 'sentence_builder',
+    name: 'Cümle Kur',
+    subtitle: 'Bağlaç ve cümle yapısını çöz',
+    icon: Icons.format_align_left_rounded,
+    color: Color(0xFF648B72),
+  ),
+  _ArenaGameInfo(
+    id: 'near_meaning',
+    name: 'Yakın Anlam',
+    subtitle: 'Bağlamda sözcük nüansı seç',
+    icon: Icons.manage_search_rounded,
+    color: Color(0xFF648B72),
+  ),
+  _ArenaGameInfo(
+    id: 'letter_maze',
+    name: 'Harf Labirenti',
+    subtitle: 'Harf rotasını kök kapısından geçir',
+    icon: Icons.route_rounded,
+    color: Color(0xFF648B72),
+  ),
+  _ArenaGameInfo(
+    id: 'language_detective',
+    name: 'Dil Dedektifi',
+    subtitle: 'İddiayı kanıttan ayır',
+    icon: Icons.manage_search_rounded,
+    color: Color(0xFF648B72),
+  ),
+  _ArenaGameInfo(
+    id: 'story_order',
+    name: 'Hikâye Sırası',
+    subtitle: 'Olayları kanıta göre sırala',
+    icon: Icons.timeline_rounded,
+    color: Color(0xFF5B88C8),
+  ),
+  _ArenaGameInfo(
     id: 'picture_iq',
     name: 'Görsel IQ',
     subtitle: 'Görsel kuralı çöz',
@@ -1720,18 +1885,11 @@ const List<_ArenaGameInfo> _gameCatalog = <_ArenaGameInfo>[
     color: Color(0xFFFF4FA3),
   ),
   _ArenaGameInfo(
-    id: 'candy_sort',
-    name: 'Şeker Sıralama',
-    subtitle: 'Renkleri grupla',
-    icon: Icons.cookie_rounded,
-    color: Color(0xFFFF8A3D),
-  ),
-  _ArenaGameInfo(
     id: 'number_sort',
-    name: 'Sayı Peteği',
+    name: '15 Taş Ustası',
     subtitle: 'Sayıları sırala',
-    icon: Icons.hive_rounded,
-    color: Color(0xFFFFD334),
+    icon: Icons.grid_4x4_rounded,
+    color: Color(0xFFB98548),
   ),
   _ArenaGameInfo(
     id: 'shape_puzzle',
@@ -1748,16 +1906,39 @@ const List<_ArenaGameInfo> _gameCatalog = <_ArenaGameInfo>[
     color: Color(0xFFFF5B5B),
   ),
 ];
-_ArenaGameInfo _gameInfo(String gameId) => _gameCatalog.firstWhere(
-  (_ArenaGameInfo item) => item.id == gameId,
-  orElse: () => const _ArenaGameInfo(
-    id: 'unknown',
-    name: 'Oyun',
-    subtitle: 'Zekâ parkuru',
-    icon: Icons.sports_esports_rounded,
-    color: Color(0xFF00D9FF),
-  ),
-);
+_ArenaGameInfo _gameInfo(String gameId) {
+  final _ArenaGameInfo definition = _gameCatalog.firstWhere(
+    (_ArenaGameInfo item) => item.id == gameId,
+    orElse: () {
+      final GameDefinition? catalog = StudioGameCatalog.byId(gameId);
+      return _ArenaGameInfo(
+        id: gameId,
+        name: catalog?.titleTr ?? 'Oyun',
+        subtitle: 'Zekâ parkuru',
+        icon: catalog?.gameClass.icon ?? Icons.sports_esports_rounded,
+        color: catalog?.gameClass.accent ?? StudioVisuals.teal,
+      );
+    },
+  );
+  final Color accent = switch (definition.id) {
+    'logic' ||
+    'numbers' ||
+    'memory' ||
+    'card_pairs' ||
+    'rhythm_memory' ||
+    'attention_tunnel' => StudioVisuals.teal,
+    'blocks' || 'hanoi' || 'number_sort' => StudioVisuals.amber,
+    'reflex' || 'focus_filter' => StudioVisuals.danger,
+    _ => StudioVisuals.muted,
+  };
+  return _ArenaGameInfo(
+    id: definition.id,
+    name: definition.name,
+    subtitle: definition.subtitle,
+    icon: definition.icon,
+    color: accent,
+  );
+}
 
 class _ArenaHero extends StatelessWidget {
   const _ArenaHero();
@@ -1767,29 +1948,52 @@ class _ArenaHero extends StatelessWidget {
       padding: const EdgeInsets.all(19),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: <Color>[Color(0xFF6C4DFF), Color(0xFF0B8FB4)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[Color(0xFFE5F4F1), Color(0xFFFFFFFF)],
         ),
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(Icons.stadium_rounded, size: 42, color: Color(0xFFFFD93D)),
+              Icon(Icons.stadium_rounded, size: 42, color: StudioVisuals.teal),
               SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'ARKADAŞLARINLA AYNI PARKURDA YARIŞ',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 19),
+                  style: TextStyle(
+                    color: StudioVisuals.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 19,
+                  ),
                 ),
               ),
             ],
           ),
           SizedBox(height: 10),
           Text(
-            '2–30 kişilik özel gruplar • 11 oyunun tamamı • canlı sonuçlar • WhatsApp daveti',
-            style: TextStyle(color: Colors.white, height: 1.35),
+            '${ArenaService.allGameIds.length} oyunluk havuz • yarışmada '
+            '${ArenaService.eventGameCount} farklı oyun • canlı sonuçlar • '
+            'WhatsApp daveti',
+            style: TextStyle(color: StudioVisuals.muted, height: 1.35),
+          ),
+          SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: SizedBox(
+              width: double.infinity,
+              height: 132,
+              child: Image.asset(
+                'assets/branding/studio_parkur_group_arena.png',
+                fit: BoxFit.cover,
+                semanticLabel: 'Grup arenası görseli',
+              ),
+            ),
           ),
         ],
       ),
@@ -1803,6 +2007,7 @@ class _ArenaActionCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final String trailing;
+  final String? imageAsset;
   final VoidCallback onTap;
   const _ArenaActionCard({
     required this.icon,
@@ -1810,57 +2015,70 @@ class _ArenaActionCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.trailing,
+    this.imageAsset,
     required this.onTap,
   });
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: ZpVisualPalette.of(context).surface,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(15),
-          child: Row(
-            children: <Widget>[
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(15),
+    return StudioCard(
+      onTap: onTap,
+      semanticLabel: '$title. $subtitle',
+      minHeight: 96,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: <Widget>[
+          if (imageAsset != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: SizedBox(
+                width: 62,
+                height: 62,
+                child: Image.asset(imageAsset!, fit: BoxFit.cover),
+              ),
+            )
+          else
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(icon, color: color),
+            ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: StudioVisuals.ink,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-                child: Icon(icon, color: color),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      title,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: StudioVisuals.muted,
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
                 ),
-              ),
-              Text(
-                trailing,
-                style: TextStyle(color: color, fontWeight: FontWeight.w900),
-              ),
-              Icon(Icons.chevron_right_rounded, color: color),
-            ],
+              ],
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          Text(
+            trailing,
+            style: TextStyle(color: color, fontWeight: FontWeight.w900),
+          ),
+          Icon(Icons.chevron_right_rounded, color: color),
+        ],
       ),
     );
   }
@@ -1874,7 +2092,7 @@ class _ArenaSectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
-        Icon(icon, color: const Color(0xFF00D9FF)),
+        Icon(icon, color: StudioVisuals.teal),
         const SizedBox(width: 8),
         Text(
           title,
@@ -1900,18 +2118,19 @@ class _ArenaInfo extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: ZpVisualPalette.of(context).surface,
+        color: StudioVisuals.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         children: <Widget>[
-          Icon(icon, color: const Color(0xFF00D9FF)),
+          Icon(icon, color: StudioVisuals.teal),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(color: Colors.white70, height: 1.35),
+              style: const TextStyle(color: StudioVisuals.ink, height: 1.35),
             ),
           ),
         ],
@@ -1930,12 +2149,12 @@ int _groupIdentityIndex(ArenaGroup group) {
 }
 
 Color _groupIdentityColor(ArenaGroup group) => const <Color>[
-  Color(0xFF00D9FF),
-  Color(0xFF8C6CFF),
-  Color(0xFFFF5B5B),
-  Color(0xFF6CFF9B),
-  Color(0xFFFFD334),
-  Color(0xFFFF8A3D),
+  StudioVisuals.teal,
+  Color(0xFFD69A43),
+  Color(0xFF5B88C8),
+  Color(0xFF648B72),
+  Color(0xFF259C89),
+  Color(0xFF758398),
 ][_groupIdentityIndex(group)];
 IconData _groupIdentityIcon(ArenaGroup group) => const <IconData>[
   Icons.psychology_alt_rounded,
@@ -1968,9 +2187,7 @@ class _GroupCard extends StatelessWidget {
     final Color identityColor = _groupIdentityColor(group);
     return _ArenaActionCard(
       icon: _groupIdentityIcon(group),
-      color: group.isOwner(currentUid)
-          ? const Color(0xFFFFD93D)
-          : identityColor,
+      color: group.isOwner(currentUid) ? StudioVisuals.amber : identityColor,
       title: group.name.toUpperCase(),
       subtitle:
           '${_groupIdentityProfile(group)} • '
@@ -1998,11 +2215,13 @@ class _GroupHero extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: <Color>[
-            identityColor.withValues(alpha: 0.78),
-            ZpVisualPalette.of(context).surface,
+            identityColor.withValues(alpha: 0.12),
+            StudioVisuals.surface,
           ],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: identityColor.withValues(alpha: 0.25)),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Column(
         children: <Widget>[
@@ -2032,6 +2251,7 @@ class _GroupHero extends StatelessWidget {
                     Text(
                       group.name,
                       style: const TextStyle(
+                        color: StudioVisuals.ink,
                         fontWeight: FontWeight.w900,
                         fontSize: 20,
                       ),
@@ -2041,7 +2261,7 @@ class _GroupHero extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Colors.white70,
+                        color: StudioVisuals.muted,
                         fontWeight: FontWeight.w700,
                         fontSize: 11,
                       ),
@@ -2049,7 +2269,7 @@ class _GroupHero extends StatelessWidget {
                     Text(
                       '${group.memberIds.length}/30 oyuncu',
                       style: const TextStyle(
-                        color: Colors.white54,
+                        color: StudioVisuals.muted,
                         fontSize: 11,
                       ),
                     ),
@@ -2062,33 +2282,78 @@ class _GroupHero extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
+              color: StudioVisuals.surfaceSoft,
               borderRadius: BorderRadius.circular(15),
             ),
-            child: Row(
-              children: <Widget>[
-                const Text(
-                  'GRUP KODU',
-                  style: TextStyle(color: Colors.white60, fontSize: 11),
-                ),
-                const Spacer(),
-                Text(
-                  group.joinCode,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 20,
-                    letterSpacing: 2,
-                  ),
-                ),
-                IconButton(
-                  onPressed: onCopy,
-                  icon: const Icon(Icons.copy_rounded, size: 20),
-                ),
-                IconButton(
-                  onPressed: onShare,
-                  icon: const Icon(Icons.share_rounded, size: 20),
-                ),
-              ],
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final bool compact = constraints.maxWidth < 360;
+                final Widget codeActions = Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        group.joinCode,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 20,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: onCopy,
+                      icon: const Icon(Icons.copy_rounded, size: 20),
+                    ),
+                    IconButton(
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: onShare,
+                      icon: const Icon(Icons.share_rounded, size: 20),
+                    ),
+                  ],
+                );
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text(
+                        'GRUP KODU',
+                        style: TextStyle(
+                          color: StudioVisuals.muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      codeActions,
+                    ],
+                  );
+                }
+                return Row(
+                  children: <Widget>[
+                    const Text(
+                      'GRUP KODU',
+                      style: TextStyle(
+                        color: StudioVisuals.muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: codeActions),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -2119,13 +2384,11 @@ class _WeeklyLeagueCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: <Color>[
-            const Color(0xFF182D57),
-            ZpVisualPalette.of(context).surface,
-          ],
+          colors: <Color>[StudioVisuals.tealSoft, StudioVisuals.surface],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x4456E6FF)),
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Column(
         children: <Widget>[
@@ -2140,7 +2403,7 @@ class _WeeklyLeagueCard extends StatelessWidget {
                     vertical: 9,
                   ),
                   decoration: BoxDecoration(
-                    color: me ? const Color(0x2224E0FF) : Colors.transparent,
+                    color: me ? StudioVisuals.tealSoft : Colors.transparent,
                     borderRadius: BorderRadius.circular(13),
                   ),
                   child: Row(
@@ -2151,13 +2414,13 @@ class _WeeklyLeagueCard extends StatelessWidget {
                           '${index + 1}.',
                           style: TextStyle(
                             color: index == 0
-                                ? const Color(0xFFFFD93D)
-                                : Colors.white70,
+                                ? StudioVisuals.amber
+                                : StudioVisuals.ink,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
                       ),
-                      Text(item.avatar, style: const TextStyle(fontSize: 23)),
+                      AvatarIcon(item.avatar, size: 30, borderRadius: 9),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
@@ -2170,6 +2433,7 @@ class _WeeklyLeagueCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
+                                color: StudioVisuals.ink,
                                 fontWeight: FontWeight.w900,
                                 fontSize: 12,
                               ),
@@ -2178,7 +2442,7 @@ class _WeeklyLeagueCard extends StatelessWidget {
                               '${item.attemptCount} oyun • '
                               '${item.totalStars} ⭐',
                               style: const TextStyle(
-                                color: Colors.white54,
+                                color: StudioVisuals.muted,
                                 fontSize: 10,
                               ),
                             ),
@@ -2188,7 +2452,7 @@ class _WeeklyLeagueCard extends StatelessWidget {
                       Text(
                         '${item.totalPoints} TP',
                         style: const TextStyle(
-                          color: Color(0xFFFFD93D),
+                          color: StudioVisuals.amber,
                           fontWeight: FontWeight.w900,
                           fontSize: 11,
                         ),
@@ -2199,13 +2463,13 @@ class _WeeklyLeagueCard extends StatelessWidget {
               },
             ),
             if (index != visible.length - 1)
-              const Divider(height: 1, color: Colors.white10),
+              const Divider(height: 1, color: StudioVisuals.line),
           ],
           const SizedBox(height: 7),
           const Text(
             'Pazartesi 00.00’dan itibaren gönderilen Arena sonuçları',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white38, fontSize: 9),
+            style: TextStyle(color: StudioVisuals.muted, fontSize: 9),
           ),
         ],
       ),
@@ -2222,7 +2486,7 @@ class _EventCard extends StatelessWidget {
     final bool open = event.active;
     return _ArenaActionCard(
       icon: open ? Icons.play_circle_fill_rounded : Icons.emoji_events_rounded,
-      color: open ? const Color(0xFF6CFF9B) : const Color(0xFFFFD93D),
+      color: open ? StudioVisuals.teal : StudioVisuals.amber,
       title: event.title.toUpperCase(),
       subtitle:
           '${event.gameIds.length} oyun • ${event.participantIds.length} yarışmacı • Doğrudan sıralama',
@@ -2250,11 +2514,15 @@ class _EventHero extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: finalResult
-              ? const <Color>[Color(0xFF8A5A00), Color(0xFF3F2B08)]
-              : const <Color>[Color(0xFF5539C8), Color(0xFF0D6C91)],
+              ? const <Color>[StudioVisuals.amberSoft, StudioVisuals.surface]
+              : const <Color>[StudioVisuals.tealSoft, StudioVisuals.surface],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2266,7 +2534,7 @@ class _EventHero extends StatelessWidget {
                     ? Icons.emoji_events_rounded
                     : Icons.stadium_rounded,
                 size: 44,
-                color: const Color(0xFFFFD93D),
+                color: finalResult ? StudioVisuals.amber : StudioVisuals.teal,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -2276,13 +2544,14 @@ class _EventHero extends StatelessWidget {
                     Text(
                       event.title,
                       style: const TextStyle(
+                        color: StudioVisuals.ink,
                         fontWeight: FontWeight.w900,
                         fontSize: 20,
                       ),
                     ),
                     Text(
                       '${event.participantIds.length} yarışmacı • ${event.gameIds.length} oyun',
-                      style: const TextStyle(color: Colors.white70),
+                      style: const TextStyle(color: StudioVisuals.muted),
                     ),
                   ],
                 ),
@@ -2294,15 +2563,19 @@ class _EventHero extends StatelessWidget {
             value: progress.clamp(0.0, 1.0).toDouble(),
             minHeight: 8,
             borderRadius: BorderRadius.circular(10),
-            backgroundColor: Colors.white12,
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6CFF9B)),
+            backgroundColor: StudioVisuals.line,
+            valueColor: const AlwaysStoppedAnimation<Color>(StudioVisuals.teal),
           ),
           const SizedBox(height: 7),
           Text(
             finalResult
                 ? 'Sonuçlar kesinleşti'
                 : 'Senin ilerlemen: $completedByMe/${event.gameIds.length}',
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+            style: const TextStyle(
+              color: StudioVisuals.ink,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
           ),
         ],
       ),
@@ -2346,11 +2619,12 @@ class _CompetitionGameCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: ZpVisualPalette.of(context).surface,
+        color: StudioVisuals.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: resolved ? const Color(0xFF6CFF9B) : Colors.white10,
+          color: resolved ? StudioVisuals.teal : StudioVisuals.line,
         ),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         children: <Widget>[
@@ -2370,13 +2644,16 @@ class _CompetitionGameCard extends StatelessWidget {
               children: <Widget>[
                 Text(
                   info.name,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
+                  style: const TextStyle(
+                    color: StudioVisuals.ink,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   _resultText,
                   style: TextStyle(
-                    color: resolved ? const Color(0xFF6CFF9B) : Colors.white60,
+                    color: resolved ? StudioVisuals.teal : StudioVisuals.muted,
                     fontSize: 11,
                   ),
                 ),
@@ -2386,10 +2663,8 @@ class _CompetitionGameCard extends StatelessWidget {
           FilledButton(
             onPressed: enabled && !busy ? onPlay : null,
             style: FilledButton.styleFrom(
-              backgroundColor: resolved ? const Color(0xFF173B45) : info.color,
-              foregroundColor: resolved
-                  ? const Color(0xFF6CFF9B)
-                  : const Color(0xFF07162E),
+              backgroundColor: resolved ? StudioVisuals.tealSoft : info.color,
+              foregroundColor: StudioVisuals.ink,
             ),
             child: Text(
               busy
@@ -2443,8 +2718,10 @@ class _ArenaReactionPanel extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: ZpVisualPalette.of(context).surface,
-                borderRadius: BorderRadius.circular(18),
+                color: StudioVisuals.surface,
+                borderRadius: StudioVisuals.cardRadius,
+                border: Border.all(color: StudioVisuals.line),
+                boxShadow: StudioVisuals.softShadow,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2457,7 +2734,11 @@ class _ArenaReactionPanel extends StatelessWidget {
                           .take(8)
                           .map((ArenaReaction item) {
                             return Chip(
-                              avatar: Text(item.avatar),
+                              avatar: AvatarIcon(
+                                item.avatar,
+                                size: 28,
+                                borderRadius: 9,
+                              ),
                               label: Text(
                                 '${item.displayName}: '
                                 '${_labels[item.reaction] ?? item.reaction}',
@@ -2471,7 +2752,7 @@ class _ArenaReactionPanel extends StatelessWidget {
                   const Text(
                     'KISA MESAJ GÖNDER',
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: StudioVisuals.ink,
                       fontWeight: FontWeight.w900,
                       fontSize: 11,
                       letterSpacing: 0.8,
@@ -2527,17 +2808,20 @@ class _ArenaResultShareCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: <Color>[Color(0xFF4B3510), Color(0xFF162B50)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[StudioVisuals.amberSoft, StudioVisuals.surface],
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x66FFD93D)),
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.amber.withValues(alpha: 0.28)),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
             children: <Widget>[
-              Text(winner.avatar, style: const TextStyle(fontSize: 34)),
+              AvatarIcon(winner.avatar, size: 46, borderRadius: 14),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -2546,8 +2830,8 @@ class _ArenaResultShareCard extends StatelessWidget {
                     const Text(
                       'ARENA KAZANANI',
                       style: TextStyle(
-                        color: Color(0xFFFFD93D),
                         fontSize: 9,
+                        color: StudioVisuals.ink,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.2,
                       ),
@@ -2564,7 +2848,7 @@ class _ArenaResultShareCard extends StatelessWidget {
                     Text(
                       '${winner.totalPoints} TP • ${winner.totalStars} ⭐',
                       style: const TextStyle(
-                        color: Colors.white60,
+                        color: StudioVisuals.muted,
                         fontSize: 11,
                       ),
                     ),
@@ -2584,15 +2868,16 @@ class _ArenaResultShareCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.06),
+                color: StudioVisuals.surface,
                 borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: StudioVisuals.line),
               ),
               child: Text(
                 myIndex == 0
                     ? 'Tebrikler! Bu yarışmanın lideri sensin.'
                     : 'Sen ${myIndex + 1}. sıradasın • Liderle fark: $gap TP',
                 style: const TextStyle(
-                  color: Colors.white70,
+                  color: StudioVisuals.ink,
                   fontWeight: FontWeight.w800,
                   fontSize: 11,
                 ),
@@ -2602,7 +2887,7 @@ class _ArenaResultShareCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             '${event.gameIds.length} ortak oyun • Tek deneme kuralı korundu',
-            style: const TextStyle(color: Colors.white38, fontSize: 9),
+            style: const TextStyle(color: StudioVisuals.muted, fontSize: 9),
           ),
         ],
       ),
@@ -2620,13 +2905,11 @@ class _Podium extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: <Color>[
-            const Color(0xFF4A3310),
-            ZpVisualPalette.of(context).surface,
-          ],
+          colors: <Color>[StudioVisuals.amberSoft, StudioVisuals.surface],
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x55FFD93D)),
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.amber.withValues(alpha: 0.25)),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -2644,15 +2927,17 @@ class _Podium extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Text(
+                  AvatarIcon(
                     shown.avatar,
-                    style: TextStyle(fontSize: place == 1 ? 34 : 28),
+                    size: place == 1 ? 54 : 44,
+                    borderRadius: place == 1 ? 16 : 13,
                   ),
                   Text(
                     shown.displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
+                      color: StudioVisuals.ink,
                       fontWeight: FontWeight.w800,
                       fontSize: 11,
                     ),
@@ -2678,7 +2963,7 @@ class _Podium extends StatelessWidget {
                     child: Text(
                       '$place',
                       style: const TextStyle(
-                        color: Color(0xFF07162E),
+                        color: StudioVisuals.ink,
                         fontWeight: FontWeight.w900,
                         fontSize: 20,
                       ),
@@ -2687,7 +2972,7 @@ class _Podium extends StatelessWidget {
                   Text(
                     '${shown.totalPoints} TP',
                     style: const TextStyle(
-                      color: Color(0xFFFFD93D),
+                      color: StudioVisuals.amber,
                       fontWeight: FontWeight.w900,
                       fontSize: 11,
                     ),
@@ -2725,13 +3010,12 @@ class _StandingsList extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 7),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
-            color: me
-                ? const Color(0xFF173D5C)
-                : ZpVisualPalette.of(context).surface,
+            color: me ? StudioVisuals.tealSoft : StudioVisuals.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: me ? const Color(0xFF00D9FF) : Colors.white10,
+              color: me ? StudioVisuals.teal : StudioVisuals.line,
             ),
+            boxShadow: StudioVisuals.softShadow,
           ),
           child: Row(
             children: <Widget>[
@@ -2745,7 +3029,7 @@ class _StandingsList extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(item.avatar, style: const TextStyle(fontSize: 25)),
+              AvatarIcon(item.avatar, size: 34, borderRadius: 10),
               const SizedBox(width: 9),
               Expanded(
                 child: Column(
@@ -2753,12 +3037,15 @@ class _StandingsList extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       me ? '${item.displayName} • SEN' : item.displayName,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
+                      style: const TextStyle(
+                        color: StudioVisuals.ink,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     Text(
                       '${item.completedGames}/${item.totalGames} oyun • ${item.totalStars} ⭐',
                       style: const TextStyle(
-                        color: Colors.white54,
+                        color: StudioVisuals.muted,
                         fontSize: 11,
                       ),
                     ),
@@ -2768,7 +3055,7 @@ class _StandingsList extends StatelessWidget {
               Text(
                 '${item.totalPoints} TP',
                 style: const TextStyle(
-                  color: Color(0xFFFFD93D),
+                  color: StudioVisuals.amber,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -2795,12 +3082,16 @@ class _ArenaOffline extends StatelessWidget {
             const Icon(
               Icons.cloud_off_rounded,
               size: 66,
-              color: Colors.white38,
+              color: StudioVisuals.teal,
             ),
             const SizedBox(height: 14),
             const Text(
               'ARENA ÇEVRİM DIŞI',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
+              style: TextStyle(
+                color: StudioVisuals.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -2808,13 +3099,13 @@ class _ArenaOffline extends StatelessWidget {
                   ? reason!
                   : 'Grup ve canlı sonuçlar için internet gerekir.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white60),
+              style: const TextStyle(color: StudioVisuals.muted),
             ),
             const SizedBox(height: 8),
             const Text(
               'Normal oyunlar çevrimdışı çalışmaya devam eder.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white38, fontSize: 12),
+              style: TextStyle(color: StudioVisuals.muted, fontSize: 12),
             ),
             const SizedBox(height: 18),
             FilledButton.icon(

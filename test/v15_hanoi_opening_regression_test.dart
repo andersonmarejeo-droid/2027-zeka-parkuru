@@ -53,7 +53,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(GridView), findsOneWidget);
-    expect(find.text('İlk Taşıma'), findsOneWidget);
+    expect(find.textContaining('İlk Taşıma'), findsOneWidget);
   });
 
   testWidgets(
@@ -77,7 +77,7 @@ void main() {
       );
       await tester.pump();
 
-      await tester.tap(find.text('İlk Taşıma'));
+      await tester.tap(find.textContaining('İlk Taşıma'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -87,7 +87,7 @@ void main() {
     },
   );
 
-  testWidgets('Hanoi ipucu hakkı dört kullanımla sınırlıdır', (
+  testWidgets('Hanoi ipucu hakkı üç kullanımla sınırlıdır', (
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -127,14 +127,14 @@ void main() {
     await tester.pump();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('İPUCU 4/4'), findsOneWidget);
+    expect(find.text('İPUCU 3/3'), findsOneWidget);
 
-    for (int remaining = 3; remaining >= 0; remaining--) {
+    for (int remaining = 2; remaining >= 0; remaining--) {
       await tester.tap(find.byIcon(Icons.lightbulb_rounded));
       await tester.pump();
 
       expect(
-        find.text('İPUCU $remaining/4'),
+        find.text('İPUCU $remaining/3'),
         findsOneWidget,
         reason: 'Her kullanım tam olarak bir ipucu hakkı tüketmelidir.',
       );
@@ -146,16 +146,16 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('İPUCU 0/4'),
+      find.text('İPUCU 0/3'),
       findsOneWidget,
-      reason: 'Beşinci ipucu isteği kabul edilmemelidir.',
+      reason: 'Dördüncü ipucu isteği kabul edilmemelidir.',
     );
 
     await tester.tap(find.byIcon(Icons.refresh_rounded));
     await tester.pump();
 
     expect(
-      find.text('İPUCU 0/4'),
+      find.text('İPUCU 0/3'),
       findsOneWidget,
       reason: 'Yeniden başlatma ipucu hakkını yenilememelidir.',
     );

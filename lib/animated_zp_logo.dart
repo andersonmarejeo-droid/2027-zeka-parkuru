@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:zeka_parkuru/theme/studio_visuals.dart';
 
 class ZpBrandIntroPage extends StatefulWidget {
   const ZpBrandIntroPage({required this.nextPage, super.key});
@@ -39,24 +39,24 @@ class _ZpBrandIntroPageState extends State<ZpBrandIntroPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF000322),
+      backgroundColor: StudioVisuals.canvas,
       body: AnimatedZpLogo(onCompleted: _openNextPage),
     );
   }
 }
 
-/// ZP GAMES açılış animasyonu.
+/// Zekâ Parkuru için sakin, dokunsal 3B açılış animasyonu.
 ///
 /// Akış:
-/// 1. İlk Flutter karesinde logo hemen görünür; boş siyah kare oluşmaz.
-/// 2. 0.2 saniye sonra turuncu beyin iki güçlü ışık nabzı verir.
-/// 3. Kafa yukarı kayarken ZP GAMES yazısı Z harfinden sağa doğru açılır.
+/// 1. İlk Flutter karesinde 3B puzzle nesnesi görünür; boş siyah kare oluşmaz.
+/// 2. Nesne native açılıştaki boyutundan yumuşakça büyür ve yukarı yerleşir.
+/// 3. Önce ZEKÂ PARKURU, ardından küçük ZP GAMES metni belirir.
 class AnimatedZpLogo extends StatefulWidget {
   const AnimatedZpLogo({
     super.key,
     this.onCompleted,
-    this.duration = const Duration(milliseconds: 1650),
-    this.backgroundColor = const Color(0xFF000322),
+    this.duration = const Duration(milliseconds: 1400),
+    this.backgroundColor = StudioVisuals.canvas,
     this.maximumLogoSize = 420,
   });
 
@@ -71,18 +71,16 @@ class AnimatedZpLogo extends StatefulWidget {
 
 class _AnimatedZpLogoState extends State<AnimatedZpLogo>
     with SingleTickerProviderStateMixin {
-  static const String _brandText = 'ZP GAMES';
-  static const String _baseAsset = 'assets/branding/zp_icon_dim.png';
-  static const String _brainAsset = 'assets/branding/zp_brain_glow.png';
-  static const Color _orange = Color(0xFFFF7200);
+  static const String _heroAsset =
+      'assets/branding/studio_daily_puzzle_hero.png';
 
   late final AnimationController _controller;
-  late final Animation<double> _entrance;
   late final Animation<double> _logoLift;
   late final Animation<double> _logoScale;
-  late final Animation<double> _brainPulse;
-  late final Animation<double> _textReveal;
-  late final Animation<double> _textGlow;
+  late final Animation<double> _titleReveal;
+  late final Animation<double> _studioReveal;
+  late final Animation<Offset> _titleSlide;
+  late final Animation<Offset> _studioSlide;
 
   bool _startScheduled = false;
 
@@ -92,97 +90,37 @@ class _AnimatedZpLogoState extends State<AnimatedZpLogo>
 
     _controller = AnimationController(vsync: this, duration: widget.duration);
 
-    _entrance = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.00, 0.14, curve: Curves.easeOutCubic),
-    );
-
-    _logoLift = Tween<double>(begin: 0.055, end: -0.055).animate(
+    _logoLift = Tween<double>(begin: 0.13, end: -0.04).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.10, 0.52, curve: Curves.easeInOutCubic),
+        curve: const Interval(0.02, 0.56, curve: Curves.easeInOutCubic),
       ),
     );
 
-    _logoScale =
-        TweenSequence<double>(<TweenSequenceItem<double>>[
-          TweenSequenceItem<double>(
-            tween: Tween<double>(
-              begin: 0.94,
-              end: 1.015,
-            ).chain(CurveTween(curve: Curves.easeOutBack)),
-            weight: 52,
-          ),
-          TweenSequenceItem<double>(
-            tween: Tween<double>(
-              begin: 1.015,
-              end: 1.0,
-            ).chain(CurveTween(curve: Curves.easeOut)),
-            weight: 48,
-          ),
-        ]).animate(
-          CurvedAnimation(
-            parent: _controller,
-            curve: const Interval(0.00, 0.60),
-          ),
-        );
-
-    _brainPulse =
-        TweenSequence<double>(<TweenSequenceItem<double>>[
-          TweenSequenceItem<double>(
-            tween: ConstantTween<double>(0.18),
-            weight: 14,
-          ),
-          TweenSequenceItem<double>(
-            tween: Tween<double>(
-              begin: 0.18,
-              end: 1.0,
-            ).chain(CurveTween(curve: Curves.easeOutCubic)),
-            weight: 15,
-          ),
-          TweenSequenceItem<double>(
-            tween: Tween<double>(
-              begin: 1.0,
-              end: 0.16,
-            ).chain(CurveTween(curve: Curves.easeInCubic)),
-            weight: 13,
-          ),
-          TweenSequenceItem<double>(
-            tween: Tween<double>(
-              begin: 0.16,
-              end: 1.0,
-            ).chain(CurveTween(curve: Curves.easeOutCubic)),
-            weight: 15,
-          ),
-          TweenSequenceItem<double>(
-            tween: Tween<double>(
-              begin: 1.0,
-              end: 0.58,
-            ).chain(CurveTween(curve: Curves.easeOut)),
-            weight: 18,
-          ),
-          TweenSequenceItem<double>(
-            tween: ConstantTween<double>(0.58),
-            weight: 25,
-          ),
-        ]).animate(
-          CurvedAnimation(
-            parent: _controller,
-            curve: const Interval(0.05, 0.78),
-          ),
-        );
-
-    _textReveal = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.38, 0.77, curve: Curves.easeOutCubic),
-    );
-
-    _textGlow = Tween<double>(begin: 0.25, end: 1.0).animate(
+    _logoScale = Tween<double>(begin: 0.48, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.40, 0.86, curve: Curves.easeOut),
+        curve: const Interval(0.00, 0.55, curve: Curves.easeOutCubic),
       ),
     );
+
+    _titleReveal = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.16, 0.72, curve: Curves.easeInOutCubic),
+    );
+
+    _studioReveal = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.31, 0.88, curve: Curves.easeInOutCubic),
+    );
+    _titleSlide = Tween<Offset>(
+      begin: const Offset(0, 0.12),
+      end: Offset.zero,
+    ).animate(_titleReveal);
+    _studioSlide = Tween<Offset>(
+      begin: const Offset(0, 0.16),
+      end: Offset.zero,
+    ).animate(_studioReveal);
 
     _controller.addStatusListener((AnimationStatus status) {
       if (status == AnimationStatus.completed) {
@@ -191,38 +129,18 @@ class _AnimatedZpLogoState extends State<AnimatedZpLogo>
     });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void _startAfterImageFrame() {
     if (_startScheduled) return;
     _startScheduled = true;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_precacheAndStart());
+      if (!mounted) return;
+      final bool reduceMotion = MediaQuery.disableAnimationsOf(context);
+      if (reduceMotion) {
+        _controller.duration = const Duration(milliseconds: 700);
+      }
+      unawaited(_controller.forward(from: 0));
     });
-  }
-
-  Future<void> _precacheAndStart() async {
-    try {
-      await Future.wait<void>(<Future<void>>[
-        precacheImage(const AssetImage(_baseAsset), context),
-        precacheImage(const AssetImage(_brainAsset), context),
-      ]).timeout(const Duration(seconds: 2));
-    } catch (_) {
-      // Varlık hatası Flutter tarafından ayrıca raporlanır; animasyon beklemez.
-    }
-
-    if (!mounted) return;
-
-    // İlk statik kareyi kesin olarak çizdikten sonra zaman çizgisini başlat.
-    await Future<void>.delayed(const Duration(milliseconds: 80));
-    if (!mounted) return;
-
-    final bool reduceMotion = MediaQuery.disableAnimationsOf(context);
-    if (reduceMotion) {
-      _controller.duration = const Duration(milliseconds: 700);
-    }
-    await _controller.forward(from: 0);
   }
 
   @override
@@ -249,114 +167,100 @@ class _AnimatedZpLogoState extends State<AnimatedZpLogo>
 
             return Center(
               child: AnimatedBuilder(
-                animation: _controller,
-                builder: (BuildContext context, Widget? child) {
-                  final double visibleOpacity = 0.42 + (_entrance.value * 0.58);
-                  final double pulseScale = 0.985 + (_brainPulse.value * 0.025);
-                  final int visibleCharacterCount = math
-                      .min(
-                        _brandText.length,
-                        (_textReveal.value * _brandText.length).ceil(),
-                      )
-                      .toInt();
-                  final String visibleText = _brandText.substring(
-                    0,
-                    visibleCharacterCount,
-                  );
-
-                  return Transform.translate(
-                    offset: Offset(0, logoSize * _logoLift.value),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Opacity(
-                          opacity: visibleOpacity,
-                          child: Transform.scale(
-                            scale: _logoScale.value,
-                            child: SizedBox.square(
-                              dimension: logoSize,
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: <Widget>[
-                                  Image.asset(
-                                    _baseAsset,
-                                    fit: BoxFit.contain,
-                                    filterQuality: FilterQuality.high,
-                                  ),
-                                  Transform.scale(
-                                    scale: pulseScale,
-                                    child: ImageFiltered(
-                                      imageFilter: ui.ImageFilter.blur(
-                                        sigmaX: 2 + (_brainPulse.value * 12),
-                                        sigmaY: 2 + (_brainPulse.value * 12),
-                                      ),
-                                      child: Opacity(
-                                        opacity: _brainPulse.value * 0.58,
-                                        child: Image.asset(
-                                          _brainAsset,
-                                          fit: BoxFit.contain,
-                                          filterQuality: FilterQuality.high,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Transform.scale(
-                                    scale: pulseScale,
-                                    child: Opacity(
-                                      opacity:
-                                          0.10 + (_brainPulse.value * 0.90),
-                                      child: Image.asset(
-                                        _brainAsset,
-                                        fit: BoxFit.contain,
-                                        filterQuality: FilterQuality.high,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                animation: _logoLift,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    ScaleTransition(
+                      scale: _logoScale,
+                      child: RepaintBoundary(
+                        child: SizedBox.square(
+                          dimension: logoSize,
+                          child: Image.asset(
+                            _heroAsset,
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
+                            semanticLabel: 'Zekâ Parkuru',
+                            frameBuilder:
+                                (
+                                  BuildContext context,
+                                  Widget child,
+                                  int? frame,
+                                  bool wasSynchronouslyLoaded,
+                                ) {
+                                  if (wasSynchronouslyLoaded || frame != null) {
+                                    _startAfterImageFrame();
+                                    return child;
+                                  }
+                                  return const _CubeLoadingPlaceholder();
+                                },
+                            errorBuilder:
+                                (
+                                  BuildContext context,
+                                  Object error,
+                                  StackTrace? stackTrace,
+                                ) {
+                                  _startAfterImageFrame();
+                                  return const _CubeLoadingPlaceholder();
+                                },
                           ),
                         ),
-                        SizedBox(height: logoSize * 0.025),
-                        SizedBox(
-                          width: logoSize * 0.86,
-                          height: logoSize * 0.17,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Transform.scale(
-                              alignment: Alignment.centerLeft,
-                              scaleX: 0.72 + (_textReveal.value * 0.28),
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  visibleText,
+                      ),
+                    ),
+                    SizedBox(height: logoSize * 0.025),
+                    SizedBox(
+                      width: logoSize,
+                      height: logoSize * 0.25,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            SlideTransition(
+                              position: _titleSlide,
+                              child: FadeTransition(
+                                opacity: _titleReveal,
+                                child: const Text(
+                                  'ZEKÂ PARKURU',
                                   maxLines: 1,
                                   style: TextStyle(
-                                    color: _orange,
-                                    fontSize: 64,
-                                    height: 1,
+                                    color: StudioVisuals.tealInk,
+                                    fontSize: 34,
+                                    height: 1.1,
                                     fontWeight: FontWeight.w900,
-                                    letterSpacing: 4,
-                                    shadows: <Shadow>[
-                                      Shadow(
-                                        color: Color.fromRGBO(
-                                          255,
-                                          114,
-                                          0,
-                                          0.42 + (_textGlow.value * 0.38),
-                                        ),
-                                        blurRadius: 8 + (_textGlow.value * 15),
-                                      ),
-                                    ],
+                                    letterSpacing: 1.4,
                                   ),
                                 ),
                               ),
                             ),
-                          ),
+                            SizedBox(height: logoSize * 0.018),
+                            SlideTransition(
+                              position: _studioSlide,
+                              child: FadeTransition(
+                                opacity: _studioReveal,
+                                child: const Text(
+                                  'ZP GAMES',
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    color: StudioVisuals.ink,
+                                    fontSize: 18,
+                                    height: 1.1,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 3,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
+                  ],
+                ),
+                builder: (BuildContext context, Widget? child) {
+                  return Transform.translate(
+                    offset: Offset(0, logoSize * _logoLift.value),
+                    child: child,
                   );
                 },
               ),
@@ -366,4 +270,98 @@ class _AnimatedZpLogoState extends State<AnimatedZpLogo>
       ),
     );
   }
+}
+
+/// Hero görseli diskten okunurken ilk Flutter karesini boş bırakmaz.
+class _CubeLoadingPlaceholder extends StatelessWidget {
+  const _CubeLoadingPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _CubeLoadingPlaceholderPainter(),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+class _CubeLoadingPlaceholderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double unit = size.shortestSide;
+    final Offset center = Offset(size.width / 2, size.height * 0.49);
+    final double half = unit * 0.31;
+    final double rise = unit * 0.17;
+    final double depth = unit * 0.33;
+
+    final Offset top = center.translate(0, -rise);
+    final Offset left = center.translate(-half, 0);
+    final Offset right = center.translate(half, 0);
+    final Offset bottom = center.translate(0, rise);
+    final Offset leftBottom = left.translate(0, depth);
+    final Offset centerBottom = bottom.translate(0, depth);
+    final Offset rightBottom = right.translate(0, depth);
+
+    final Paint leftPaint = Paint()..color = const Color(0xFFD8C6AE);
+    final Paint rightPaint = Paint()..color = const Color(0xFFFAF0DF);
+    final Paint topPaint = Paint()..color = const Color(0xFFF1E5D3);
+    final Paint routePaint = Paint()..color = const Color(0xFF258C8C);
+    final Paint ballPaint = Paint()..color = const Color(0xFFE7A435);
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(left.dx, left.dy)
+        ..lineTo(bottom.dx, bottom.dy)
+        ..lineTo(centerBottom.dx, centerBottom.dy)
+        ..lineTo(leftBottom.dx, leftBottom.dy)
+        ..close(),
+      leftPaint,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(bottom.dx, bottom.dy)
+        ..lineTo(right.dx, right.dy)
+        ..lineTo(rightBottom.dx, rightBottom.dy)
+        ..lineTo(centerBottom.dx, centerBottom.dy)
+        ..close(),
+      rightPaint,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(top.dx, top.dy)
+        ..lineTo(right.dx, right.dy)
+        ..lineTo(bottom.dx, bottom.dy)
+        ..lineTo(left.dx, left.dy)
+        ..close(),
+      topPaint,
+    );
+
+    routePaint
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = unit * 0.055
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(
+      Path()
+        ..moveTo(top.dx, top.dy + unit * 0.02)
+        ..lineTo(center.dx, center.dy - unit * 0.02)
+        ..lineTo(left.dx + unit * 0.07, left.dy + unit * 0.03),
+      routePaint,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(center.dx, center.dy - unit * 0.02)
+        ..lineTo(right.dx - unit * 0.07, right.dy + unit * 0.03),
+      routePaint,
+    );
+
+    canvas.drawCircle(
+      Offset(center.dx, centerBottom.dy - unit * 0.04),
+      unit * 0.065,
+      ballPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

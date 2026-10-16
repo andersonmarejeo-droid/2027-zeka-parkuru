@@ -39,7 +39,7 @@ class AppExperienceController extends ChangeNotifier {
   AppAnimationIntensity _animationIntensity = AppAnimationIntensity.system;
   bool _highContrast = false;
   bool _largeText = false;
-  AppVisualTheme _visualTheme = AppVisualTheme.classicNeon;
+  AppVisualTheme _visualTheme = AppVisualTheme.studioGarden;
 
   Future<void>? _initializing;
 
@@ -64,6 +64,9 @@ class AppExperienceController extends ChangeNotifier {
     _highContrast = values[1] as bool? ?? false;
     _largeText = values[2] as bool? ?? false;
     _visualTheme = AppVisualTheme.fromStorage(values[3] as String?);
+    if (values[3] != _visualTheme.storageValue) {
+      await _prefs.setString(visualThemeKey, _visualTheme.storageValue);
+    }
     notifyListeners();
   }
 
@@ -103,9 +106,10 @@ class AppExperienceController extends ChangeNotifier {
   }
 
   Future<void> setVisualTheme(AppVisualTheme value) async {
-    if (_visualTheme == value) return;
-    _visualTheme = value;
-    notifyListeners();
+    if (_visualTheme != value) {
+      _visualTheme = value;
+      notifyListeners();
+    }
     await _prefs.setString(visualThemeKey, value.storageValue);
   }
 
@@ -113,14 +117,17 @@ class AppExperienceController extends ChangeNotifier {
     _animationIntensity = AppAnimationIntensity.system;
     _highContrast = false;
     _largeText = false;
-    _visualTheme = AppVisualTheme.classicNeon;
+    _visualTheme = AppVisualTheme.studioGarden;
     notifyListeners();
 
     await Future.wait<void>(<Future<void>>[
       _prefs.setString(animationKey, AppAnimationIntensity.system.storageValue),
       _prefs.setBool(highContrastKey, false),
       _prefs.setBool(largeTextKey, false),
-      _prefs.setString(visualThemeKey, AppVisualTheme.classicNeon.storageValue),
+      _prefs.setString(
+        visualThemeKey,
+        AppVisualTheme.studioGarden.storageValue,
+      ),
     ]);
   }
 }

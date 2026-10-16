@@ -13,10 +13,18 @@ class FirebaseBootstrapService {
   static final FirebaseBootstrapService instance =
       FirebaseBootstrapService._();
 
+  // A locally sideloaded release APK cannot obtain a production Play
+  // Integrity verdict. Keep production builds on Play Integrity by default,
+  // while allowing an explicitly opted-in QA build to use the Firebase debug
+  // provider after its debug token has been registered in the Console.
+  static const bool _useDebugAppCheck = bool.fromEnvironment(
+    'FIREBASE_APP_CHECK_DEBUG',
+    defaultValue: false,
+  );
+
   bool _ready = false;
   bool _configured = false;
   bool _appCheckActivated = false;
-  bool _debugTokenRegistrationNeeded = false;
   String? _lastError;
   Future<void>? _initializationFuture;
   DateTime? _automaticRetryAfter;
@@ -92,48 +100,25 @@ class FirebaseBootstrapService {
         return;
       }
 
-      // App Check: development builds use the Debug provider.
-      // Release Android builds use Play Integrity.
+      // App Check: development builds use the Debug provider. Release Android
+      // builds use Play Integrity unless the caller explicitly opts into a
+      // registered debug token for a locally sideloaded QA build. Never set
+      // FIREBASE_APP_CHECK_DEBUG for a Play-distributed production artifact.
       if (!kIsWeb &&
           defaultTargetPlatform == TargetPlatform.android) {
         try {
           if (!_appCheckActivated) {
             await FirebaseAppCheck.instance.activate(
-              providerAndroid: kDebugMode
+              providerAndroid: (kDebugMode || _useDebugAppCheck)
                   ? const AndroidDebugProvider()
                   : const AndroidPlayIntegrityProvider(),
             );
             _appCheckActivated = true;
           }
-
-          if (kDebugMode) {
-            final String? token = await FirebaseAppCheck.instance
-                .getToken(true)
-                .timeout(const Duration(seconds: 8));
-            if (token == null || token.isEmpty) {
-              throw StateError('empty-app-check-token');
-            }
-          }
         } catch (error) {
-          final String normalized = error.toString().toLowerCase();
-          final bool debugTokenRejected = kDebugMode &&
-              (_debugTokenRegistrationNeeded ||
-                  normalized.contains('403') ||
-                  normalized.contains('attestation failed') ||
-                  normalized.contains('empty-app-check-token') ||
-                  normalized.contains('too many attempts'));
-          _debugTokenRegistrationNeeded = debugTokenRejected;
-          _lastError = debugTokenRejected
-              ? 'App Check debug anahtarı Firebase Console’a kayıtlı değil. '
-                  'App Check > Uygulamalar > Debug anahtarlarını yönet '
-                  'bölümünden bu cihazın anahtarını ekle.'
-              : 'App Check doğrulaması tamamlanamadı. İnternet veya Google '
-                  'Play bağlantısını kontrol edip tekrar dene.';
-          _deferAutomaticRetry(
-            debugTokenRejected
-                ? const Duration(minutes: 1)
-                : const Duration(seconds: 20),
-          );
+          _lastError = 'App Check doğrulaması başlatılamadı. İnternet veya '
+              'Google Play bağlantısını kontrol edip tekrar dene.';
+          _deferAutomaticRetry(const Duration(seconds: 20));
           debugPrint('Firebase App Check unavailable: $error');
           return;
         }
@@ -147,7 +132,6 @@ class FirebaseBootstrapService {
           .setAnalyticsCollectionEnabled(true);
 
       _ready = FirebaseAuth.instance.currentUser != null;
-      _debugTokenRegistrationNeeded = false;
       _automaticRetryAfter = null;
       _lastError = null;
     } catch (error, stackTrace) {

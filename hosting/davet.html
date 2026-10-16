@@ -16,14 +16,31 @@
   <h1>⚔️ Zekâ Parkuru Düellosu</h1>
   <p>Bir oyuncu seni Zekâ Parkuru'nda düelloya davet etti.</p>
   <a id="open" class="btn" href="#">UYGULAMADA AÇ</a>
-  <p class="small">Uygulama kurulu değilse Zekâ Parkuru'nu Google Play üzerinden yükleyip bu bağlantıyı yeniden aç.</p>
+  <p class="small">Uygulama kurulu değilse otomatik olarak Google Play indirme sayfası açılır.</p>
 </main>
 <script>
   const id=new URLSearchParams(location.search).get('c')||'';
   const safe=/^[A-Za-z0-9_-]{1,160}$/.test(id)?id:'';
+  const playStore='https://play.google.com/store/apps/details?id=com.mustafapolat.zeka_parkuru';
   const link=safe?'zekaparkuru://challenge?id='+encodeURIComponent(safe):'';
   const button=document.getElementById('open');
-  if(link){button.href=link;}else{button.textContent='DAVET BAĞLANTISI GEÇERSİZ';button.removeAttribute('href');}
+  if(link){
+    const openApp=()=>{
+      let returned=false;
+      let fallback;
+      const onVisibility=()=>{if(document.visibilityState==='hidden'){returned=true;clearTimeout(fallback);window.removeEventListener('visibilitychange',onVisibility);}};
+      window.addEventListener('visibilitychange',onVisibility);
+      fallback=setTimeout(()=>{if(!returned) window.location.replace(playStore);},1400);
+      window.location.href=link;
+    };
+    button.addEventListener('click',(event)=>{event.preventDefault();openApp();});
+    // Mesajdaki bağlantı doğrudan açıldığında da uygulamayı dene; kurulu
+    // değilse zaman aşımı Play Store'a yönlendirir.
+    window.setTimeout(openApp,120);
+  }else{
+    button.textContent='DAVET BAĞLANTISI GEÇERSİZ';
+    button.removeAttribute('href');
+  }
 </script>
 </body>
 </html>

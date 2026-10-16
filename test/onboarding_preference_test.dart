@@ -51,7 +51,7 @@ void main() {
     },
   );
 
-  testWidgets('320 px ekranda üç adımlı ilk kullanım akışı tamamlanır', (
+  testWidgets('320 px ekranda iki adımlı ilk kullanım akışı tamamlanır', (
     WidgetTester tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(320, 640));
@@ -80,19 +80,13 @@ void main() {
     await tester.ensureVisible(find.text('Arkadaşlarımla yarışmak istiyorum'));
     await tester.tap(find.text('Arkadaşlarımla yarışmak istiyorum'));
     await tester.pump();
-    await tester.tap(find.text('DEVAM ET'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Pembe Neon'), findsOneWidget);
-    await tester.tap(find.text('Pembe Neon'));
-    await tester.pump();
     await tester.tap(find.text('OYUNA BAŞLA'));
     await tester.pumpAndSettle();
 
     expect(find.text('ANA SAYFA HAZIR'), findsOneWidget);
     expect(
       AppExperienceController.instance.visualTheme,
-      AppVisualTheme.pinkNeon,
+      AppVisualTheme.studioGarden,
     );
   });
 }

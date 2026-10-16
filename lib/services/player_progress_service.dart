@@ -3,6 +3,8 @@ import 'daily_course_service.dart';
 import 'player_profile_service.dart';
 import 'unified_progress_service.dart';
 import 'zeka_scoring_service.dart';
+import '../features/catalog/domain/studio_game_catalog.dart';
+import '../games/shared/studio_game_contracts.dart';
 
 class PlayerLeagueData {
   final String name;
@@ -40,6 +42,8 @@ class PlayerAchievementData {
   final String id;
   final String title;
   final String description;
+  final String? titleEn;
+  final String? descriptionEn;
   final String emoji;
   final int current;
   final int target;
@@ -50,6 +54,8 @@ class PlayerAchievementData {
     required this.id,
     required this.title,
     required this.description,
+    this.titleEn,
+    this.descriptionEn,
     required this.emoji,
     required this.current,
     required this.target,
@@ -121,37 +127,29 @@ class PlayerDashboardData {
   List<PlayerAchievementData> get specialAchievements =>
       achievements.where((item) => item.special).toList(growable: false);
 
-  int get unlockedRegularAchievementCount => regularAchievements
-      .where((item) => item.unlocked)
-      .length;
+  int get unlockedRegularAchievementCount =>
+      regularAchievements.where((item) => item.unlocked).length;
 
-  int get unlockedSpecialAchievementCount => specialAchievements
-      .where((item) => item.unlocked)
-      .length;
+  int get unlockedSpecialAchievementCount =>
+      specialAchievements.where((item) => item.unlocked).length;
 }
 
 class PlayerProgressService {
   PlayerProgressService._();
 
-  static final PlayerProgressService instance =
-      PlayerProgressService._();
+  static final PlayerProgressService instance = PlayerProgressService._();
 
-  final UnifiedProgressService _progress =
-      UnifiedProgressService();
+  final UnifiedProgressService _progress = UnifiedProgressService();
 
-  final DailyChallengeService _daily =
-      DailyChallengeService.instance;
+  final DailyChallengeService _daily = DailyChallengeService.instance;
 
-  final DailyCourseService _dailyCourse =
-      DailyCourseService.instance;
+  final DailyCourseService _dailyCourse = DailyCourseService.instance;
 
-  final PlayerProfileService _profile =
-      PlayerProfileService.instance;
+  final PlayerProfileService _profile = PlayerProfileService.instance;
 
-  static const int _xpPerLevel = 550;
+  static const int _maximumPlayerLevel = 50;
 
-  static const List<PlayerLeagueData> _leagues =
-      <PlayerLeagueData>[
+  static const List<PlayerLeagueData> _leagues = <PlayerLeagueData>[
     PlayerLeagueData(
       name: 'Başlangıç Ligi',
       shortName: 'BAŞLANGIÇ',
@@ -203,17 +201,14 @@ class PlayerProgressService {
   ];
 
   Future<PlayerDashboardData> load() async {
-    final UnifiedProgressData progress =
-        await _progress.genelIlerlemeyiYukle();
+    final UnifiedProgressData progress = await _progress.genelIlerlemeyiYukle();
 
-    final DailyChallengeData daily =
-        await _daily.loadToday();
+    final DailyChallengeData daily = await _daily.loadToday();
 
-    final PlayerProfileData profile =
-        await _profile.load();
+    final PlayerProfileData profile = await _profile.load();
 
-    final int completedDailyCourses =
-        await _dailyCourse.loadLifetimeCompletedCount();
+    final int completedDailyCourses = await _dailyCourse
+        .loadLifetimeCompletedCount();
 
     final int threeStarLevels = progress.parkurlar.fold<int>(
       0,
@@ -225,52 +220,39 @@ class PlayerProgressService {
         .where((parkur) => parkur.tamamlananSeviye > 0)
         .length;
 
-    final int bossCount = progress.parkurlar.where(
-      (parkur) =>
-          parkur.yildizlar.length >= 10 &&
-          parkur.yildizlar[9] > 0,
-    ).length;
+    final int bossCount = progress.parkurlar
+        .where(
+          (parkur) => parkur.yildizlar.length >= 10 && parkur.yildizlar[9] > 0,
+        )
+        .length;
 
-    final ZekaScoreBreakdown scoreBreakdown =
-        ZekaScoringService.calculate(
+    final ZekaScoreBreakdown scoreBreakdown = ZekaScoringService.calculate(
       progress: progress,
-      completedDailyCourses: completedDailyCourses,
-      bestStreak: daily.bestStreak,
-      perfectDays: daily.perfectDays,
     );
     final int xp = scoreBreakdown.total;
 
-    final int level =
-        (1 + (xp ~/ _xpPerLevel)).clamp(1, 50).toInt();
-
-    final int xpIntoLevel =
-        level >= 50 ? _xpPerLevel : xp % _xpPerLevel;
+    final int level = levelForScore(xp);
+    final int levelStart = scoreForLevel(level);
+    final int xpIntoLevel = xp - levelStart;
+    final int xpForNextLevel = level >= _maximumPlayerLevel
+        ? 0
+        : scoreForLevel(level + 1) - levelStart;
 
     final String rankTitle = _rankTitle(level);
 
     final int leagueIndex = _leagueIndexForXp(xp);
     final PlayerLeagueData league = _leagues[leagueIndex];
 
-    final PlayerLeagueData? nextLeague =
-        leagueIndex + 1 < _leagues.length
-            ? _leagues[leagueIndex + 1]
-            : null;
+    final PlayerLeagueData? nextLeague = leagueIndex + 1 < _leagues.length
+        ? _leagues[leagueIndex + 1]
+        : null;
 
-    final double leagueProgress =
-        _leagueProgress(xp, league, nextLeague);
+    final double leagueProgress = _leagueProgress(xp, league, nextLeague);
 
-    final List<ParkurLeaderboardEntry> ranking =
-        _buildParkurRanking(progress);
+    final List<ParkurLeaderboardEntry> ranking = _buildParkurRanking(progress);
 
-    final List<PlayerAchievementData> achievements =
-        _buildAchievements(
+    final List<PlayerAchievementData> achievements = _buildAchievements(
       progress: progress,
-      daily: daily,
-      zekaScore: xp,
-      threeStarLevels: threeStarLevels,
-      playedGameCount: playedGameCount,
-      bossCount: bossCount,
-      completedDailyCourses: completedDailyCourses,
     );
 
     return PlayerDashboardData(
@@ -281,7 +263,7 @@ class PlayerProgressService {
       scoreBreakdown: scoreBreakdown,
       level: level,
       xpIntoLevel: xpIntoLevel,
-      xpForNextLevel: _xpPerLevel,
+      xpForNextLevel: xpForNextLevel,
       rankTitle: rankTitle,
       league: league,
       nextLeague: nextLeague,
@@ -293,6 +275,23 @@ class PlayerProgressService {
       parkurRanking: ranking,
       achievements: achievements,
     );
+  }
+
+  /// Required common points to reach a player level. The increment grows by
+  /// 25 points each level, so level 13 needs 3,450 points and level 15 needs
+  /// 4,375; hints therefore make higher levels meaningfully harder to reach.
+  static int scoreForLevel(int level) {
+    if (level <= 1) return 0;
+    final int steps = level - 1;
+    return (steps * 150) + ((steps * (steps - 1) ~/ 2) * 25);
+  }
+
+  static int levelForScore(int score) {
+    int level = 1;
+    while (level < _maximumPlayerLevel && score >= scoreForLevel(level + 1)) {
+      level++;
+    }
+    return level;
   }
 
   String _rankTitle(int level) {
@@ -327,16 +326,13 @@ class PlayerProgressService {
     final int range = next.minXp - current.minXp;
     if (range <= 0) return 1.0;
 
-    return ((xp - current.minXp) / range)
-        .clamp(0.0, 1.0)
-        .toDouble();
+    return ((xp - current.minXp) / range).clamp(0.0, 1.0).toDouble();
   }
 
   List<ParkurLeaderboardEntry> _buildParkurRanking(
     UnifiedProgressData progress,
   ) {
-    final List<ParkurLeaderboardEntry> items =
-        <ParkurLeaderboardEntry>[
+    final List<ParkurLeaderboardEntry> items = <ParkurLeaderboardEntry>[
       _entry('logic', 'Mantık Labirenti', progress.mantik),
       _entry('numbers', 'Sayı Ustası', progress.sayi),
       _entry('blocks', 'Blok Fırtınası', progress.blok),
@@ -345,7 +341,7 @@ class PlayerProgressService {
       _entry('word_hunt', 'Kelime Avı', progress.kelimeAvi),
       _entry('picture_iq', 'Görsel IQ', progress.gorselIq),
       _entry('candy_sort', 'Şeker Sıralama', progress.sekerSiralama),
-      _entry('number_sort', 'Sayı Peteği', progress.sayiPetegi),
+      _entry('number_sort', '15 Taş Ustası', progress.sayiPetegi),
       _entry('shape_puzzle', 'Şekil Birleştir', progress.sekilBirlestir),
       _entry('reflex', 'Refleks Avı', progress.refleks),
     ];
@@ -377,328 +373,46 @@ class PlayerProgressService {
 
   List<PlayerAchievementData> _buildAchievements({
     required UnifiedProgressData progress,
-    required DailyChallengeData daily,
-    required int zekaScore,
-    required int threeStarLevels,
-    required int playedGameCount,
-    required int bossCount,
-    required int completedDailyCourses,
   }) {
-    final List<PlayerAchievementData> result =
-        <PlayerAchievementData>[];
-
-    void add({
-      required String id,
-      required String title,
-      required String description,
-      required String emoji,
-      required int current,
-      required int target,
-      bool special = false,
-    }) {
-      result.add(
-        PlayerAchievementData(
-          id: id,
-          title: title,
-          description: description,
-          emoji: emoji,
-          current: current,
-          target: target,
-          unlocked: current >= target,
-          special: special,
-        ),
-      );
-    }
-
-    add(
-      id: 'first_step',
-      title: 'İlk Adım',
-      description: 'İlk bölümünü tamamla.',
-      emoji: '👣',
-      current: progress.tamamlananSeviye,
-      target: 1,
-    );
-    add(
-      id: 'stars_10',
-      title: 'Yıldız Toplayıcı',
-      description: 'Toplam 10 yıldız kazan.',
-      emoji: '⭐',
-      current: progress.toplamYildiz,
-      target: 10,
-    );
-    add(
-      id: 'stars_30',
-      title: 'Yıldız Avcısı',
-      description: 'Toplam 30 yıldız kazan.',
-      emoji: '🌟',
-      current: progress.toplamYildiz,
-      target: 30,
-    );
-    add(
-      id: 'stars_75',
-      title: 'Parlayan Zihin',
-      description: 'Toplam 75 yıldız kazan.',
-      emoji: '✨',
-      current: progress.toplamYildiz,
-      target: 75,
-    );
-    add(
-      id: 'stars_150',
-      title: 'Yıldız Efsanesi',
-      description: 'Toplam 150 yıldız kazan.',
-      emoji: '👑',
-      current: progress.toplamYildiz,
-      target: 150,
-    );
-    add(
-      id: 'stars_225',
-      title: 'Galaksi Avcısı',
-      description: 'Toplam 225 yıldız kazan.',
-      emoji: '🌠',
-      current: progress.toplamYildiz,
-      target: 225,
-    );
-    add(
-      id: 'stars_330',
-      title: 'Kusursuz On Birli',
-      description: '330 yıldızın tamamını kazan.',
-      emoji: '🌌',
-      current: progress.toplamYildiz,
-      target: 330,
-    );
-    add(
-      id: 'levels_5',
-      title: 'Parkura Giriş',
-      description: '5 bölüm tamamla.',
-      emoji: '🚩',
-      current: progress.tamamlananSeviye,
-      target: 5,
-    );
-    add(
-      id: 'levels_20',
-      title: 'Dayanıklı Zihin',
-      description: '20 bölüm tamamla.',
-      emoji: '🧠',
-      current: progress.tamamlananSeviye,
-      target: 20,
-    );
-    add(
-      id: 'levels_50',
-      title: 'Yarı Yol Ustası',
-      description: '50 bölüm tamamla.',
-      emoji: '🏁',
-      current: progress.tamamlananSeviye,
-      target: 50,
-    );
-    add(
-      id: 'levels_75',
-      title: 'Parkur Uzmanı',
-      description: '75 bölüm tamamla.',
-      emoji: '🗺️',
-      current: progress.tamamlananSeviye,
-      target: 75,
-    );
-    add(
-      id: 'levels_110',
-      title: 'Tüm Parkurlar',
-      description: '110 bölümün tamamını bitir.',
-      emoji: '🚀',
-      current: progress.tamamlananSeviye,
-      target: 110,
-    );
-    add(
-      id: 'three_stars_5',
-      title: 'Kusursuz Beşli',
-      description: '5 bölümü 3 yıldızla bitir.',
-      emoji: '🎯',
-      current: threeStarLevels,
-      target: 5,
-    );
-    add(
-      id: 'three_stars_20',
-      title: 'Üç Yıldız Ustası',
-      description: '20 bölümü 3 yıldızla bitir.',
-      emoji: '💫',
-      current: threeStarLevels,
-      target: 20,
-    );
-    add(
-      id: 'three_stars_50',
-      title: 'Kusursuzluk Ustası',
-      description: '50 bölümü 3 yıldızla bitir.',
-      emoji: '🏹',
-      current: threeStarLevels,
-      target: 50,
-    );
-    add(
-      id: 'three_stars_110',
-      title: 'Mutlak Ustalık',
-      description: '110 bölümün tamamını 3 yıldızla bitir.',
-      emoji: '💠',
-      current: threeStarLevels,
-      target: 110,
-    );
-    add(
-      id: 'score_2500',
-      title: 'Zeka Kıvılcımı',
-      description: '2.500 Zeka Puanı kazan.',
-      emoji: '⚡',
-      current: zekaScore,
-      target: 2500,
-    );
-    add(
-      id: 'score_7500',
-      title: 'Zihin Motoru',
-      description: '7.500 Zeka Puanı kazan.',
-      emoji: '🚀',
-      current: zekaScore,
-      target: 7500,
-    );
-    add(
-      id: 'score_15000',
-      title: 'Zeka Şampiyonu',
-      description: '15.000 Zeka Puanı kazan.',
-      emoji: '🏆',
-      current: zekaScore,
-      target: 15000,
-    );
-    add(
-      id: 'score_24000',
-      title: 'Efsane Zihin',
-      description: '24.000 Zeka Puanı kazan ve Efsane Ligi’ne ulaş.',
-      emoji: '👑',
-      current: zekaScore,
-      target: 24000,
-      special: true,
-    );
-    add(
-      id: 'all_games',
-      title: 'Çok Yönlü Zihin',
-      description: '5 farklı parkurda en az bir bölüm bitir.',
-      emoji: '🧩',
-      current: playedGameCount,
-      target: 5,
-    );
-    add(
-      id: 'all_games_11',
-      title: 'Parkur Koleksiyoncusu',
-      description: '11 parkurun tamamında en az bir bölüm bitir.',
-      emoji: '🌈',
-      current: playedGameCount,
-      target: 11,
-    );
-    add(
-      id: 'boss_1',
-      title: 'Boss Avcısı',
-      description: 'İlk Boss bölümünü tamamla.',
-      emoji: '🐉',
-      current: bossCount,
-      target: 1,
-    );
-    add(
-      id: 'boss_5',
-      title: 'Boss Ustası',
-      description: '5 farklı Boss bölümünü tamamla.',
-      emoji: '⚔️',
-      current: bossCount,
-      target: 5,
-    );
-    add(
-      id: 'boss_11',
-      title: 'Boss Fatihi',
-      description: '11 parkurun Boss bölümünü de tamamla.',
-      emoji: '🛡️',
-      current: bossCount,
-      target: 11,
-    );
-    add(
-      id: 'streak_3',
-      title: 'Alev Başladı',
-      description: '3 günlük oynama serisine ulaş.',
-      emoji: '🔥',
-      current: daily.bestStreak,
-      target: 3,
-    );
-    add(
-      id: 'streak_7',
-      title: 'Bir Hafta Zihin',
-      description: '7 günlük oynama serisine ulaş.',
-      emoji: '📅',
-      current: daily.bestStreak,
-      target: 7,
-    );
-    add(
-      id: 'streak_30',
-      title: 'Sarsılmaz Seri',
-      description: '30 günlük oynama serisine ulaş.',
-      emoji: '🌋',
-      current: daily.bestStreak,
-      target: 30,
-      special: true,
-    );
-    add(
-      id: 'perfect_day',
-      title: 'Kusursuz Gün',
-      description: 'Bir günün 3 görevini de tamamla.',
-      emoji: '🏆',
-      current: daily.perfectDays,
-      target: 1,
-    );
-
-    final int completedShapeMatchLevels = <int>[3, 7]
-        .where(
-          (index) =>
-              index < progress.hafiza.yildizlar.length &&
-              progress.hafiza.yildizlar[index] > 0,
-        )
-        .length;
-
-    add(
-      id: 'shape_scout',
-      title: 'Şekil Kaşifi',
-      description: '8 kartlık şekil eşleştirmeyi tamamla.',
-      emoji: '🔷',
-      current: completedShapeMatchLevels,
-      target: 1,
-      special: true,
-    );
-    add(
-      id: 'shape_master',
-      title: 'Eşleştirme Ustası',
-      description: '8 ve 16 kartlık eşleştirmeyi tamamla.',
-      emoji: '🧿',
-      current: completedShapeMatchLevels,
-      target: 2,
-      special: true,
-    );
-    add(
-      id: 'daily_course_1',
-      title: 'Günün Parkurcusu',
-      description: 'Günün Zekâ Parkuru’nu tamamla.',
-      emoji: '🏅',
-      current: completedDailyCourses,
-      target: 1,
-      special: true,
-    );
-    add(
-      id: 'daily_course_7',
-      title: 'Parkur Müdavimi',
-      description: 'Günün Zekâ Parkuru’nu 7 farklı gün tamamla.',
-      emoji: '💎',
-      current: completedDailyCourses,
-      target: 7,
-      special: true,
-    );
-    add(
-      id: 'daily_course_30',
-      title: 'Parkur Efsanesi',
-      description: 'Günün Zekâ Parkuru’nu 30 farklı gün tamamla.',
-      emoji: '🏵️',
-      current: completedDailyCourses,
-      target: 30,
-      special: true,
-    );
-
-    return result;
+    const Map<StudioGameClass, String> emoji = <StudioGameClass, String>{
+      StudioGameClass.logic: '🧩',
+      StudioGameClass.numbers: '🔢',
+      StudioGameClass.visual: '🧭',
+      StudioGameClass.memory: '🧠',
+      StudioGameClass.strategy: '♟️',
+      StudioGameClass.language: '📚',
+      StudioGameClass.speed: '⚡',
+      StudioGameClass.fun: '🎮',
+    };
+    return StudioGameClass.values
+        .map((StudioGameClass category) {
+          final Set<String> categoryGameIds = StudioGameCatalog.games
+              .where(
+                (game) =>
+                    game.gameClass == category &&
+                    GameContentPolicy.standardGames.contains(game.id) &&
+                    !game.isRetired,
+              )
+              .map((game) => game.id)
+              .toSet();
+          final int completed = categoryGameIds.fold<int>(
+            0,
+            (total, gameId) =>
+                total +
+                (progress.gameProgressById[gameId]?.tamamlananSeviye ?? 0),
+          );
+          return PlayerAchievementData(
+            id: 'category_${category.name}',
+            title: category.title(english: false),
+            titleEn: category.title(english: true),
+            description: 'Bu oyun grubunda 30 bölüm tamamla.',
+            descriptionEn: 'Complete 30 levels in this game group.',
+            emoji: emoji[category] ?? '🏅',
+            current: completed,
+            target: 30,
+            unlocked: completed >= 30,
+          );
+        })
+        .toList(growable: false);
   }
 }

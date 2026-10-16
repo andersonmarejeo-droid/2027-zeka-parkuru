@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../theme/app_visual_theme.dart';
+import '../theme/studio_visuals.dart';
 
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -18,6 +18,8 @@ import '../services/social_notification_service.dart';
 import '../widgets/champion_celebration_card.dart';
 import '../widgets/competition_exit_decision.dart';
 import '../widgets/competition_stage_transition.dart';
+import '../widgets/studio_card.dart';
+import '../widgets/avatar_icon.dart';
 
 class ChallengeCenterPage extends StatefulWidget {
   final String? initialChallengeId;
@@ -248,7 +250,13 @@ class _ChallengeCenterPageState extends State<ChallengeCenterPage> {
       final bool? send = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text('${player.avatar} ${player.displayName}'),
+          title: Row(
+            children: [
+              AvatarIcon(player.avatar, size: 32, borderRadius: 10),
+              const SizedBox(width: 9),
+              Expanded(child: Text(player.displayName)),
+            ],
+          ),
           content: Text(
             '${player.score} ZP • ${player.stars}/330 ⭐\n'
             'Meydan okuma göndermek ister misin?',
@@ -277,12 +285,19 @@ class _ChallengeCenterPageState extends State<ChallengeCenterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         title: const Text(
-          'ARKADAŞLAR & MEYDAN OKUMA',
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+          'ARKADAŞLAR & DÜELLO',
+          style: TextStyle(
+            color: StudioVisuals.ink,
+            fontWeight: FontWeight.w900,
+            fontSize: 17,
+          ),
         ),
         actions: [
           IconButton(
@@ -292,380 +307,422 @@ class _ChallengeCenterPageState extends State<ChallengeCenterPage> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : !_online
-          ? _OfflineState(
-              reason: _offlineReason,
-              onRetry: () => _initialize(forceRetry: true),
-            )
-          : Stack(
-              children: [
-                ScrollConfiguration(
-                  behavior: const MaterialScrollBehavior().copyWith(
-                    overscroll: false,
-                  ),
-                  child: RefreshIndicator(
-                    onRefresh: () => _initialize(forceRetry: true),
-                    child: ListView(
-                      physics: const ClampingScrollPhysics(
-                        parent: AlwaysScrollableScrollPhysics(),
+      body: SafeArea(
+        top: false,
+        child: StudioPageFrame(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : !_online
+              ? _OfflineState(
+                  reason: _offlineReason,
+                  onRetry: () => _initialize(forceRetry: true),
+                )
+              : Stack(
+                  children: [
+                    ScrollConfiguration(
+                      behavior: const MaterialScrollBehavior().copyWith(
+                        overscroll: false,
                       ),
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
-                      children: [
-                        _InvitePanel(
-                          friendCode:
-                              _challenges.currentFriendCode ?? '--------',
-                          onShare: _shareOpenChallenge,
-                          onCopy: () async {
-                            final String code =
-                                _challenges.currentFriendCode ?? '';
-                            await Clipboard.setData(ClipboardData(text: code));
-                            _message('Arkadaş kodun kopyalandı.');
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        _FriendCodePanel(
-                          controller: _friendCodeController,
-                          onFind: _findFriend,
-                        ),
-                        const SizedBox(height: 18),
-                        const _SectionTitle(
-                          icon: Icons.bolt_rounded,
-                          title: 'MEYDAN OKUMALARIM',
-                        ),
-                        const SizedBox(height: 8),
-                        StreamBuilder<List<SocialChallenge>>(
-                          stream: _challengeStream,
-                          builder: (context, snapshot) {
-                            if (snapshot.hasError) {
-                              return _InfoCard(
-                                text:
-                                    'Meydan okumalar yüklenemedi: '
-                                    '${snapshot.error}',
-                              );
-                            }
-                            final List<SocialChallenge> items =
-                                snapshot.data ?? const <SocialChallenge>[];
-                            if (items.isEmpty) {
-                              return const _InfoCard(
-                                text:
-                                    'Henüz düellon yok. WhatsApp daveti '
-                                    'göndererek ilk mücadeleyi başlat.',
-                              );
-                            }
-                            return Column(
-                              children: items
-                                  .take(12)
-                                  .map((challenge) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: _ChallengeCard(
-                                        challenge: challenge,
-                                        currentUid:
-                                            _challenges.currentUid ?? '',
-                                        onOpen: () => Navigator.push(
-                                          context,
-                                          MaterialPageRoute<void>(
-                                            builder: (_) => ChallengeDuelPage(
-                                              challengeId: challenge.id,
+                      child: RefreshIndicator(
+                        onRefresh: () => _initialize(forceRetry: true),
+                        child: ListView(
+                          physics: const ClampingScrollPhysics(
+                            parent: AlwaysScrollableScrollPhysics(),
+                          ),
+                          padding: const EdgeInsets.fromLTRB(
+                            StudioVisuals.pageGutter,
+                            12,
+                            StudioVisuals.pageGutter,
+                            32,
+                          ),
+                          children: [
+                            _InvitePanel(
+                              friendCode:
+                                  _challenges.currentFriendCode ?? '--------',
+                              onShare: _shareOpenChallenge,
+                              onCopy: () async {
+                                final String code =
+                                    _challenges.currentFriendCode ?? '';
+                                await Clipboard.setData(
+                                  ClipboardData(text: code),
+                                );
+                                _message('Arkadaş kodun kopyalandı.');
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            _FriendCodePanel(
+                              controller: _friendCodeController,
+                              onFind: _findFriend,
+                            ),
+                            const SizedBox(height: 18),
+                            const _SectionTitle(
+                              icon: Icons.bolt_rounded,
+                              title: 'MEYDAN OKUMALARIM',
+                            ),
+                            const SizedBox(height: 8),
+                            StreamBuilder<List<SocialChallenge>>(
+                              stream: _challengeStream,
+                              builder: (context, snapshot) {
+                                if (snapshot.hasError) {
+                                  return _InfoCard(
+                                    text:
+                                        'Meydan okumalar yüklenemedi: '
+                                        '${snapshot.error}',
+                                  );
+                                }
+                                final List<SocialChallenge> items =
+                                    snapshot.data ?? const <SocialChallenge>[];
+                                if (items.isEmpty) {
+                                  return const _InfoCard(
+                                    text:
+                                        'Henüz düellon yok. WhatsApp daveti '
+                                        'göndererek ilk mücadeleyi başlat.',
+                                  );
+                                }
+                                return Column(
+                                  children: items
+                                      .take(12)
+                                      .map((challenge) {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 8,
+                                          ),
+                                          child: ChallengeCard(
+                                            challenge: challenge,
+                                            currentUid:
+                                                _challenges.currentUid ?? '',
+                                            onOpen: () => Navigator.push(
+                                              context,
+                                              MaterialPageRoute<void>(
+                                                builder: (_) =>
+                                                    ChallengeDuelPage(
+                                                      challengeId: challenge.id,
+                                                    ),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ),
-                                    );
-                                  })
-                                  .toList(growable: false),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 18),
-                        const _SectionTitle(
-                          icon: Icons.people_alt_rounded,
-                          title: 'ARKADAŞLAR',
-                        ),
-                        const SizedBox(height: 8),
-                        StreamBuilder<List<String>>(
-                          stream: _friendStream,
-                          builder: (context, snapshot) {
-                            final List<String> uids =
-                                snapshot.data ?? const <String>[];
+                                        );
+                                      })
+                                      .toList(growable: false),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 18),
+                            const _SectionTitle(
+                              icon: Icons.people_alt_rounded,
+                              title: 'ARKADAŞLAR',
+                            ),
+                            const SizedBox(height: 8),
+                            StreamBuilder<List<String>>(
+                              stream: _friendStream,
+                              builder: (context, snapshot) {
+                                final List<String> uids =
+                                    snapshot.data ?? const <String>[];
 
-                            final String? currentUid = _challenges.currentUid;
+                                final String? currentUid =
+                                    _challenges.currentUid;
 
-                            final Set<String> rankUids = <String>{
-                              ...uids,
-                              if (currentUid != null && currentUid.isNotEmpty)
-                                currentUid,
-                            };
+                                final Set<String> rankUids = <String>{
+                                  ...uids,
+                                  if (currentUid != null &&
+                                      currentUid.isNotEmpty)
+                                    currentUid,
+                                };
 
-                            if (rankUids.isEmpty) {
-                              return const _InfoCard(
-                                text: 'Arkadaş sıralaması henüz hazırlanamadı.',
-                              );
-                            }
-
-                            return FutureBuilder<List<OnlineLeaderboardEntry>>(
-                              future: _profilesForFriends(rankUids),
-                              builder: (context, playersSnapshot) {
-                                final List<OnlineLeaderboardEntry>? players =
-                                    playersSnapshot.data;
-
-                                if (players == null) {
-                                  return const Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(12),
-                                      child: CircularProgressIndicator(),
-                                    ),
+                                if (rankUids.isEmpty) {
+                                  return const _InfoCard(
+                                    text: 'Arkadaş sıralaması henüz hazırlanamadı.',
                                   );
                                 }
 
-                                final List<OnlineLeaderboardEntry> ranked =
-                                    List<OnlineLeaderboardEntry>.from(players);
+                                return FutureBuilder<
+                                  List<OnlineLeaderboardEntry>
+                                >(
+                                  future: _profilesForFriends(rankUids),
+                                  builder: (context, playersSnapshot) {
+                                    final List<OnlineLeaderboardEntry>?
+                                    players = playersSnapshot.data;
 
-                                ranked.sort((a, b) {
-                                  final int scoreCompare = b.score.compareTo(
-                                    a.score,
-                                  );
-                                  if (scoreCompare != 0) {
-                                    return scoreCompare;
-                                  }
-
-                                  final int starCompare = b.stars.compareTo(
-                                    a.stars,
-                                  );
-                                  if (starCompare != 0) {
-                                    return starCompare;
-                                  }
-
-                                  return b.completedLevels.compareTo(
-                                    a.completedLevels,
-                                  );
-                                });
-
-                                final int myIndex = currentUid == null
-                                    ? -1
-                                    : ranked.indexWhere(
-                                        (player) => player.uid == currentUid,
-                                      );
-
-                                final int? myRank = myIndex >= 0
-                                    ? myIndex + 1
-                                    : null;
-
-                                final List<
-                                  MapEntry<int, OnlineLeaderboardEntry>
-                                >
-                                rankedFriends = ranked.asMap().entries.toList(
-                                  growable: false,
-                                );
-
-                                return Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: <Widget>[
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 11,
-                                      ),
-                                      margin: const EdgeInsets.only(bottom: 8),
-                                      decoration: BoxDecoration(
-                                        color: ZpVisualPalette.of(context)
-                                            .surface,
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      child: Row(
-                                        children: <Widget>[
-                                          const Icon(
-                                            Icons.emoji_events_rounded,
-                                            size: 20,
-                                            color: Color(0xFFFFD54F),
-                                          ),
-                                          const SizedBox(width: 9),
-                                          Expanded(
-                                            child: Text(
-                                              myRank == null
-                                                  ? 'Arkadaş sırası hesaplanamadı'
-                                                  : 'Arkadaşlar arasında #$myRank',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w900,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ),
-                                          if (myRank != null)
-                                            Text(
-                                              '${ranked.length} oyuncu',
-                                              style: const TextStyle(
-                                                color: Colors.white54,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (rankedFriends.isEmpty)
-                                      const _InfoCard(
-                                        text: 'Henüz arkadaşın yok. Bir meydan okuma kabul edildiğinde oyuncu otomatik olarak arkadaş listene eklenir.',
-                                      )
-                                    else
-                                      ...rankedFriends.map(
-                                        (item) => _PlayerCard(
-                                          rank: item.key + 1,
-                                          player: item.value,
-                                          isCurrent:
-                                              item.value.uid == currentUid,
-                                          onChallenge: () =>
-                                              _challengePlayer(item.value),
+                                    if (players == null) {
+                                      return const Center(
+                                        child: Padding(
+                                          padding: EdgeInsets.all(12),
+                                          child: CircularProgressIndicator(),
                                         ),
-                                      ),
-                                  ],
+                                      );
+                                    }
+
+                                    final List<OnlineLeaderboardEntry> ranked =
+                                        List<OnlineLeaderboardEntry>.from(
+                                          players,
+                                        );
+
+                                    ranked.sort((a, b) {
+                                      final int scoreCompare = b.score
+                                          .compareTo(a.score);
+                                      if (scoreCompare != 0) {
+                                        return scoreCompare;
+                                      }
+
+                                      final int starCompare = b.stars.compareTo(
+                                        a.stars,
+                                      );
+                                      if (starCompare != 0) {
+                                        return starCompare;
+                                      }
+
+                                      return b.completedLevels.compareTo(
+                                        a.completedLevels,
+                                      );
+                                    });
+
+                                    final int myIndex = currentUid == null
+                                        ? -1
+                                        : ranked.indexWhere(
+                                            (player) =>
+                                                player.uid == currentUid,
+                                          );
+
+                                    final int? myRank = myIndex >= 0
+                                        ? myIndex + 1
+                                        : null;
+
+                                    final List<
+                                      MapEntry<int, OnlineLeaderboardEntry>
+                                    >
+                                    rankedFriends = ranked
+                                        .asMap()
+                                        .entries
+                                        .toList(growable: false);
+
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: <Widget>[
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 11,
+                                          ),
+                                          margin: const EdgeInsets.only(
+                                            bottom: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: StudioVisuals.surface,
+                                            borderRadius:
+                                                StudioVisuals.compactRadius,
+                                            border: Border.all(
+                                              color: StudioVisuals.line,
+                                            ),
+                                            boxShadow: StudioVisuals.softShadow,
+                                          ),
+                                          child: Row(
+                                            children: <Widget>[
+                                              const Icon(
+                                                Icons.emoji_events_rounded,
+                                                size: 20,
+                                                color: StudioVisuals.amber,
+                                              ),
+                                              const SizedBox(width: 9),
+                                              Expanded(
+                                                child: Text(
+                                                  myRank == null
+                                                      ? 'Arkadaş sırası hesaplanamadı'
+                                                      : 'Arkadaşlar arasında #$myRank',
+                                                  style: const TextStyle(
+                                                    color: StudioVisuals.ink,
+                                                    fontWeight: FontWeight.w900,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (myRank != null)
+                                                Text(
+                                                  '${ranked.length} oyuncu',
+                                                  style: const TextStyle(
+                                                    color: StudioVisuals.muted,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (rankedFriends.isEmpty)
+                                          const _InfoCard(
+                                            text: 'Henüz arkadaşın yok. Bir meydan okuma kabul edildiğinde oyuncu otomatik olarak arkadaş listene eklenir.',
+                                          )
+                                        else
+                                          ...rankedFriends.map(
+                                            (item) => _PlayerCard(
+                                              rank: item.key + 1,
+                                              player: item.value,
+                                              isCurrent:
+                                                  item.value.uid == currentUid,
+                                              onChallenge: () =>
+                                                  _challengePlayer(item.value),
+                                            ),
+                                          ),
+                                      ],
+                                    );
+                                  },
                                 );
                               },
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 18),
-                        const _SectionTitle(
-                          icon: Icons.online_prediction_rounded,
-                          title: 'ŞİMDİ AKTİF OYUNCULAR',
-                        ),
-                        const SizedBox(height: 8),
-                        if ((_world?.entries ??
-                                const <OnlineLeaderboardEntry>[])
-                            .where(
-                              (player) =>
-                                  player.recentlyActive &&
-                                  player.uid != _challenges.currentUid,
-                            )
-                            .isEmpty)
-                          const _InfoCard(
-                            text:
-                                'Son 15 dakikada başka aktif oyuncu '
-                                'görünmüyor. Dünya listesinden yine de '
-                                'bildirimli meydan okuma gönderebilirsin.',
-                          )
-                        else
-                          ...(_world?.entries ??
-                                  const <OnlineLeaderboardEntry>[])
-                              .where(
-                                (player) =>
-                                    player.recentlyActive &&
-                                    player.uid != _challenges.currentUid,
+                            ),
+                            const SizedBox(height: 18),
+                            const _SectionTitle(
+                              icon: Icons.online_prediction_rounded,
+                              title: 'ŞİMDİ AKTİF OYUNCULAR',
+                            ),
+                            const SizedBox(height: 8),
+                            if ((_world?.entries ??
+                                    const <OnlineLeaderboardEntry>[])
+                                .where(
+                                  (player) =>
+                                      player.recentlyActive &&
+                                      player.uid != _challenges.currentUid,
+                                )
+                                .isEmpty)
+                              const _InfoCard(
+                                text:
+                                    'Son 15 dakikada başka aktif oyuncu '
+                                    'görünmüyor. Dünya listesinden yine de '
+                                    'bildirimli meydan okuma gönderebilirsin.',
                               )
-                              .take(10)
-                              .map(
-                                (player) => _PlayerCard(
-                                  player: player,
-                                  active: true,
-                                  onChallenge: () => _challengePlayer(player),
-                                ),
-                              ),
-                        const SizedBox(height: 18),
-                        const _SectionTitle(
-                          icon: Icons.public_rounded,
-                          title: 'DÜNYA SIRALAMASI',
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          _world?.currentRank == null
-                              ? 'Dünya sırası hesaplanamadı • ${_world?.totalPlayers ?? 0} oyuncu'
-                              : 'Dünya #${_world!.currentRank} • ${_world?.totalPlayers ?? 0} oyuncu',
-                          style: const TextStyle(
-                            color: Colors.white60,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ...(_world?.entries ?? const <OnlineLeaderboardEntry>[])
-                            .take(20)
-                            .toList(growable: false)
-                            .asMap()
-                            .entries
-                            .map(
-                              (item) => _PlayerCard(
-                                rank:
-                                    item.value.uid == _challenges.currentUid &&
-                                        _world?.currentRank != null
-                                    ? _world!.currentRank
-                                    : item.key + 1,
-                                player: item.value,
-                                active: item.value.recentlyActive,
-                                isCurrent:
-                                    item.value.uid == _challenges.currentUid,
-                                onChallenge: () => _challengePlayer(item.value),
-                              ),
-                            ),
-                        if (_world?.currentRank != null &&
-                            (_world?.entries ??
-                                    const <OnlineLeaderboardEntry>[])
-                                .any(
-                                  (player) =>
-                                      player.uid == _challenges.currentUid,
-                                ) &&
-                            !(_world?.entries ??
-                                    const <OnlineLeaderboardEntry>[])
-                                .take(20)
-                                .any(
-                                  (player) =>
-                                      player.uid == _challenges.currentUid,
-                                )) ...<Widget>[
-                          const SizedBox(height: 2),
-                          Container(
-                            key: const ValueKey<String>(
-                              'world_current_player_separator',
-                            ),
-                            margin: const EdgeInsets.fromLTRB(12, 3, 12, 11),
-                            child: const Row(
-                              children: <Widget>[
-                                Expanded(child: Divider()),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 10),
-                                  child: Text(
-                                    'SIRALAMADAKİ YERİN',
-                                    style: TextStyle(
-                                      color: Color(0xFF00D9FF),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w900,
+                            else
+                              ...(_world?.entries ??
+                                      const <OnlineLeaderboardEntry>[])
+                                  .where(
+                                    (player) =>
+                                        player.recentlyActive &&
+                                        player.uid != _challenges.currentUid,
+                                  )
+                                  .take(10)
+                                  .map(
+                                    (player) => _PlayerCard(
+                                      player: player,
+                                      active: true,
+                                      onChallenge: () =>
+                                          _challengePlayer(player),
                                     ),
                                   ),
-                                ),
-                                Expanded(child: Divider()),
-                              ],
+                            const SizedBox(height: 18),
+                            const _SectionTitle(
+                              icon: Icons.public_rounded,
+                              title: 'DÜNYA SIRALAMASI',
                             ),
-                          ),
-                          ...(_world?.entries ??
-                                  const <OnlineLeaderboardEntry>[])
-                              .where(
-                                (player) =>
-                                    player.uid == _challenges.currentUid,
-                              )
-                              .take(1)
-                              .map(
-                                (player) => _PlayerCard(
-                                  rank: _world!.currentRank,
-                                  player: player,
-                                  active: player.recentlyActive,
-                                  isCurrent: true,
-                                  onChallenge: () => _challengePlayer(player),
+                            const SizedBox(height: 5),
+                            Text(
+                              _world?.currentRank == null
+                                  ? 'Dünya sırası hesaplanamadı • ${_world?.totalPlayers ?? 0} oyuncu'
+                                  : 'Dünya #${_world!.currentRank} • ${_world?.totalPlayers ?? 0} oyuncu',
+                              style: const TextStyle(
+                                color: StudioVisuals.muted,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ...(_world?.entries ??
+                                    const <OnlineLeaderboardEntry>[])
+                                .take(20)
+                                .toList(growable: false)
+                                .asMap()
+                                .entries
+                                .map(
+                                  (item) => _PlayerCard(
+                                    rank:
+                                        item.value.uid ==
+                                                _challenges.currentUid &&
+                                            _world?.currentRank != null
+                                        ? _world!.currentRank
+                                        : item.key + 1,
+                                    player: item.value,
+                                    active: item.value.recentlyActive,
+                                    isCurrent:
+                                        item.value.uid ==
+                                        _challenges.currentUid,
+                                    onChallenge: () =>
+                                        _challengePlayer(item.value),
+                                  ),
+                                ),
+                            if (_world?.currentRank != null &&
+                                (_world?.entries ??
+                                        const <OnlineLeaderboardEntry>[])
+                                    .any(
+                                      (player) =>
+                                          player.uid == _challenges.currentUid,
+                                    ) &&
+                                !(_world?.entries ??
+                                        const <OnlineLeaderboardEntry>[])
+                                    .take(20)
+                                    .any(
+                                      (player) =>
+                                          player.uid == _challenges.currentUid,
+                                    )) ...<Widget>[
+                              const SizedBox(height: 2),
+                              Container(
+                                key: const ValueKey<String>(
+                                  'world_current_player_separator',
+                                ),
+                                margin: const EdgeInsets.fromLTRB(
+                                  12,
+                                  3,
+                                  12,
+                                  11,
+                                ),
+                                child: const Row(
+                                  children: <Widget>[
+                                    Expanded(child: Divider()),
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                      ),
+                                      child: Text(
+                                        'SIRALAMADAKİ YERİN',
+                                        style: TextStyle(
+                                          color: StudioVisuals.teal,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(child: Divider()),
+                                  ],
                                 ),
                               ),
-                        ],
-                      ],
+                              ...(_world?.entries ??
+                                      const <OnlineLeaderboardEntry>[])
+                                  .where(
+                                    (player) =>
+                                        player.uid == _challenges.currentUid,
+                                  )
+                                  .take(1)
+                                  .map(
+                                    (player) => _PlayerCard(
+                                      rank: _world!.currentRank,
+                                      player: player,
+                                      active: player.recentlyActive,
+                                      isCurrent: true,
+                                      onChallenge: () =>
+                                          _challengePlayer(player),
+                                    ),
+                                  ),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                    if (_busy)
+                      const Positioned.fill(
+                        child: ColoredBox(
+                          color: Color(0x44000000),
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                      ),
+                  ],
                 ),
-                if (_busy)
-                  const Positioned.fill(
-                    child: ColoredBox(
-                      color: Color(0x44000000),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  ),
-              ],
-            ),
+        ),
+      ),
     );
   }
 }
@@ -1157,12 +1214,18 @@ class _ChallengeDuelPageState extends State<ChallengeDuelPage> {
   Widget build(BuildContext context) {
     final String uid = _service.currentUid ?? '';
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         title: const Text(
           'MEYDAN OKUMA',
-          style: TextStyle(fontWeight: FontWeight.w900),
+          style: TextStyle(
+            color: StudioVisuals.ink,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         actions: [
           IconButton(
@@ -1177,118 +1240,129 @@ class _ChallengeDuelPageState extends State<ChallengeDuelPage> {
           ),
         ],
       ),
-      body: StreamBuilder<SocialChallenge?>(
-        stream: _challengeStream,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Düello açılamadı: ${snapshot.error}'));
-          }
-          final SocialChallenge? challenge = snapshot.data;
-          if (challenge == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final bool mine = challenge.challengerUid == uid;
-          final bool canAccept =
-              challenge.pending &&
-              !mine &&
-              (challenge.targetUid == null || challenge.targetUid == uid);
-          final bool canPlay =
-              challenge.accepted &&
-              challenge.scoreFor(uid) == null &&
-              !challenge.expired;
+      body: SafeArea(
+        top: false,
+        child: StreamBuilder<SocialChallenge?>(
+          stream: _challengeStream,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(child: Text('Düello açılamadı: ${snapshot.error}'));
+            }
+            final SocialChallenge? challenge = snapshot.data;
+            if (challenge == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final bool mine = challenge.challengerUid == uid;
+            final bool canAccept =
+                challenge.isPlayable &&
+                challenge.pending &&
+                !mine &&
+                (challenge.targetUid == null || challenge.targetUid == uid);
+            final bool canPlay =
+                challenge.isPlayable &&
+                challenge.accepted &&
+                challenge.scoreFor(uid) == null &&
+                !challenge.expired;
 
-          return Stack(
-            children: [
-              ListView(
-                padding: const EdgeInsets.all(18),
-                children: [
-                  _DuelHero(challenge: challenge),
-                  const SizedBox(height: 14),
-                  _ScoreComparison(challenge: challenge),
-                  const SizedBox(height: 14),
-                  if (challenge.expired && !challenge.completed)
-                    const _InfoCard(
-                      text: 'Bu davetin 48 saatlik süresi doldu.',
-                    ),
-                  if (challenge.pending && mine)
-                    const _InfoCard(
-                      text:
-                          'Rakibin daveti açıp kabul etmesi bekleniyor. '
-                          'Bağlantıyı WhatsApp üzerinden paylaşabilirsin.',
-                    ),
-                  if (canAccept)
-                    Row(
-                      children: [
-                        if (challenge.targetUid != null)
+            return Stack(
+              children: [
+                ListView(
+                  padding: const EdgeInsets.all(18),
+                  children: [
+                    ChallengeDuelHero(challenge: challenge, currentUid: uid),
+                    const SizedBox(height: 14),
+                    _ScoreComparison(challenge: challenge, currentUid: uid),
+                    const SizedBox(height: 14),
+                    if (challenge.expired && !challenge.completed)
+                      const _InfoCard(
+                        text: 'Bu davetin 48 saatlik süresi doldu.',
+                      ),
+                    if (challenge.pending && mine)
+                      const _InfoCard(
+                        text:
+                            'Rakibin daveti açıp kabul etmesi bekleniyor. '
+                            'Bağlantıyı WhatsApp üzerinden paylaşabilirsin.',
+                      ),
+                    if (canAccept)
+                      Row(
+                        children: [
+                          if (challenge.targetUid != null)
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _busy ? null : _decline,
+                                child: const Text('REDDET'),
+                              ),
+                            ),
+                          if (challenge.targetUid != null)
+                            const SizedBox(width: 10),
                           Expanded(
-                            child: OutlinedButton(
-                              onPressed: _busy ? null : _decline,
-                              child: const Text('REDDET'),
+                            flex: 2,
+                            child: FilledButton.icon(
+                              onPressed: _busy ? null : _accept,
+                              icon: const Icon(Icons.check_rounded),
+                              label: const Text('KABUL ET'),
                             ),
                           ),
-                        if (challenge.targetUid != null)
-                          const SizedBox(width: 10),
-                        Expanded(
-                          flex: 2,
-                          child: FilledButton.icon(
-                            onPressed: _busy ? null : _accept,
-                            icon: const Icon(Icons.check_rounded),
-                            label: const Text('KABUL ET'),
+                        ],
+                      ),
+                    if (canPlay)
+                      FilledButton.icon(
+                        onPressed: _busy ? null : () => _play(challenge),
+                        icon: const Icon(Icons.play_arrow_rounded),
+                        label: Text(
+                          challenge.isSeries
+                              ? '${challenge.gameIds.length} OYUNLUK PARKURU BAŞLAT / DEVAM ET'
+                              : 'AYNI SERİYİ OYNA',
+                        ),
+                      ),
+                    if (challenge.accepted && challenge.scoreFor(uid) != null)
+                      const _InfoCard(
+                        text: 'Skorun kaydedildi. Rakibinin sonucu bekleniyor.',
+                      ),
+                    if (!challenge.isPlayable)
+                      const _InfoCard(
+                        text:
+                            'Bu davet artık kullanılmayan bir oyun içerdiği '
+                            'için parkurdan kaldırıldı.',
+                      ),
+                    if (challenge.completed)
+                      _ResultBanner(challenge: challenge, currentUid: uid),
+                    if (challenge.completed) const SizedBox(height: 10),
+                    if (challenge.completed)
+                      _ReactionPanel(
+                        challenge: challenge,
+                        currentUid: uid,
+                        onReaction: (reaction) =>
+                            _sendReaction(challenge, reaction),
+                      ),
+                    if (challenge.completed) const SizedBox(height: 10),
+                    if (challenge.completed)
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _busy ? null : () => _rematch(challenge),
+                          icon: const Icon(Icons.replay_rounded),
+                          label: const Text(
+                            'RÖVANŞ',
+                            style: TextStyle(fontWeight: FontWeight.w900),
                           ),
                         ),
-                      ],
-                    ),
-                  if (canPlay)
-                    FilledButton.icon(
-                      onPressed: _busy ? null : () => _play(challenge),
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: Text(
-                        challenge.isSeries
-                            ? '${challenge.gameIds.length} OYUNLUK PARKURU BAŞLAT / DEVAM ET'
-                            : 'AYNI SERİYİ OYNA',
                       ),
-                    ),
-                  if (challenge.accepted && challenge.scoreFor(uid) != null)
-                    const _InfoCard(
-                      text: 'Skorun kaydedildi. Rakibinin sonucu bekleniyor.',
-                    ),
-                  if (challenge.completed)
-                    _ResultBanner(challenge: challenge, currentUid: uid),
-                  if (challenge.completed) const SizedBox(height: 10),
-                  if (challenge.completed)
-                    _ReactionPanel(
-                      challenge: challenge,
-                      currentUid: uid,
-                      onReaction: (reaction) =>
-                          _sendReaction(challenge, reaction),
-                    ),
-                  if (challenge.completed) const SizedBox(height: 10),
-                  if (challenge.completed)
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _busy ? null : () => _rematch(challenge),
-                        icon: const Icon(Icons.replay_rounded),
-                        label: const Text(
-                          'RÖVANŞ',
-                          style: TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                    ),
-                  if (challenge.declined)
-                    const _InfoCard(text: 'Bu meydan okuma reddedildi.'),
-                ],
-              ),
-              if (_busy)
-                const Positioned.fill(
-                  child: ColoredBox(
-                    color: Color(0x44000000),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
+                    if (challenge.declined)
+                      const _InfoCard(text: 'Bu meydan okuma reddedildi.'),
+                  ],
                 ),
-            ],
-          );
-        },
+                if (_busy)
+                  const Positioned.fill(
+                    child: ColoredBox(
+                      color: Color(0x44000000),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -1310,23 +1384,50 @@ class _InvitePanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF5C42E8), Color(0xFF0D8FA9)],
-        ),
-        borderRadius: BorderRadius.circular(24),
+        color: StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'ARKADAŞINI ARENAYA ÇAĞIR',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: StudioVisuals.tealSoft,
+                  borderRadius: StudioVisuals.compactRadius,
+                ),
+                child: const Icon(
+                  Icons.sports_kabaddi_rounded,
+                  color: StudioVisuals.teal,
+                ),
+              ),
+              const SizedBox(width: 11),
+              const Expanded(
+                child: Text(
+                  'ARKADAŞINI ARENAYA ÇAĞIR',
+                  style: TextStyle(
+                    color: StudioVisuals.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 17,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 5),
           const Text(
             'WhatsApp veya istediğin uygulamayla tek kullanımlık '
             'düello bağlantısı gönder.',
-            style: TextStyle(color: Colors.white70, fontSize: 12),
+            style: TextStyle(
+              color: StudioVisuals.muted,
+              fontSize: 12,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -1344,10 +1445,14 @@ class _InvitePanel extends StatelessWidget {
           const SizedBox(height: 9),
           Row(
             children: [
-              const Text('Arkadaş kodun: ', style: TextStyle(fontSize: 12)),
+              const Text(
+                'Arkadaş kodun: ',
+                style: TextStyle(color: StudioVisuals.muted, fontSize: 12),
+              ),
               Text(
                 friendCode,
                 style: const TextStyle(
+                  color: StudioVisuals.ink,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 2,
                 ),
@@ -1376,8 +1481,10 @@ class _FriendCodePanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: ZpVisualPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(18),
+        color: StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         children: [
@@ -1389,7 +1496,8 @@ class _FriendCodePanel extends StatelessWidget {
               decoration: const InputDecoration(
                 counterText: '',
                 labelText: 'Arkadaş kodu',
-                hintText: 'Örn. AB12CD34',
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+                hintText: 'AB12CD34',
                 prefixIcon: Icon(Icons.person_search_rounded),
                 border: OutlineInputBorder(),
               ),
@@ -1413,7 +1521,7 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      Icon(icon, color: const Color(0xFF00D9FF), size: 20),
+      Icon(icon, color: StudioVisuals.teal, size: 20),
       const SizedBox(width: 7),
       Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
     ],
@@ -1440,38 +1548,51 @@ class _PlayerCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        gradient: isCurrent
-            ? const LinearGradient(
-                colors: <Color>[Color(0xFF1B3C67), Color(0xFF3D2F74)],
-              )
-            : null,
-        color: isCurrent ? null : ZpVisualPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(16),
+        color: isCurrent ? StudioVisuals.tealSoft : StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
         border: Border.all(
           color: isCurrent
-              ? const Color(0xFF00D9FF).withValues(alpha: 0.55)
-              : Colors.white10,
+              ? StudioVisuals.teal.withValues(alpha: 0.4)
+              : StudioVisuals.line,
         ),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: ListTile(
-        leading: Text(
-          rank == null ? player.avatar : '${rank!}. ${player.avatar}',
-          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (rank != null)
+              Text(
+                '${rank!}.',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            if (rank != null) const SizedBox(width: 5),
+            AvatarIcon(player.avatar, size: 34, borderRadius: 10),
+          ],
         ),
         title: Text(
           isCurrent ? '${player.displayName} • SEN' : player.displayName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w800),
+          style: const TextStyle(
+            color: StudioVisuals.ink,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         subtitle: Text(
           active
               ? '● Şimdi aktif • ${player.score} ZP • ${player.stars}/330 ⭐'
               : '${player.score} ZP • ${player.stars}/330 ⭐',
-          style: TextStyle(color: active ? const Color(0xFF56E39F) : null),
+          style: TextStyle(
+            color: active ? StudioVisuals.teal : StudioVisuals.muted,
+            fontWeight: active ? FontWeight.w700 : FontWeight.normal,
+          ),
         ),
         trailing: isCurrent
-            ? const Icon(Icons.person_rounded, color: Color(0xFF00D9FF))
+            ? const Icon(Icons.person_rounded, color: StudioVisuals.teal)
             : IconButton.filledTonal(
                 tooltip: 'Meydan oku',
                 onPressed: onChallenge,
@@ -1482,12 +1603,21 @@ class _PlayerCard extends StatelessWidget {
   }
 }
 
-class _ChallengeCard extends StatelessWidget {
+String _challengeParticipantName(String? name, {required bool isCurrentUser}) {
+  final String value = name?.trim() ?? '';
+  if (value.isEmpty || value.toLowerCase() == 'oyuncu') {
+    return isCurrentUser ? 'Sen' : 'Rakip';
+  }
+  return value;
+}
+
+class ChallengeCard extends StatelessWidget {
   final SocialChallenge challenge;
   final String currentUid;
   final VoidCallback onOpen;
 
-  const _ChallengeCard({
+  const ChallengeCard({
+    super.key,
     required this.challenge,
     required this.currentUid,
     required this.onOpen,
@@ -1504,29 +1634,51 @@ class _ChallengeCard extends StatelessWidget {
         : challenge.expired
         ? 'SÜRESİ DOLDU'
         : 'KABUL BEKLİYOR';
+    final String opponentName = challenge.opponentLabelFor(currentUid);
     return Card(
-      color: ZpVisualPalette.of(context).surface,
+      margin: const EdgeInsets.only(bottom: 8),
+      color: StudioVisuals.surface,
+      elevation: 0,
       child: ListTile(
         onTap: onOpen,
-        leading: Text(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: AvatarIcon(
           challenge.opponentAvatarFor(currentUid),
-          style: const TextStyle(fontSize: 26),
+          size: 44,
+          borderRadius: 12,
         ),
         title: Text(
-          challenge.opponentLabelFor(currentUid),
-          style: const TextStyle(fontWeight: FontWeight.w800),
+          opponentName == 'Rakip bekleniyor'
+              ? opponentName
+              : _challengeParticipantName(opponentName, isCurrentUser: false),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: StudioVisuals.ink,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-        subtitle: Text(status),
+        subtitle: Text(
+          status,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 13, color: StudioVisuals.muted),
+        ),
         trailing: const Icon(Icons.chevron_right_rounded),
       ),
     );
   }
 }
 
-class _DuelHero extends StatelessWidget {
+class ChallengeDuelHero extends StatelessWidget {
   final SocialChallenge challenge;
+  final String currentUid;
 
-  const _DuelHero({required this.challenge});
+  const ChallengeDuelHero({
+    super.key,
+    required this.challenge,
+    required this.currentUid,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1535,7 +1687,7 @@ class _DuelHero extends StatelessWidget {
             id: 'series',
             name: 'Meydan Okuma',
             icon: Icons.route_rounded,
-            color: Color(0xFF7655FF),
+            color: StudioVisuals.teal,
           )
         : challengeGameDefinition(challenge.gameId);
 
@@ -1555,16 +1707,22 @@ class _DuelHero extends StatelessWidget {
         : '${challengeDifficultyLabel(challenge.level)} • '
               'Aynı görev • En yüksek skor kazanır';
 
+    final Color accent = game.color;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: <Color>[
-            game.color.withValues(alpha: 0.88),
-            const Color(0xFFD63C79),
+            accent.withValues(alpha: 0.13),
+            StudioVisuals.surface,
           ],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Column(
         children: <Widget>[
@@ -1572,32 +1730,75 @@ class _DuelHero extends StatelessWidget {
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
+              color: StudioVisuals.surface,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white24),
+              border: Border.all(color: accent.withValues(alpha: 0.22)),
             ),
-            child: Icon(game.icon, size: 32, color: Colors.white),
+            child: Icon(game.icon, size: 32, color: accent),
           ),
           const SizedBox(height: 10),
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+            style: const TextStyle(
+              color: StudioVisuals.ink,
+              fontWeight: FontWeight.w900,
+              fontSize: 18,
+            ),
           ),
           const SizedBox(height: 7),
-          Text(
-            '${challenge.challengerAvatar} ${challenge.challengerName}  '
-            'VS  ${challenge.opponentAvatar ?? '⚔️'} '
-            '${challenge.opponentName ?? 'Rakip'}',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.w700),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  _challengeParticipantName(
+                    challenge.challengerName,
+                    isCurrentUser: challenge.challengerUid == currentUid,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: StudioVisuals.ink,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10),
+                child: Text(
+                  'VS',
+                  style: TextStyle(
+                    color: StudioVisuals.muted,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  _challengeParticipantName(
+                    challenge.opponentName,
+                    isCurrentUser:
+                        challenge.opponentUid == currentUid ||
+                        challenge.targetUid == currentUid,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.left,
+                  style: const TextStyle(
+                    color: StudioVisuals.ink,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 7),
           Text(
             detail,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Colors.white70,
+              color: StudioVisuals.muted,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -1610,18 +1811,25 @@ class _DuelHero extends StatelessWidget {
 
 class _ScoreComparison extends StatelessWidget {
   final SocialChallenge challenge;
+  final String currentUid;
 
-  const _ScoreComparison({required this.challenge});
+  const _ScoreComparison({required this.challenge, required this.currentUid});
 
   @override
   Widget build(BuildContext context) {
-    Widget score(String name, String avatar, int? points, int? stars) {
+    Widget score(
+      String? name,
+      String avatar,
+      int? points,
+      int? stars, {
+      required bool isCurrentUser,
+    }) {
       return Expanded(
         child: Column(
           children: [
-            Text(avatar, style: const TextStyle(fontSize: 28)),
+            AvatarIcon(avatar, size: 52, borderRadius: 15),
             Text(
-              name,
+              _challengeParticipantName(name, isCurrentUser: isCurrentUser),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontWeight: FontWeight.w800),
@@ -1631,8 +1839,8 @@ class _ScoreComparison extends StatelessWidget {
               points == null ? 'BEKLİYOR' : '$points PUAN',
               style: TextStyle(
                 color: points == null
-                    ? Colors.white54
-                    : const Color(0xFFFFD334),
+                    ? StudioVisuals.muted
+                    : StudioVisuals.amber,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -1645,8 +1853,10 @@ class _ScoreComparison extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ZpVisualPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(20),
+        color: StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         children: [
@@ -1655,6 +1865,7 @@ class _ScoreComparison extends StatelessWidget {
             challenge.challengerAvatar,
             challenge.challengerScore,
             challenge.challengerStars,
+            isCurrentUser: challenge.challengerUid == currentUid,
           ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 8),
@@ -1665,6 +1876,9 @@ class _ScoreComparison extends StatelessWidget {
             challenge.opponentAvatar ?? '⚔️',
             challenge.opponentScore,
             challenge.opponentStars,
+            isCurrentUser:
+                challenge.opponentUid == currentUid ||
+                challenge.targetUid == currentUid,
           ),
         ],
       ),
@@ -1708,8 +1922,10 @@ class _ReactionPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: ZpVisualPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(18),
+        color: StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1719,7 +1935,7 @@ class _ReactionPanel extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.06),
+                color: StudioVisuals.tealSoft,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -1735,7 +1951,7 @@ class _ReactionPanel extends StatelessWidget {
           const Text(
             'TEPKİ GÖNDER',
             style: TextStyle(
-              color: Colors.white70,
+              color: StudioVisuals.ink,
               fontWeight: FontWeight.w900,
               fontSize: 11,
               letterSpacing: 0.8,
@@ -1800,10 +2016,24 @@ class _InfoCard extends StatelessWidget {
     width: double.infinity,
     padding: const EdgeInsets.all(15),
     decoration: BoxDecoration(
-      color: ZpVisualPalette.of(context).surface,
-      borderRadius: BorderRadius.circular(16),
+      color: StudioVisuals.surface,
+      borderRadius: StudioVisuals.compactRadius,
+      border: Border.all(color: StudioVisuals.line),
+      boxShadow: StudioVisuals.softShadow,
     ),
-    child: Text(text, style: const TextStyle(color: Colors.white70)),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Icon(Icons.info_outline_rounded, color: StudioVisuals.teal),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: StudioVisuals.ink, height: 1.35),
+          ),
+        ),
+      ],
+    ),
   );
 }
 
@@ -1820,7 +2050,11 @@ class _OfflineState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.cloud_off_rounded, size: 54),
+          const Icon(
+            Icons.cloud_off_rounded,
+            size: 54,
+            color: StudioVisuals.teal,
+          ),
           const SizedBox(height: 12),
           const Text(
             'Çevrim içi arena bağlanamadı',
@@ -1830,7 +2064,7 @@ class _OfflineState extends StatelessWidget {
           Text(
             reason?.trim().isNotEmpty == true ? reason! : 'İnternetini ve Firebase yapılandırmasını kontrol edip tekrar dene.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white60),
+            style: const TextStyle(color: StudioVisuals.muted),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(

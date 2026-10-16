@@ -8,6 +8,8 @@ import 'package:zeka_parkuru/games/number_sort/number_sort_game_page.dart';
 import 'package:zeka_parkuru/games/picture_iq/picture_iq_game_page.dart';
 import 'package:zeka_parkuru/games/shape_puzzle/shape_puzzle_game_page.dart';
 import 'package:zeka_parkuru/games/word_hunt/word_hunt_game_page.dart';
+import 'package:zeka_parkuru/features/catalog/domain/studio_game_catalog.dart';
+import 'package:zeka_parkuru/games/shared/studio_game_contracts.dart';
 import 'package:zeka_parkuru/services/daily_challenge_service.dart';
 import 'package:zeka_parkuru/services/daily_course_service.dart';
 import 'package:zeka_parkuru/services/unified_progress_service.dart';
@@ -20,18 +22,36 @@ void main() {
   setUp(resetTestPreferences);
   tearDownAll(uninstallTestPreferences);
 
-  test('V7 contains eleven unique courses', () {
-    expect(DailyCourseService.gameIds.length, 11);
-    expect(DailyCourseService.gameIds.toSet().length, 11);
+  test('daily course only contains unique playable games', () {
+    expect(DailyCourseService.gameIds.length, 21);
+    expect(DailyCourseService.gameIds.toSet().length, 21);
+    expect(
+      DailyCourseService.gameIds.every(StudioGameCatalog.isAvailable),
+      isTrue,
+    );
+    expect(DailyCourseService.gameIds, isNot(contains('logic')));
     expect(DailyCourseService.gameIds, contains('reflex'));
     expect(DailyCourseService.gameIds, contains('word_hunt'));
+    expect(DailyCourseService.gameIds, contains('meaning_match'));
+    expect(DailyCourseService.gameIds, contains('proverb_finish'));
+    expect(DailyCourseService.gameIds, contains('sentence_builder'));
+    expect(DailyCourseService.gameIds, contains('near_meaning'));
+    expect(DailyCourseService.gameIds, contains('letter_maze'));
+    expect(DailyCourseService.gameIds, contains('language_detective'));
+    expect(DailyCourseService.gameIds, contains('story_order'));
+    expect(DailyCourseService.gameIds, isNot(contains('light_sequence')));
+    expect(DailyCourseService.gameIds, contains('card_pairs'));
+    expect(DailyCourseService.gameIds, contains('focus_filter'));
+    expect(DailyCourseService.gameIds, isNot(contains('spot_change')));
+    expect(DailyCourseService.gameIds, contains('rhythm_memory'));
+    expect(DailyCourseService.gameIds, contains('attention_tunnel'));
     expect(DailyCourseService.gameIds, contains('picture_iq'));
     expect(DailyCourseService.gameIds, contains('candy_sort'));
     expect(DailyCourseService.gameIds, contains('number_sort'));
     expect(DailyCourseService.gameIds, contains('shape_puzzle'));
     expect(
-      DailyChallengeService.gameLabels.keys.toSet(),
-      DailyCourseService.gameIds.toSet(),
+      DailyChallengeService.gameLabels.keys,
+      containsAll(DailyCourseService.gameIds),
     );
   });
 
@@ -71,7 +91,7 @@ void main() {
     expect(ZekaScoringService.dailyResultPoints(3), 250);
   });
 
-  test('V7.2 score caps and eleven-course maximum stay synchronized', () {
+  test('common scores and all campaign level totals stay synchronized', () {
     const ParkurProgressData fullCourse = ParkurProgressData(
       acikSeviye: 10,
       yildizlar: <int>[3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
@@ -89,18 +109,21 @@ void main() {
       sayiPetegi: fullCourse,
       sekilBirlestir: fullCourse,
       refleks: fullCourse,
+      gameProgressById: <String, ParkurProgressData>{
+        'numbers': fullCourse,
+        'blocks': fullCourse,
+        'memory': fullCourse,
+        'hanoi': fullCourse,
+        'word_hunt': fullCourse,
+        'picture_iq': fullCourse,
+        'number_sort': fullCourse,
+        'shape_puzzle': fullCourse,
+        'reflex': fullCourse,
+      },
     );
 
-    expect(ZekaScoringService.courseScore(fullCourse), 2000);
-    expect(
-      ZekaScoringService.calculate(
-        progress: fullProgress,
-        completedDailyCourses: 999,
-        bestStreak: 999,
-        perfectDays: 999,
-      ).total,
-      27650,
-    );
+    expect(ZekaScoringService.courseScore(fullCourse), 100);
+    expect(ZekaScoringService.calculate(progress: fullProgress).total, 900);
   });
 
   test('every new course has ten progressive levels', () {
@@ -130,9 +153,15 @@ void main() {
     );
   });
 
-  test('overall totals match eleven ten-level courses', () {
-    expect(UnifiedProgressData.maksimumSeviye, 110);
-    expect(UnifiedProgressData.maksimumYildiz, 330);
+  test('overall totals match all thirty-level campaigns', () {
+    expect(
+      UnifiedProgressData.maksimumSeviye,
+      GameContentPolicy.standardGames.length * GameContentPolicy.campaignLevels,
+    );
+    expect(
+      UnifiedProgressData.maksimumYildiz,
+      UnifiedProgressData.maksimumSeviye * 3,
+    );
   });
 
   testWidgets('new game play screens open on a small phone without errors', (

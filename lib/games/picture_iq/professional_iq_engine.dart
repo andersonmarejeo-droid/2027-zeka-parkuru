@@ -153,9 +153,8 @@ class ProfessionalIqEngine {
     int seriesCount = 0;
 
     while (result.length < count) {
-      final List<ProfessionalIqFamily> candidates = List<ProfessionalIqFamily>.of(
-        allowed,
-      )..shuffle(random);
+      final List<ProfessionalIqFamily> candidates =
+          List<ProfessionalIqFamily>.of(allowed)..shuffle(random);
       final int leastUsed = candidates
           .map((ProfessionalIqFamily item) => used[item] ?? 0)
           .reduce(min);
@@ -238,11 +237,7 @@ class ProfessionalIqEngine {
         random,
         variant,
       ),
-      ProfessionalIqFamily.mirror => _mirrorQuestion(
-        level,
-        random,
-        variant,
-      ),
+      ProfessionalIqFamily.mirror => _mirrorQuestion(level, random, variant),
       ProfessionalIqFamily.countRelation => _seriesQuestion(
         family,
         level,
@@ -318,8 +313,23 @@ class ProfessionalIqEngine {
     Random random,
     int variant,
   ) {
-    final ProfessionalIqFigure target = _randomFigure(random).copyWith(
-      shape: _motifForVariant(variant + 2),
+    // This family used to show one isolated shape and silently change its
+    // colour in the answer. That was not a transformation at all. It now
+    // presents a complete A→B / C→? visual analogy: the player can inspect
+    // the first silhouette pair and transfer the same explicit shape-pair
+    // relation to the second pair.
+    final List<int> firstPair = _shapeTransformPairs[variant % _shapeTransformPairs.length];
+    final List<int> secondPair = _shapeTransformPairs[
+      (variant + 3) % _shapeTransformPairs.length
+    ];
+    final bool reverse = variant.isOdd;
+    final int sourceShape = reverse ? firstPair[1] : firstPair[0];
+    final int transformedShape = reverse ? firstPair[0] : firstPair[1];
+    final int targetShape = reverse ? secondPair[1] : secondPair[0];
+    final int answerShape = reverse ? secondPair[0] : secondPair[1];
+
+    final ProfessionalIqFigure source = _randomFigure(random).copyWith(
+      shape: sourceShape,
       color: variant % 5,
       rotation: 0,
       count: 1,
@@ -328,21 +338,26 @@ class ProfessionalIqEngine {
       pattern: 0,
       mirrored: false,
     );
-    // The option uses the same outline but a neutral palette. Color is not a
-    // clue; the player must match the contour/silhouette itself.
+    final ProfessionalIqFigure transformed = source.copyWith(
+      shape: transformedShape,
+    );
+    final ProfessionalIqFigure target = source.copyWith(
+      shape: targetShape,
+      color: (source.color + 2) % 5,
+    );
     final ProfessionalIqFigure answer = target.copyWith(
-      color: (target.color + 2) % 5,
+      shape: answerShape,
     );
     return _withOptions(
       family: ProfessionalIqFamily.shapeTransform,
       skill: ProfessionalIqSkill.transformation,
-      layout: ProfessionalIqLayout.transform,
-      board: <ProfessionalIqFigure?>[target, null],
+      layout: ProfessionalIqLayout.analogy,
+      board: <ProfessionalIqFigure?>[source, transformed, target, null],
       answer: answer,
       level: level,
       random: random,
       variant: variant,
-      operationCode: 20,
+      operationCode: reverse ? 2 : 1,
     );
   }
 
@@ -351,7 +366,11 @@ class ProfessionalIqEngine {
     Random random,
     int variant,
   ) {
-    final int step = switch (variant % 3) { 0 => 1, 1 => 2, _ => 3 };
+    final int step = switch (variant % 3) {
+      0 => 1,
+      1 => 2,
+      _ => 3,
+    };
     final ProfessionalIqFigure first = _randomFigure(random).copyWith(
       shape: _rotationMotifForVariant(variant),
       color: variant % 5,
@@ -414,11 +433,8 @@ class ProfessionalIqEngine {
     int variant,
     _Transform transform,
   ) {
-    ProfessionalIqFigure first = _randomFigure(random).copyWith(
-      shape: _motifForVariant(variant),
-      position: 4,
-      pattern: 0,
-    );
+    ProfessionalIqFigure first = _randomFigure(random)
+        .copyWith(shape: _motifForVariant(variant), position: 4, pattern: 0);
     late ProfessionalIqFigure second;
     late ProfessionalIqFigure third;
     late ProfessionalIqFigure answer;
@@ -517,7 +533,11 @@ class ProfessionalIqEngine {
           rotation: variant % 4,
           mirrored: false,
         );
-        final int step = switch (variant % 3) { 0 => 1, 1 => 3, _ => 2 };
+        final int step = switch (variant % 3) {
+          0 => 1,
+          1 => 3,
+          _ => 2,
+        };
         second = first.copyWith(rotation: (first.rotation + step) % 4);
         third = first.copyWith(rotation: (first.rotation + step * 2) % 4);
         answer = first.copyWith(rotation: (first.rotation + step * 3) % 4);
@@ -606,45 +626,39 @@ class ProfessionalIqEngine {
       case 0:
         // Three share one color. Every option uses a different direction, so
         // there is no second 3+1 rule hidden in the artwork.
-        base = base.copyWith(shape: _rotationMotifForVariant(variant), color: random.nextInt(5));
+        base = base.copyWith(
+          shape: _rotationMotifForVariant(variant),
+          color: random.nextInt(5),
+        );
         for (int index = 0; index < 3; index++) {
           options.add(base.copyWith(rotation: index));
         }
-        answer = base.copyWith(
-          rotation: 3,
-          color: (base.color + 2) % 5,
-        );
+        answer = base.copyWith(rotation: 3, color: (base.color + 2) % 5);
       case 1:
         // Three contain one motif, the outlier contains two. Colors are all
         // different, so count is the only 3+1 classification.
         for (int index = 0; index < 3; index++) {
           options.add(base.copyWith(color: (base.color + index) % 5));
         }
-        answer = base.copyWith(
-          color: (base.color + 3) % 5,
-          count: 2,
-        );
+        answer = base.copyWith(color: (base.color + 3) % 5, count: 2);
       case 2:
         // Three are large and one is small; every color is unique.
         base = base.copyWith(size: 1);
         for (int index = 0; index < 3; index++) {
           options.add(base.copyWith(color: (base.color + index) % 5));
         }
-        answer = base.copyWith(
-          color: (base.color + 3) % 5,
-          size: 0,
-        );
+        answer = base.copyWith(color: (base.color + 3) % 5, size: 0);
       default:
         // Three point the same way and one points the opposite way. Using the
         // leaf motif makes direction unmistakable without relying on arrows.
-        base = base.copyWith(shape: _rotationMotifForVariant(variant + 2), rotation: 1);
+        base = base.copyWith(
+          shape: _rotationMotifForVariant(variant + 2),
+          rotation: 1,
+        );
         for (int index = 0; index < 3; index++) {
           options.add(base.copyWith(color: (base.color + index) % 5));
         }
-        answer = base.copyWith(
-          color: (base.color + 3) % 5,
-          rotation: 3,
-        );
+        answer = base.copyWith(color: (base.color + 3) % 5, rotation: 3);
     }
 
     options.add(answer);
@@ -680,26 +694,45 @@ class ProfessionalIqEngine {
     late ProfessionalIqFigure bottomLeft;
     late ProfessionalIqFigure answer;
 
-    final int mode = variant % 4;
+    final int modeCount = level >= 8 ? 5 : 4;
+    final int mode = variant % modeCount;
     if (mixed) {
-      topLeft = topLeft.copyWith(shape: _rotationMotifForVariant(variant + 9), rotation: 0);
+      topLeft = topLeft.copyWith(
+        shape: _rotationMotifForVariant(variant + 9),
+        rotation: 0,
+      );
       switch (mode) {
         case 0:
           topRight = topLeft.copyWith(rotation: 1);
           bottomLeft = topLeft.copyWith(count: 2);
           answer = bottomLeft.copyWith(rotation: 1);
         case 1:
-          topRight = topLeft.copyWith(rotation: 3, color: (topLeft.color + 1) % 5);
+          topRight = topLeft.copyWith(
+            rotation: 3,
+            color: (topLeft.color + 1) % 5,
+          );
           bottomLeft = topLeft.copyWith(size: 0, count: 3);
           answer = bottomLeft.copyWith(rotation: 3, color: topRight.color);
         case 2:
           topRight = topLeft.copyWith(count: 2, color: (topLeft.color + 2) % 5);
           bottomLeft = topLeft.copyWith(rotation: 2);
           answer = bottomLeft.copyWith(count: 2, color: topRight.color);
-        default:
+        case 3:
           topRight = topLeft.copyWith(size: 0, rotation: 1);
-          bottomLeft = topLeft.copyWith(count: 3, color: (topLeft.color + 1) % 5);
+          bottomLeft = topLeft.copyWith(
+            count: 3,
+            color: (topLeft.color + 1) % 5,
+          );
           answer = bottomLeft.copyWith(size: 0, rotation: 1);
+        default:
+          // Advanced 2×2 grammar: the top row changes the silhouette while
+          // the left column changes the count. Neither row nor column alone
+          // is enough to solve the missing cell.
+          topRight = topLeft.copyWith(
+            shape: _pairedShape(topLeft.shape),
+          );
+          bottomLeft = topLeft.copyWith(count: 2);
+          answer = bottomLeft.copyWith(shape: _pairedShape(bottomLeft.shape));
       }
     } else {
       topLeft = topLeft.copyWith(rotation: 0);
@@ -713,14 +746,21 @@ class ProfessionalIqEngine {
           bottomLeft = topLeft.copyWith(size: 0);
           answer = bottomLeft.copyWith(count: 2);
         case 2:
-          topLeft = topLeft.copyWith(shape: _rotationMotifForVariant(variant + 9), rotation: 0);
+          topLeft = topLeft.copyWith(
+            shape: _rotationMotifForVariant(variant + 9),
+            rotation: 0,
+          );
           topRight = topLeft.copyWith(rotation: 1);
           bottomLeft = topLeft.copyWith(color: (topLeft.color + 2) % 5);
           answer = bottomLeft.copyWith(rotation: 1);
-        default:
+        case 3:
           topRight = topLeft.copyWith(size: 0, color: (topLeft.color + 1) % 5);
           bottomLeft = topLeft.copyWith(count: 2);
           answer = bottomLeft.copyWith(size: 0, color: topRight.color);
+        default:
+          topRight = topLeft.copyWith(shape: _pairedShape(topLeft.shape));
+          bottomLeft = topLeft.copyWith(count: 2);
+          answer = bottomLeft.copyWith(shape: _pairedShape(bottomLeft.shape));
       }
     }
 
@@ -743,7 +783,8 @@ class ProfessionalIqEngine {
     Random random,
     int variant,
   ) {
-    final int mode = variant % 4;
+    final int modeCount = level >= 8 ? 5 : 4;
+    final int mode = variant % modeCount;
     final int baseColor = random.nextInt(5);
     final int baseShape = _motifForVariant(variant + 11);
 
@@ -782,7 +823,7 @@ class ProfessionalIqEngine {
             pattern: 0,
             position: 4,
           );
-        default:
+        case 3:
           // Columns own the shape, rows own the color, and size alternates
           // as a checkerboard. This provides a fourth genuinely different
           // matrix grammar instead of a palette-only variation.
@@ -792,6 +833,19 @@ class ProfessionalIqEngine {
             rotation: 0,
             count: 1,
             size: (row + column).isEven ? 1 : 0,
+            pattern: 0,
+            position: 4,
+          );
+        default:
+          // Final levels add a clean two-axis grammar: rows rotate the same
+          // asymmetric motif, columns change colour. The rule is visible in
+          // both directions and does not depend on hidden card position.
+          return ProfessionalIqFigure(
+            shape: _rotationMotifForVariant(variant + 17),
+            color: (baseColor + column) % 5,
+            rotation: row,
+            count: 1,
+            size: 1,
             pattern: 0,
             position: 4,
           );
@@ -888,7 +942,9 @@ class ProfessionalIqEngine {
     if (dotOptions) {
       for (int shift = 1; shift <= 24; shift++) {
         candidates.add(
-          answer.copyWith(dotMask: _safeToggle(answer.dotMask, shift + variant)),
+          answer.copyWith(
+            dotMask: _safeToggle(answer.dotMask, shift + variant),
+          ),
         );
       }
     } else {
@@ -916,9 +972,7 @@ class ProfessionalIqEngine {
             candidates.add(
               answer.copyWith(
                 rotation: rotation,
-                mirrored: rotation.isEven
-                    ? answer.mirrored
-                    : !answer.mirrored,
+                mirrored: rotation.isEven ? answer.mirrored : !answer.mirrored,
                 position: 4,
               ),
             );
@@ -970,10 +1024,7 @@ class ProfessionalIqEngine {
                 shape: (answer.shape + delta) % motifCount,
                 position: 4,
               ),
-              answer.copyWith(
-                color: (answer.color + delta) % 5,
-                position: 4,
-              ),
+              answer.copyWith(color: (answer.color + delta) % 5, position: 4),
               answer.copyWith(
                 count: ((answer.count - 1 + delta) % 3) + 1,
                 position: 4,
@@ -986,8 +1037,8 @@ class ProfessionalIqEngine {
             ]);
           }
         case ProfessionalIqFamily.matrix2 ||
-        ProfessionalIqFamily.matrix3 ||
-        ProfessionalIqFamily.mixedRules:
+            ProfessionalIqFamily.matrix3 ||
+            ProfessionalIqFamily.mixedRules:
           // Matrix distractors never use free-floating card position. This is
           // the exact class of bug that previously created two almost equal
           // answers where only their hidden/irrelevant placement differed.
@@ -997,10 +1048,7 @@ class ProfessionalIqEngine {
                 shape: (answer.shape + delta) % motifCount,
                 position: 4,
               ),
-              answer.copyWith(
-                color: (answer.color + delta) % 5,
-                position: 4,
-              ),
+              answer.copyWith(color: (answer.color + delta) % 5, position: 4),
               answer.copyWith(
                 count: ((answer.count - 1 + delta) % 3) + 1,
                 position: 4,
@@ -1010,10 +1058,7 @@ class ProfessionalIqEngine {
                   rotation: (answer.rotation + delta) % 4,
                   position: 4,
                 ),
-              answer.copyWith(
-                size: 1 - answer.size,
-                position: 4,
-              ),
+              answer.copyWith(size: 1 - answer.size, position: 4),
               answer.copyWith(
                 color: (answer.color + delta) % 5,
                 count: ((answer.count - 1 + delta) % 3) + 1,
@@ -1030,9 +1075,9 @@ class ProfessionalIqEngine {
           // Odd-one-out owns its four choices and never reaches this helper.
           break;
         case ProfessionalIqFamily.symmetry ||
-        ProfessionalIqFamily.overlay ||
-        ProfessionalIqFamily.xor ||
-        ProfessionalIqFamily.paperFold:
+            ProfessionalIqFamily.overlay ||
+            ProfessionalIqFamily.xor ||
+            ProfessionalIqFamily.paperFold:
           break;
       }
     }
@@ -1084,8 +1129,7 @@ class ProfessionalIqEngine {
       ProfessionalIqFamily.colorPattern => 'color:${figure.color}',
       ProfessionalIqFamily.shapeTransform => 'shape:${figure.shape}',
       ProfessionalIqFamily.rotation => 'rotation:$rotation',
-      ProfessionalIqFamily.mirror =>
-        'mirror:$rotation:$mirror',
+      ProfessionalIqFamily.mirror => 'mirror:$rotation:$mirror',
       ProfessionalIqFamily.countRelation => 'count:${figure.count}',
       ProfessionalIqFamily.sizePosition =>
         'sizePosition:${figure.size}:${figure.position}',
@@ -1196,21 +1240,71 @@ class ProfessionalIqEngine {
   }
 
   static const List<int> _rotationMotifs = <int>[
-    4, 5, 6, 9, 11, 12, 13, 14, 16, 17, 18, 19,
+    4,
+    5,
+    6,
+    9,
+    11,
+    12,
+    13,
+    14,
+    16,
+    17,
+    18,
+    19,
   ];
 
   static const List<int> _mirrorMotifs = <int>[
-    4, 5, 6, 7, 9, 11, 12, 13, 14, 15, 16, 18, 19,
+    4,
+    5,
+    6,
+    7,
+    9,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    18,
+    19,
+  ];
+
+  /// Explicit, inspectable silhouette pairs used by the shape-transformation
+  /// family. Shape ids are not treated as an ordered numeric scale; each pair
+  /// is a visible A→B relation that can be transferred to a new silhouette.
+  static const List<List<int>> _shapeTransformPairs = <List<int>>[
+    <int>[0, 3],
+    <int>[1, 8],
+    <int>[2, 10],
+    <int>[4, 6],
+    <int>[5, 7],
+    <int>[9, 11],
+    <int>[12, 13],
+    <int>[14, 15],
+    <int>[16, 17],
+    <int>[18, 19],
   ];
 
   int _motifForVariant(int variant) =>
       ((variant % motifCount) + motifCount) % motifCount;
 
   int _rotationMotifForVariant(int variant) =>
-      _rotationMotifs[((variant % _rotationMotifs.length) + _rotationMotifs.length) % _rotationMotifs.length];
+      _rotationMotifs[((variant % _rotationMotifs.length) +
+              _rotationMotifs.length) %
+          _rotationMotifs.length];
 
   int _mirrorMotifForVariant(int variant) =>
-      _mirrorMotifs[((variant % _mirrorMotifs.length) + _mirrorMotifs.length) % _mirrorMotifs.length];
+      _mirrorMotifs[((variant % _mirrorMotifs.length) + _mirrorMotifs.length) %
+          _mirrorMotifs.length];
+
+  int _pairedShape(int shape) {
+    for (final List<int> pair in _shapeTransformPairs) {
+      if (pair[0] == shape) return pair[1];
+      if (pair[1] == shape) return pair[0];
+    }
+    return (shape + 1) % motifCount;
+  }
 
   ProfessionalIqFigure _randomFigure(Random random) {
     return ProfessionalIqFigure(
@@ -1327,7 +1421,6 @@ class ProfessionalIqEngine {
     }
     return result;
   }
-
 }
 
 enum _Transform {

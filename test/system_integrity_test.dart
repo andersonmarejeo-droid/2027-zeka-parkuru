@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:zeka_parkuru/features/catalog/domain/studio_game_catalog.dart';
 import 'package:zeka_parkuru/games/candy_sort/candy_sort_game_page.dart';
 import 'package:zeka_parkuru/games/logic/logic_game_page.dart';
 import 'package:zeka_parkuru/games/number_sort/number_sort_game_page.dart';
@@ -24,13 +25,33 @@ const List<String> _expectedGameIds = <String>[
   'numbers',
   'blocks',
   'memory',
+  'card_pairs',
+  'focus_filter',
+  'rhythm_memory',
+  'attention_tunnel',
   'hanoi',
   'word_hunt',
+  'meaning_match',
+  'proverb_finish',
+  'sentence_builder',
+  'near_meaning',
+  'letter_maze',
+  'language_detective',
+  'story_order',
   'picture_iq',
   'candy_sort',
   'number_sort',
   'shape_puzzle',
   'reflex',
+];
+
+final List<String> _expectedDailyCourseGameIds = StudioGameCatalog.playable
+    .map((GameDefinition game) => game.id)
+    .toList(growable: false);
+
+const List<String> _expectedLocalizedGameIds = <String>[
+  ..._expectedGameIds,
+  'candy_sort',
 ];
 
 String _source(String relativePath) {
@@ -59,15 +80,15 @@ void main() {
         expect(replayOne.toSet().length, replayOne.length);
         expect(replayOne, isNot(orderedEquals(original)));
         expect(replayTwo, isNot(orderedEquals(replayOne)));
-        expect(replayOne, everyElement(isIn(_expectedGameIds)));
+        expect(replayOne, everyElement(isIn(_expectedDailyCourseGameIds)));
 
-        for (final String gameId in _expectedGameIds) {
+        for (final String gameId in _expectedDailyCourseGameIds) {
           final int level = service.levelForDailyCourse(
             date: date,
             gameId: gameId,
             runNumber: 1,
           );
-          expect(level, inInclusiveRange(1, 10), reason: gameId);
+          expect(level, inInclusiveRange(1, 30), reason: gameId);
         }
 
         final String page = _source('lib/pages/daily_course_page.dart');
@@ -80,13 +101,15 @@ void main() {
           RegExp(r'competitionLevel:\s*competitionLevel')
               .allMatches(pageFactory)
               .length,
-          11,
+          DailyCourseService.gameIds.length + 1,
+          reason: 'Archived Spot the Change runs retain their old route.',
         );
         expect(
           RegExp(r'competitionLayoutCode:\s*layoutCode')
               .allMatches(pageFactory)
               .length,
-          11,
+          DailyCourseService.gameIds.length + 1,
+          reason: 'Archived Spot the Change runs retain their old route.',
         );
         expect(page, contains('Parkuru Tekrar Oyna'));
         expect(page, contains('Future<void> _startReplay()'));
@@ -95,14 +118,18 @@ void main() {
           RegExp(r'_audio\.playMashallahCelebration\(\)')
               .allMatches(page)
               .length,
-          1,
+          0,
         );
         expect(page, contains('Tekrar puanı günlük ödülü yeniden artırmaz.'));
       },
     );
-    test('11 oyun günlük parkur ve günlük görevlerde eşleşir', () {
+    test('emekliye ayrılan oyun günlük parkura girmez', () {
       expect(DailyCourseService.dailyGameCount, 8);
-      expect(DailyCourseService.gameIds, orderedEquals(_expectedGameIds));
+      expect(
+        DailyCourseService.gameIds,
+        orderedEquals(_expectedDailyCourseGameIds),
+      );
+      expect(DailyCourseService.gameIds, isNot(contains('logic')));
       expect(
         DailyChallengeService.gameLabels.keys,
         orderedEquals(_expectedGameIds),
@@ -110,11 +137,11 @@ void main() {
       expect(DailyChallengeService.gameLabels.values, everyElement(isNotEmpty));
     });
 
-    test('Türkçe ve İngilizce oyun metinleri 11 oyun için eksiksizdir', () {
+    test('Türkçe ve İngilizce oyun metinleri 24 oyun için eksiksizdir', () {
       const AppLocalizations turkish = AppLocalizations(Locale('tr'));
       const AppLocalizations english = AppLocalizations(Locale('en'));
 
-      for (final String gameId in _expectedGameIds) {
+      for (final String gameId in _expectedLocalizedGameIds) {
         expect(turkish.gameTitle(gameId), isNotEmpty, reason: gameId);
         expect(turkish.gameDescription(gameId), isNotEmpty, reason: gameId);
         expect(english.gameTitle(gameId), isNotEmpty, reason: gameId);
@@ -142,7 +169,7 @@ void main() {
       expect(first, orderedEquals(second));
       expect(first.length, DailyCourseService.dailyGameCount);
       expect(first.toSet().length, DailyCourseService.dailyGameCount);
-      expect(first, everyElement(isIn(_expectedGameIds)));
+      expect(first, everyElement(isIn(_expectedDailyCourseGameIds)));
     });
   });
 
@@ -338,7 +365,7 @@ void main() {
       expect(source, contains('_finishing = solved'));
     });
 
-    test('Sayı Peteği yasal karıştırma ve ters çözüm yolunu saklar', () {
+    test('15 Taş Ustası yasal karıştırma ve ters çözüm yolunu saklar', () {
       final String source = _source(
         'lib/games/number_sort/number_sort_game_page.dart',
       );
@@ -392,9 +419,9 @@ void main() {
   });
 
   group('Puan, liderlik ve çevrimdışı güvenlik', () {
-    test('11 parkurluk azami ilerleme ve Zeka Puanı eşikleri senkrondur', () {
-      expect(UnifiedProgressData.maksimumSeviye, 110);
-      expect(UnifiedProgressData.maksimumYildiz, 330);
+    test('kampanya azami ilerlemesi ve Zeka Puanı eşikleri senkrondur', () {
+      expect(UnifiedProgressData.maksimumSeviye, 1320);
+      expect(UnifiedProgressData.maksimumYildiz, 3960);
       expect(ZekaScoringService.dailyResultPoints(0), 100);
       expect(ZekaScoringService.dailyResultPoints(3), 250);
     });
@@ -408,8 +435,8 @@ void main() {
           'xp': -50,
           'level': 500,
           'score': 999999999,
-          'stars': 999,
-          'completedLevels': 999,
+          'stars': 9999,
+          'completedLevels': 9999,
           'bestStreak': -2,
           'perfectDays': 50000,
           'league': '',
@@ -424,8 +451,8 @@ void main() {
       expect(entry.xp, 0);
       expect(entry.level, 50);
       expect(entry.score, 10000000);
-      expect(entry.stars, 330);
-      expect(entry.completedLevels, 110);
+      expect(entry.stars, UnifiedProgressData.maksimumYildiz);
+      expect(entry.completedLevels, UnifiedProgressData.maksimumSeviye);
       expect(entry.bestStreak, 0);
       expect(entry.perfectDays, 10000);
       expect(entry.leagueShortName, 'BAŞLANGIÇ');
@@ -433,13 +460,13 @@ void main() {
       expect(entry.updatedAt, isNull);
     });
 
-    test('Firestore V3 kuralları 110 bölüm ve 330 yıldızla uyumludur', () {
+    test('Firestore kuralları tüm kampanya bölümleri ve yıldızları kapsar', () {
       final String rules = _source('firestore.rules');
 
       expect(rules, contains('match /leaderboard_v3_public/{uid}'));
       expect(rules, contains('data.score == data.xp'));
-      expect(rules, contains('data.stars <= 330'));
-      expect(rules, contains('data.completedLevels <= 110'));
+      expect(rules, contains('data.stars <= 3960'));
+      expect(rules, contains('data.completedLevels <= 1320'));
       expect(rules, contains('data.friendCode.size() == 8'));
       expect(rules, contains('allow read, write: if false'));
     });
@@ -486,7 +513,7 @@ void main() {
     );
 
     test(
-      'meydan okuma on bir oyundan altı oyun ve WhatsApp paylaşımı kullanır',
+      'meydan okuma 21 oyundan sekiz oyun ve WhatsApp paylaşımı kullanır',
       () {
         final String challenge = _source(
           'lib/services/social_challenge_service.dart',
@@ -494,8 +521,8 @@ void main() {
         final String page = _source('lib/pages/challenge_center_page.dart');
         final String reflex = _source('lib/games/reflex/reflex_game_page.dart');
 
-        expect(challenge, contains('shuffled.take(6)'));
-        expect(challenge, contains("'schemaVersion': 4"));
+        expect(challenge, contains('shuffled.take(8)'));
+        expect(challenge, contains("'schemaVersion': 2"));
         expect(challenge, contains("'layoutCodes': layoutCodes"));
         expect(page, contains('WHATSAPP İLE DAVET GÖNDER'));
         expect(page, contains('fixedSessionSeed: challenge.seed'));
@@ -588,12 +615,15 @@ void main() {
   });
 
   group('V8.1 Zekâ Arenası grup yarışmaları', () {
-    test('arena kataloğu 11 oyunu eksiksiz ve benzersiz sunar', () {
-      expect(ArenaService.allGameIds, orderedEquals(_expectedGameIds));
-      expect(ArenaService.allGameIds.toSet().length, 11);
+    test('arena kataloğu 44 aktif oyunu eksiksiz ve benzersiz sunar', () {
+      expect(
+        ArenaService.allGameIds,
+        orderedEquals(_expectedDailyCourseGameIds),
+      );
+      expect(ArenaService.allGameIds.toSet().length, 44);
       expect(
         ArenaService.featuredGameIds,
-        orderedEquals(<String>['hanoi', 'picture_iq', 'candy_sort']),
+        orderedEquals(<String>['hanoi', 'picture_iq', 'number_sort']),
       );
     });
 
@@ -602,9 +632,10 @@ void main() {
       final String rules = _source('firestore.rules');
       final String page = _source('lib/pages/arena_page.dart');
 
-      expect(service, contains('shuffledGames.take(6)'));
+      expect(service, contains('.take(eventGameCount)'));
+      expect(service, contains('eventGameCount = 6'));
       expect(rules, contains('data.gameIds.size() == 6'));
-      expect(page, contains('6 OYUNLUK RASTGELE PARKUR'));
+      expect(page, contains('ArenaService.eventGameCount'));
       expect(page, isNot(contains('BÜYÜK PARKUR • 11')));
     });
 
@@ -673,12 +704,12 @@ void main() {
       expect(daily, contains('_close(false)'));
       expect(
         RegExp(r'competitionLayoutCode:\s*layoutCode').allMatches(daily).length,
-        11,
+        DailyCourseService.gameIds.length + 1,
       );
       expect(daily, contains('Duration(milliseconds: 950)'));
     });
 
-    test('11 oyunda yarışma sonucu oyun içi menüyü beklemez', () {
+    test('24 oyunda yarışma sonucu oyun içi menüyü beklemez', () {
       final String kit = _source('lib/games/shared/parkur_game_kit.dart');
       final String numbers = _source('lib/games/numbers/number_game_page.dart');
       final String dailyResults = _source(
@@ -692,6 +723,18 @@ void main() {
         'lib/games/memory/shape_match_game_page.dart',
         'lib/games/hanoi/hanoi_game_page.dart',
         'lib/games/word_hunt/word_hunt_game_page.dart',
+        'lib/games/meaning_match/meaning_match_game_page.dart',
+        'lib/games/proverb_finish/proverb_finish_game_page.dart',
+        'lib/games/sentence_builder/sentence_builder_game_page.dart',
+        'lib/games/near_meaning/near_meaning_game_page.dart',
+        'lib/games/letter_maze/letter_maze_game_page.dart',
+        'lib/games/language_detective/language_detective_game_page.dart',
+        'lib/games/story_order/story_order_game_page.dart',
+        'lib/games/card_pairs/card_pairs_game_page.dart',
+        'lib/games/focus_filter/focus_filter_game_page.dart',
+        'lib/games/spot_change/spot_change_game_page.dart',
+        'lib/games/rhythm_memory/rhythm_memory_game_page.dart',
+        'lib/games/attention_tunnel/attention_tunnel_game_page.dart',
         'lib/games/picture_iq/picture_iq_game_page.dart',
         'lib/games/candy_sort/candy_sort_game_page.dart',
         'lib/games/number_sort/number_sort_game_page.dart',
@@ -714,7 +757,20 @@ void main() {
       for (final String file in directPlayFiles) {
         final String source = _source(file);
         expect(source, contains('competitionMode'), reason: file);
-        expect(source, contains('widget.competitionMode'), reason: file);
+        if (!file.contains('/meaning_match/') &&
+            !file.contains('/proverb_finish/') &&
+            !file.contains('/sentence_builder/') &&
+            !file.contains('/near_meaning/') &&
+            !file.contains('/letter_maze/') &&
+            !file.contains('/language_detective/') &&
+            !file.contains('/story_order/') &&
+            !file.contains('/card_pairs/') &&
+            !file.contains('/focus_filter/') &&
+            !file.contains('/spot_change/') &&
+            !file.contains('/rhythm_memory/') &&
+            !file.contains('/attention_tunnel/')) {
+          expect(source, contains('widget.competitionMode'), reason: file);
+        }
       }
     });
 
@@ -783,7 +839,7 @@ void main() {
       expect(ArenaService.competitionPoints(99), 1000);
     });
 
-    test('11 oyunun tamamı ortak seviye ve parkur düzeni kabul eder', () {
+    test('24 oyunun tamamı ortak seviye ve parkur düzeni kabul eder', () {
       const List<String> files = <String>[
         'lib/games/logic/logic_game_page.dart',
         'lib/games/numbers/number_game_page.dart',
@@ -791,6 +847,18 @@ void main() {
         'lib/games/memory/memory_game_page.dart',
         'lib/games/hanoi/hanoi_game_page.dart',
         'lib/games/word_hunt/word_hunt_game_page.dart',
+        'lib/games/meaning_match/meaning_match_game_page.dart',
+        'lib/games/proverb_finish/proverb_finish_game_page.dart',
+        'lib/games/sentence_builder/sentence_builder_game_page.dart',
+        'lib/games/near_meaning/near_meaning_game_page.dart',
+        'lib/games/letter_maze/letter_maze_game_page.dart',
+        'lib/games/language_detective/language_detective_game_page.dart',
+        'lib/games/story_order/story_order_game_page.dart',
+        'lib/games/card_pairs/card_pairs_game_page.dart',
+        'lib/games/focus_filter/focus_filter_game_page.dart',
+        'lib/games/spot_change/spot_change_game_page.dart',
+        'lib/games/rhythm_memory/rhythm_memory_game_page.dart',
+        'lib/games/attention_tunnel/attention_tunnel_game_page.dart',
         'lib/games/picture_iq/picture_iq_game_page.dart',
         'lib/games/candy_sort/candy_sort_game_page.dart',
         'lib/games/number_sort/number_sort_game_page.dart',
@@ -834,7 +902,7 @@ void main() {
 
       expect(main, contains('_HomeArenaCard(onTap: arenayiAc)'));
       expect(page, contains('SharePlus.instance.share'));
-      expect(page, contains('6 OYUNLUK RASTGELE PARKUR'));
+      expect(page, contains('ArenaService.eventGameCount'));
       expect(leaderboard, contains('.take(30)'));
       expect(notifications, contains("uri.host == 'arena'"));
       expect(manifest, contains('android:host="arena"'));
@@ -863,8 +931,10 @@ void main() {
         expect(arena, contains("String draftName = '';"));
         expect(arena, contains("String draftCode = '';"));
         expect(bootstrap, contains('canResolveFirebaseServices()'));
-        expect(bootstrap, contains('.getToken(true)'));
-        expect(bootstrap, contains('Debug anahtarlarını yönet'));
+        expect(bootstrap, isNot(contains('.getToken(true)')));
+        expect(bootstrap, isNot(contains('Debug anahtarlarını yönet')));
+        expect(bootstrap, contains('AndroidDebugProvider'));
+        expect(bootstrap, contains('AndroidPlayIntegrityProvider'));
         expect(reachability, contains('firestore.googleapis.com'));
         expect(reachability, contains('firebaseappcheck.googleapis.com'));
         expect(reachability, contains('results.any'));
@@ -897,8 +967,8 @@ void main() {
 
         expect(bootstrap, contains('bool forceRetry = false'));
         expect(bootstrap, contains('_automaticRetryAfter'));
-        expect(bootstrap, contains("normalized.contains('too many attempts')"));
-        expect(bootstrap, contains('const Duration(minutes: 1)'));
+        expect(bootstrap, isNot(contains("normalized.contains('too many attempts')")));
+        expect(bootstrap, isNot(contains('const Duration(minutes: 1)')));
         expect(errors, contains('if (kDebugMode)'));
         expect(notifications, contains('_messagingStarted'));
         expect(notifications, contains('_scheduleStartupRetry()'));

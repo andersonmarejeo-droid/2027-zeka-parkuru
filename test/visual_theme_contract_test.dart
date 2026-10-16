@@ -2,72 +2,77 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:zeka_parkuru/theme/app_visual_theme.dart';
+import 'package:zeka_parkuru/theme/studio_visuals.dart';
 
 String _source(String relativePath) => File(relativePath).readAsStringSync();
 
 void main() {
-  group('Gorsel tema veri sozlesmesi', () {
-    test('kayit degerleri kararlidir ve bilinmeyen deger klasige doner', () {
-      expect(AppVisualTheme.classicNeon.storageValue, 'classic_neon');
-      expect(AppVisualTheme.pinkNeon.storageValue, 'pink_neon');
-      expect(AppVisualTheme.fromStorage('pink_neon'), AppVisualTheme.pinkNeon);
+  group('Tek tema sozlesmesi', () {
+    test('uygulamada yalniz Zihin Bahcesi temasi secilebilir', () {
+      expect(AppVisualTheme.values, <AppVisualTheme>[
+        AppVisualTheme.studioGarden,
+      ]);
+      expect(AppVisualTheme.studioGarden.storageValue, 'studio_garden');
+      expect(
+        AppVisualTheme.fromStorage('studio_garden'),
+        AppVisualTheme.studioGarden,
+      );
+      expect(
+        AppVisualTheme.fromStorage('classic_neon'),
+        AppVisualTheme.studioGarden,
+      );
+      expect(
+        AppVisualTheme.fromStorage('pink_neon'),
+        AppVisualTheme.studioGarden,
+      );
       expect(
         AppVisualTheme.fromStorage('bilinmeyen'),
-        AppVisualTheme.classicNeon,
+        AppVisualTheme.studioGarden,
       );
-      expect(AppVisualTheme.fromStorage(null), AppVisualTheme.classicNeon);
+      expect(AppVisualTheme.fromStorage(null), AppVisualTheme.studioGarden);
     });
 
-    test('klasik tema mevcut renkleri birebir korur', () {
-      const ZpVisualPalette palette = ZpVisualPalette.classic;
+    test('bahce paleti acik yuzeyleri ve teal vurguyu korur', () {
+      const ZpVisualPalette palette = ZpVisualPalette.garden;
 
-      expect(palette.background, const Color(0xFF07162E));
-      expect(palette.surface, const Color(0xFF10274B));
-      expect(palette.surfaceAlternative, const Color(0xFF0B1A31));
-      expect(palette.primary, const Color(0xFF6C4DFF));
-      expect(palette.secondary, const Color(0xFF00D9FF));
-      expect(palette.onboardingBackground, const Color(0xFF000322));
-      expect(palette.onboardingSurface, const Color(0xFF0D1941));
-      expect(palette.onboardingAccent, const Color(0xFFFF7200));
-      expect(palette.headerGradientEnd, const Color(0xFF34236F));
-      expect(palette.homeHeaderGradientEnd, const Color(0xFF172F61));
-      expect(palette.arenaGradientEnd, const Color(0xFF008DB2));
-      expect(palette.gamePanelGradientEnd, const Color(0xFF0D3353));
+      expect(palette.background, const Color(0xFFF6F8F6));
+      expect(palette.surface, Colors.white);
+      expect(palette.primary, const Color(0xFF238F81));
+      expect(ZpVisualPalette.forTheme(AppVisualTheme.studioGarden), palette);
+      expect(StudioVisuals.canvas, palette.background);
+      expect(StudioVisuals.teal, palette.primary);
+      expect(StudioVisuals.amber, palette.secondary);
+      expect(palette.onboardingBackground, palette.background);
+      expect(palette.onboardingSurface, palette.surface);
+      expect(palette.onboardingAccent, palette.primary);
+      expect(StudioVisuals.pageGutter, 20);
+      expect(StudioVisuals.cardMinTapHeight, greaterThanOrEqualTo(88));
+      expect(StudioVisuals.cardRadius, BorderRadius.circular(22));
     });
 
-    test('pembe tema yalniz gorsel paleti degistirir', () {
-      const ZpVisualPalette classic = ZpVisualPalette.classic;
-      const ZpVisualPalette pink = ZpVisualPalette.pink;
-
-      expect(pink.background, isNot(classic.background));
-      expect(pink.surface, isNot(classic.surface));
-      expect(pink.primary, isNot(classic.primary));
-      expect(pink.secondary, isNot(classic.secondary));
-      expect(pink.onboardingAccent, isNot(classic.onboardingAccent));
+    test('erisebilirlik icin yuksek kontrast paleti korunur', () {
+      expect(ZpVisualPalette.highContrast.background, const Color(0xFF07162E));
+      expect(ZpVisualPalette.highContrast.primary, const Color(0xFF6C4DFF));
     });
   });
 
-  group('Tema ekranlari kaynak sozlesmesi', () {
-    test('ilk giris ve Ayarlar ayni tema seceneklerini kullanir', () {
+  group('Tema secenegi ekrandan kaldirildi', () {
+    test('Ayarlar ve ilk kurulum alternatif tema sunmaz', () {
       final String firstRun = _source('lib/pages/first_run_profile_page.dart');
       final String settings = _source('lib/pages/settings_page.dart');
       final String controller = _source(
         'lib/services/app_experience_controller.dart',
       );
-      final String main = _source('lib/main.dart');
 
-      expect(firstRun, contains('_ThemeStep'));
-      expect(firstRun, contains('AppVisualTheme.pinkNeon'));
-      expect(firstRun, contains('Pembe Neon'));
-      expect(settings, contains('visual_theme_setting_'));
-      expect(settings, contains('AppVisualTheme.pinkNeon'));
-      expect(settings, contains('Mavi–Mor Neon'));
-      expect(settings, contains('Pembe Neon'));
+      expect(firstRun, contains('AppVisualTheme.studioGarden'));
+      expect(firstRun, isNot(contains('_ThemeStep')));
+      expect(firstRun, isNot(contains('Renk temanı seç')));
+      expect(settings, isNot(contains('visual_theme_setting_')));
+      expect(settings, isNot(contains('Mavi–Mor Neon')));
+      expect(settings, isNot(contains('Pembe Neon')));
       expect(controller, contains("visualThemeKey = 'zp_visual_theme_v1'"));
-      expect(main, contains('extensions: <ThemeExtension<dynamic>>'));
-      expect(main, contains('experience.visualTheme'));
+      expect(controller, contains('AppVisualTheme.studioGarden'));
     });
 
     test('tema secimi cinsiyet verisi istemez', () {

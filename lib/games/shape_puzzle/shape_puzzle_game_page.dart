@@ -2,12 +2,16 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+
+import '../../theme/studio_visuals.dart';
+
 import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../services/game_audio_service.dart';
 import '../../services/replayability_service.dart';
 import '../shared/parkur_game_kit.dart';
+import '../shared/studio_game_contracts.dart';
 
 class ShapePuzzleGamePage extends StatelessWidget {
   final bool dailyCourseMode;
@@ -163,7 +167,7 @@ class ShapePuzzleGamePage extends StatelessWidget {
       titleEn: 'SHAPE MERGE',
       taglineTr: 'İncele • Birleştir • Silüeti Bul',
       taglineEn: 'Observe • Merge • Find the Shape',
-      accent: const Color(0xFF8C6CFF),
+      accent: const Color(0xFF665AA2),
       icon: Icons.interests_rounded,
       levels: levels,
       dailyCourseMode: dailyCourseMode,
@@ -180,7 +184,7 @@ class ShapePuzzleGamePage extends StatelessWidget {
             return ShapePuzzlePlayPage(
               level: level as ShapePuzzleLevel,
               previousBestScore: previousBestScore,
-              fixedSessionSeed: fixedSessionSeed,
+              fixedSessionSeed: fixedSessionSeed ?? level.poolIndex,
               competitionMode: competitionMode,
             );
           },
@@ -196,6 +200,8 @@ class ShapePuzzleLevel extends ParkurLevelSpec {
   final int targetSeconds;
 
   const ShapePuzzleLevel({
+    super.sourceNumber,
+    super.poolIndex,
     required super.number,
     required super.titleTr,
     required super.titleEn,
@@ -208,6 +214,29 @@ class ShapePuzzleLevel extends ParkurLevelSpec {
     required this.questionCount,
     required this.targetSeconds,
   }) : super(icon: Icons.category_rounded);
+  @override
+  ShapePuzzleLevel campaignCopy({
+    required int number,
+    int? sourceNumber,
+    int? poolIndex,
+    String? titleTr,
+    String? titleEn,
+    String? difficulty,
+  }) => ShapePuzzleLevel(
+    number: number,
+    sourceNumber: sourceNumber,
+    poolIndex: poolIndex,
+    titleTr: titleTr ?? this.titleTr,
+    titleEn: titleEn ?? this.titleEn,
+    subtitleTr: subtitleTr,
+    subtitleEn: subtitleEn,
+    difficulty: difficulty ?? this.difficulty,
+    dimension: dimension,
+    pieceCount: pieceCount,
+    targetCells: targetCells,
+    questionCount: questionCount,
+    targetSeconds: targetSeconds,
+  );
 }
 
 enum _ShapeQuestionMode { merge, rotate, mirror, negativeSpace }
@@ -247,13 +276,13 @@ class ShapePuzzlePlayPage extends StatefulWidget {
 }
 
 class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
-  static const Color _accent = Color(0xFF8C6CFF);
+  static const Color _accent = Color(0xFF665AA2);
   static String? _lastGeneratedSignature;
   static const List<Color> _pieceColors = <Color>[
-    Color(0xFF00D9FF),
-    Color(0xFFFF4FA3),
-    Color(0xFFFFD334),
-    Color(0xFF6CFF9B),
+    Color(0xFF3D7183),
+    Color(0xFF9C5471),
+    Color(0xFF8B622C),
+    Color(0xFF34715D),
   ];
 
   late Random _random;
@@ -382,12 +411,12 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
     final List<_ShapeQuestionMode> modes = <_ShapeQuestionMode>[
       _ShapeQuestionMode.merge,
     ];
-    if (widget.level.number >= 3) modes.add(_ShapeQuestionMode.rotate);
-    if (widget.level.number >= 6) modes.add(_ShapeQuestionMode.mirror);
-    if (widget.level.number >= 8) {
+    if (widget.level.contentLevel >= 3) modes.add(_ShapeQuestionMode.rotate);
+    if (widget.level.contentLevel >= 6) modes.add(_ShapeQuestionMode.mirror);
+    if (widget.level.contentLevel >= 8) {
       modes.add(_ShapeQuestionMode.negativeSpace);
     }
-    if (widget.level.number >= 10) {
+    if (widget.level.contentLevel >= 10) {
       modes
         ..add(_ShapeQuestionMode.rotate)
         ..add(_ShapeQuestionMode.mirror);
@@ -650,7 +679,9 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
           max(0, widget.level.targetSeconds - _elapsed) * 9 -
           _mistakes * 90,
     );
-    unawaited(_audio.play(GameSound.levelComplete));
+    unawaited(
+      _audio.playLevelComplete(levelNumber: widget.level.number),
+    );
     _sessionBestScore = max(_sessionBestScore, score);
     _sessionBestStars = max(_sessionBestStars, stars);
     if (!mounted) return;
@@ -678,7 +709,7 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
       stars: stars,
       score: score,
       previousBestScore: _sessionBestScore,
-      canGoNext: widget.level.number < ShapePuzzleGamePage.levels.length,
+      canGoNext: widget.level.number < GameContentPolicy.campaignLevels,
     );
     if (!mounted || action == null) return;
     if (action == ParkurResultAction.replay) {
@@ -719,8 +750,12 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: Text(
-          '${context.l10n.gameUi(english ? widget.level.titleEn : widget.level.titleTr)}  •  ${widget.level.number}/10',
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+          '${context.l10n.gameUi(english ? widget.level.titleEn : widget.level.titleTr)}  •  ${widget.level.number}/${GameContentPolicy.campaignLevels}',
+          style: const TextStyle(
+            fontFamily: 'Roboto',
+            fontWeight: FontWeight.w900,
+            fontSize: 16,
+          ),
         ),
       ),
       body: SafeArea(
@@ -728,6 +763,7 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints limits) {
             final bool compact = limits.maxHeight < 650;
+            final ColorScheme colors = Theme.of(context).colorScheme;
             return ListView(
               padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
               children: <Widget>[
@@ -742,8 +778,9 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
                 Text(
                   _prompt(english),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white70,
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: colors.onSurfaceVariant,
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
                   ),
@@ -753,7 +790,7 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
                   padding: EdgeInsets.all(compact ? 10 : 14),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: <Color>[Color(0xFF173254), Color(0xFF2B225C)],
+                      colors: <Color>[Color(0xFFFFFFFF), Color(0xFFEEF3F0)],
                     ),
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: _accent.withValues(alpha: 0.42)),
@@ -811,7 +848,8 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
                         child: const Text(
                           '?',
                           style: TextStyle(
-                            color: Color(0xFFC9BBFF),
+                            fontFamily: 'Roboto',
+                            color: Color(0xFF665AA2),
                             fontSize: 38,
                             fontWeight: FontWeight.w900,
                           ),
@@ -834,10 +872,18 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
                   itemBuilder: (BuildContext context, int index) {
                     final bool correct = index == _question.correctIndex;
                     final bool selected = index == _selected;
-                    Color border = Colors.white12;
-                    if (_locked && correct) border = const Color(0xFF6CFF9B);
+                    Color border = colors.outlineVariant;
+                    Color background = colors.surface;
+                    if (_locked && correct) {
+                      border = const Color(0xFF27865A);
+                      background = const Color(0xFFEAF7EF);
+                    }
                     if (_locked && selected && !correct) {
-                      border = const Color(0xFFFF6B81);
+                      border = const Color(0xFFD64F63);
+                      background = const Color(0xFFFFEFF1);
+                    } else if (selected && !_locked) {
+                      border = const Color(0xFF4A84C5);
+                      background = const Color(0xFFEEF5FC);
                     }
                     return Material(
                       color: Colors.transparent,
@@ -848,7 +894,7 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
                           duration: const Duration(milliseconds: 180),
                           padding: const EdgeInsets.all(11),
                           decoration: BoxDecoration(
-                            color: border.withValues(alpha: 0.08),
+                            color: background,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: border, width: 1.4),
                           ),
@@ -861,15 +907,16 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
                                     mask: _question.options[index],
                                     dimension: widget.level.dimension,
                                     color: _locked && correct
-                                        ? const Color(0xFF6CFF9B)
-                                        : const Color(0xFFB06CFF),
+                                        ? const Color(0xFF34715D)
+                                        : const Color(0xFF665AA2),
                                   ),
                                 ),
                               ),
                               Text(
                                 String.fromCharCode(65 + index),
-                                style: const TextStyle(
-                                  color: Colors.white38,
+                                style: TextStyle(
+                                  fontFamily: 'Roboto',
+                                  color: colors.onSurfaceVariant,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -888,7 +935,11 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
                       ? 'Inspect the grid positions before choosing.'
                       : 'Seçmeden önce hücre konumlarını dikkatle incele.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white38, fontSize: 10),
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: colors.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             );
@@ -983,31 +1034,43 @@ class _ShapeHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: const Color(0xFF102B50),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: StudioVisuals.line),
       ),
       child: Row(
         children: <Widget>[
           Expanded(
             child: Text(
               '${context.l10n.gameUi(english ? 'QUESTION' : 'SORU')} $current/$total',
-              style: const TextStyle(fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
           const Icon(
             Icons.check_circle_rounded,
-            color: Color(0xFF6CFF9B),
+            color: Color(0xFF34715D),
             size: 18,
           ),
           const SizedBox(width: 5),
-          Text('$correct', style: const TextStyle(fontWeight: FontWeight.w900)),
+          Text(
+            '$correct',
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w900,
+            ),
+          ),
           const SizedBox(width: 13),
-          const Icon(Icons.timer_outlined, color: Color(0xFF00D9FF), size: 18),
+          const Icon(Icons.timer_outlined, color: Color(0xFF3D7183), size: 18),
           const SizedBox(width: 5),
           Text(
             '${elapsed}s',
-            style: const TextStyle(fontWeight: FontWeight.w900),
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ],
       ),

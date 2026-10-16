@@ -51,6 +51,18 @@ veya yalnız AAB hattı:
 powershell -ExecutionPolicy Bypass -File .\tools\ZP_RELEASE_AAB.ps1
 ```
 
+USB ile kurulmuş yerel bir **release APK** üzerinde Firebase App Check
+denemesi yapılacaksa, Play Integrity kararı alınamayacağı için önce Firebase
+Console'da bu uygulama için debug token kaydedilmeli ve yalnızca QA derlemesi
+şu ek tanımla alınmalıdır:
+
+```powershell
+flutter build apk --release --dart-define=FIREBASE_APP_CHECK_DEBUG=true
+```
+
+Bu tanım Play Console'a yüklenecek AAB'de kullanılmamalıdır. Üretim AAB'si
+varsayılan olarak Play Integrity kullanır.
+
 ## Android / Play Store
 
 - `compileSdk = 36`

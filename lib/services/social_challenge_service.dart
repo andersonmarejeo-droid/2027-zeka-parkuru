@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import '../features/catalog/domain/studio_game_catalog.dart';
 import 'firebase_bootstrap_service.dart';
 import 'online_leaderboard_service.dart';
 import 'player_progress_service.dart';
@@ -28,7 +29,8 @@ class SocialChallenge {
   final int seed;
 
   // ----------------------------------------------------------
-  // V2: 8, V3: 5, V4: 11 oyundan seçilen 6 oyunluk seri.
+  // V2: 21 oyundan seçilen 8 oyunluk seri.
+  // V3: 5, V4: 21 oyundan seçilen 6 oyunluk seri.
   // ----------------------------------------------------------
   final int schemaVersion;
   final List<String> gameIds;
@@ -203,6 +205,8 @@ class SocialChallenge {
   bool get expired => expiresAt != null && DateTime.now().isAfter(expiresAt!);
 
   int get seriesGameCount {
+    // Treat newer schemas as the current six-game series until a future
+    // migration explicitly changes the contract.
     if (schemaVersion >= 4) return 6;
     if (schemaVersion == 3) return 5;
     if (schemaVersion == 2) return 8;
@@ -214,6 +218,12 @@ class SocialChallenge {
       gameIds.length == seriesGameCount &&
       levels.length == seriesGameCount &&
       layoutCodes.length == seriesGameCount;
+
+  /// Historical challenges can outlive the game that created them. They must
+  /// not re-enter the playable parkour flow after that game is retired.
+  bool get isPlayable => (isSeries ? gameIds : <String>[gameId]).every(
+    StudioGameCatalog.isAvailable,
+  );
 
   bool isChallenger(String uid) => uid == challengerUid;
 
@@ -347,6 +357,7 @@ class SocialChallengeService {
         .map(
           (snapshot) => snapshot.docs
               .map(SocialChallenge.fromSnapshot)
+              .where((SocialChallenge challenge) => challenge.isPlayable)
               .toList(growable: false),
         );
   }
@@ -391,13 +402,10 @@ class SocialChallengeService {
       return;
     }
 
-    yield* _challenges
-        .doc(challengeId.trim())
-        .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.exists ? SocialChallenge.fromSnapshot(snapshot) : null,
-        );
+    yield* _challenges.doc(challengeId.trim()).snapshots().map((snapshot) {
+      if (!snapshot.exists) return null;
+      return SocialChallenge.fromSnapshot(snapshot);
+    });
   }
 
   Future<SocialChallenge?> getChallenge(String challengeId) async {
@@ -426,27 +434,41 @@ class SocialChallengeService {
       'numbers',
       'blocks',
       'memory',
+      'card_pairs',
+      'focus_filter',
+      'rhythm_memory',
+      'attention_tunnel',
       'reflex',
       'hanoi',
       'word_hunt',
+      'meaning_match',
+      'proverb_finish',
+      'sentence_builder',
+      'near_meaning',
+      'letter_maze',
+      'language_detective',
+      'story_order',
       'picture_iq',
-      'candy_sort',
       'number_sort',
       'shape_puzzle',
     ];
 
     final List<String> shuffled = List<String>.from(pool)..shuffle(_random);
+    shuffled.removeWhere(
+      (String gameId) => !StudioGameCatalog.isAvailable(gameId),
+    );
+    if (shuffled.length < 8) return null;
 
-    final List<String> gameIds = shuffled.take(6).toList(growable: false);
+    final List<String> gameIds = shuffled.take(8).toList(growable: false);
 
     final List<int> levels = List<int>.generate(
-      6,
+      8,
       (_) => 5 + _random.nextInt(6),
       growable: false,
     );
 
     final List<int> layoutCodes = List<int>.generate(
-      6,
+      8,
       (_) => _random.nextInt(0x7ffffffe) + 1,
       growable: false,
     );
@@ -493,7 +515,7 @@ class SocialChallengeService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
       'expiresAt': Timestamp.fromDate(expires),
-      'schemaVersion': 4,
+      'schemaVersion': 2,
     });
 
     return getChallenge(reference.id);
@@ -511,20 +533,31 @@ class SocialChallengeService {
     final String normalizedGameId = gameId.trim();
 
     const Set<String> advancedChallengeGames = <String>{
-      'logic',
       'blocks',
       'memory',
+      'card_pairs',
+      'focus_filter',
+      'rhythm_memory',
+      'attention_tunnel',
       'hanoi',
       'word_hunt',
+      'meaning_match',
+      'proverb_finish',
+      'sentence_builder',
+      'near_meaning',
+      'letter_maze',
+      'language_detective',
+      'story_order',
       'picture_iq',
-      'candy_sort',
       'number_sort',
       'shape_puzzle',
     };
 
     final bool legacyReflex = normalizedGameId == 'reflex';
 
-    if (!legacyReflex && !advancedChallengeGames.contains(normalizedGameId)) {
+    if (!legacyReflex &&
+        (!advancedChallengeGames.contains(normalizedGameId) ||
+            !StudioGameCatalog.isAvailable(normalizedGameId))) {
       return null;
     }
 
@@ -590,6 +623,9 @@ class SocialChallengeService {
         final SocialChallenge challenge = SocialChallenge.fromSnapshot(
           snapshot,
         );
+        if (!challenge.isPlayable) {
+          throw StateError('challenge-retired-game');
+        }
         if (!challenge.pending || challenge.expired) {
           throw StateError('challenge-not-pending');
         }
@@ -671,6 +707,9 @@ class SocialChallengeService {
         final SocialChallenge challenge = SocialChallenge.fromSnapshot(
           snapshot,
         );
+        if (!challenge.isPlayable) {
+          throw StateError('challenge-retired-game');
+        }
         if ((!challenge.accepted && !challenge.completed) ||
             challenge.expired) {
           throw StateError('challenge-not-playable');
@@ -823,7 +862,7 @@ class SocialChallengeService {
           snapshot,
         );
 
-        if (!challenge.isSeries) {
+        if (!challenge.isSeries || !challenge.isPlayable) {
           throw StateError('challenge-not-series');
         }
 

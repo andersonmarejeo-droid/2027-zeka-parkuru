@@ -983,7 +983,10 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
                   AsyncSnapshot<List<OnlineLeaderboardEntry>> profileSnapshot,
                 ) {
                   return StreamBuilder<List<ArenaAttempt>>(
-                    stream: _arena.watchAttempts(event.id),
+                    stream: _arena.watchAttempts(
+                      eventId: event.id,
+                      groupId: event.groupId,
+                    ),
                     builder:
                         (
                           BuildContext context,
@@ -2223,7 +2226,10 @@ class _ArenaReactionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<ArenaReaction>>(
-      stream: ArenaService.instance.watchReactions(event.id),
+      stream: ArenaService.instance.watchReactions(
+        eventId: event.id,
+        groupId: event.groupId,
+      ),
       builder:
           (BuildContext context, AsyncSnapshot<List<ArenaReaction>> snapshot) {
             final List<ArenaReaction> reactions =

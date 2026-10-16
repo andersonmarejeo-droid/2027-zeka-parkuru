@@ -6,6 +6,7 @@ import '../services/app_language_controller.dart';
 import '../services/daily_reminder_service.dart';
 import '../services/game_audio_service.dart';
 import '../theme/app_visual_theme.dart';
+import '../theme/studio_visuals.dart';
 import 'privacy_policy_page.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -25,7 +26,6 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _highContrast = false;
   bool _largeText = false;
   bool _dailyReminderEnabled = true;
-  AppVisualTheme _visualTheme = AppVisualTheme.classicNeon;
   TimeOfDay _dailyReminderTime = const TimeOfDay(
     hour: DailyReminderService.defaultHour,
     minute: DailyReminderService.defaultMinute,
@@ -56,7 +56,6 @@ class _SettingsPageState extends State<SettingsPage> {
       _highContrast = _experience.highContrast;
       _largeText = _experience.largeText;
       _animationIntensity = _experience.animationIntensity;
-      _visualTheme = _experience.visualTheme;
       _dailyReminderEnabled = DailyReminderService.instance.enabled;
       _dailyReminderTime = TimeOfDay(
         hour: DailyReminderService.instance.hour,
@@ -165,11 +164,6 @@ class _SettingsPageState extends State<SettingsPage> {
     await _experience.setLargeText(value);
   }
 
-  Future<void> _setVisualTheme(AppVisualTheme value) async {
-    setState(() => _visualTheme = value);
-    await _experience.setVisualTheme(value);
-  }
-
   Future<void> _resetDefaults() async {
     const double defaultEffects = 0.82;
 
@@ -188,7 +182,6 @@ class _SettingsPageState extends State<SettingsPage> {
       _animationIntensity = AppAnimationIntensity.system;
       _highContrast = false;
       _largeText = false;
-      _visualTheme = AppVisualTheme.classicNeon;
       _dailyReminderEnabled = DailyReminderService.instance.enabled;
       _dailyReminderTime = TimeOfDay(
         hour: DailyReminderService.instance.hour,
@@ -206,11 +199,14 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       backgroundColor: palette.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
           context.l10n.settingsTitle,
           style: const TextStyle(
+            color: StudioVisuals.ink,
             fontWeight: FontWeight.w900,
             letterSpacing: 0.8,
           ),
@@ -232,59 +228,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const SizedBox(height: 18),
                   _SettingsCard(
-                    icon: Icons.palette_rounded,
-                    iconColor: palette.primary,
-                    title: context.l10n.gameUi(
-                      context.l10n.isEnglish ? 'Color theme' : 'Renk teması',
-                    ),
-                    subtitle: context.l10n.gameUi(
-                      context.l10n.isEnglish
-                          ? 'Changes only colors. Games, scores and Arena results stay the same.'
-                          : 'Yalnızca renkleri değiştirir; oyunlar, puanlar ve Arena sonuçları aynı kalır.',
-                    ),
-                    child: DropdownButtonFormField<AppVisualTheme>(
-                      key: ValueKey<String>(
-                        'visual_theme_setting_${_visualTheme.storageValue}',
-                      ),
-                      isExpanded: true,
-                      initialValue: _visualTheme,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      items: <DropdownMenuItem<AppVisualTheme>>[
-                        DropdownMenuItem<AppVisualTheme>(
-                          value: AppVisualTheme.classicNeon,
-                          child: Text(
-                            context.l10n.gameUi(
-                              context.l10n.isEnglish
-                                  ? 'Blue–Purple Neon'
-                                  : 'Mavi–Mor Neon',
-                            ),
-                          ),
-                        ),
-                        DropdownMenuItem<AppVisualTheme>(
-                          value: AppVisualTheme.pinkNeon,
-                          child: Text(
-                            context.l10n.gameUi(
-                              context.l10n.isEnglish
-                                  ? 'Pink Neon'
-                                  : 'Pembe Neon',
-                            ),
-                          ),
-                        ),
-                      ],
-                      onChanged: (AppVisualTheme? value) {
-                        if (value != null) {
-                          _setVisualTheme(value);
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _SettingsCard(
                     icon: Icons.language_rounded,
-                    iconColor: const Color(0xFF76FF03),
+                    iconColor: StudioVisuals.teal,
                     title: context.l10n.language,
                     subtitle: context.l10n.languageDescription,
                     child: DropdownButtonFormField<AppLanguageMode>(
@@ -344,7 +289,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 14),
                   _SettingsCard(
                     icon: Icons.notifications_active_rounded,
-                    iconColor: const Color(0xFFFFD334),
+                    iconColor: StudioVisuals.amber,
                     title: context.l10n.gameUi(
                       context.l10n.isEnglish
                           ? 'Daily Course reminder'
@@ -378,7 +323,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 : context.l10n.gameUi(
                                     context.l10n.isEnglish ? 'Off' : 'Kapalı',
                                   ),
-                            style: const TextStyle(color: Colors.white54),
+                            style: const TextStyle(color: StudioVisuals.muted),
                           ),
                           value: _dailyReminderEnabled,
                           onChanged: _setDailyReminderEnabled,
@@ -409,7 +354,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 14),
                   _SettingsCard(
                     icon: Icons.volume_up_rounded,
-                    iconColor: const Color(0xFF00D9FF),
+                    iconColor: StudioVisuals.teal,
                     title: context.l10n.soundEffects,
                     subtitle: context.l10n.gameUi(
                       context.l10n.isEnglish
@@ -428,7 +373,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             _effectsEnabled
                                 ? context.l10n.on
                                 : context.l10n.off,
-                            style: const TextStyle(color: Colors.white54),
+                            style: const TextStyle(color: StudioVisuals.muted),
                           ),
                           value: _effectsEnabled,
                           onChanged: _setEffectsEnabled,
@@ -465,7 +410,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 14),
                   _SettingsCard(
                     icon: Icons.music_off_rounded,
-                    iconColor: const Color(0xFFE748CF),
+                    iconColor: StudioVisuals.muted,
                     title: context.l10n.gameUi(
                       context.l10n.isEnglish
                           ? 'Background music'
@@ -483,15 +428,15 @@ class _SettingsPageState extends State<SettingsPage> {
                         vertical: 12,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: StudioVisuals.surfaceSoft,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white10),
+                        border: Border.all(color: StudioVisuals.line),
                       ),
                       child: Row(
                         children: [
                           const Icon(
                             Icons.volume_off_rounded,
-                            color: Colors.white54,
+                            color: StudioVisuals.muted,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -502,7 +447,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                     : 'Oyun sırasında hiçbir müzik oynatıcısı başlatılmaz.',
                               ),
                               style: const TextStyle(
-                                color: Colors.white60,
+                                color: StudioVisuals.ink,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -514,7 +459,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 14),
                   _SettingsCard(
                     icon: Icons.vibration_rounded,
-                    iconColor: const Color(0xFFFFB020),
+                    iconColor: StudioVisuals.amber,
                     title: context.l10n.haptics,
                     subtitle: context.l10n.hapticsDescription,
                     child: SwitchListTile.adaptive(
@@ -525,7 +470,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       subtitle: Text(
                         _hapticsEnabled ? context.l10n.on : context.l10n.off,
-                        style: const TextStyle(color: Colors.white54),
+                        style: const TextStyle(color: StudioVisuals.muted),
                       ),
                       value: _hapticsEnabled,
                       onChanged: _setHapticsEnabled,
@@ -534,7 +479,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 14),
                   _SettingsCard(
                     icon: Icons.accessibility_new_rounded,
-                    iconColor: const Color(0xFFFFD334),
+                    iconColor: StudioVisuals.amber,
                     title: context.l10n.gameUi(
                       context.l10n.isEnglish
                           ? 'Accessibility and motion'
@@ -628,7 +573,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   ? 'Strengthens focus and primary action colors.'
                                   : 'Odak ve ana eylem renklerini güçlendirir.',
                             ),
-                            style: const TextStyle(color: Colors.white54),
+                            style: const TextStyle(color: StudioVisuals.muted),
                           ),
                           value: _highContrast,
                           onChanged: _setHighContrast,
@@ -650,7 +595,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   ? 'Keeps the device text setting and applies at least 115%.'
                                   : 'Cihaz metin ayarını korur ve en az %115 uygular.',
                             ),
-                            style: const TextStyle(color: Colors.white54),
+                            style: const TextStyle(color: StudioVisuals.muted),
                           ),
                           value: _largeText,
                           onChanged: _setLargeText,
@@ -661,7 +606,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 14),
                   _SettingsCard(
                     icon: Icons.privacy_tip_outlined,
-                    iconColor: const Color(0xFF76FF03),
+                    iconColor: StudioVisuals.teal,
                     title: context.l10n.gameUi(
                       context.l10n.isEnglish
                           ? 'Privacy and data'
@@ -708,7 +653,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   Text(
                     context.l10n.settingsStored,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white38, fontSize: 11),
+                    style: const TextStyle(
+                      color: StudioVisuals.muted,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
@@ -758,14 +706,14 @@ class _HeaderCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: <Color>[
-            ZpVisualPalette.of(context).surface,
-            ZpVisualPalette.of(context).headerGradientEnd,
-          ],
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[StudioVisuals.tealSoft, StudioVisuals.surface],
         ),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.white10),
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         children: [
@@ -774,11 +722,13 @@ class _HeaderCard extends StatelessWidget {
             height: 58,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [Color(0xFF00D9FF), Color(0xFF7655FF)],
-              ),
+              color: StudioVisuals.surface,
             ),
-            child: const Icon(Icons.tune_rounded, size: 31),
+            child: const Icon(
+              Icons.tune_rounded,
+              size: 31,
+              color: StudioVisuals.teal,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -788,6 +738,7 @@ class _HeaderCard extends StatelessWidget {
                 Text(
                   context.l10n.gameExperience,
                   style: const TextStyle(
+                    color: StudioVisuals.ink,
                     fontWeight: FontWeight.w900,
                     fontSize: 17,
                   ),
@@ -795,7 +746,10 @@ class _HeaderCard extends StatelessWidget {
                 const SizedBox(height: 5),
                 Text(
                   summary,
-                  style: const TextStyle(color: Colors.white60, fontSize: 11),
+                  style: const TextStyle(
+                    color: StudioVisuals.muted,
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -826,9 +780,10 @@ class _SettingsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
-        color: ZpVisualPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(23),
-        border: Border.all(color: Colors.white10),
+        color: StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -852,6 +807,7 @@ class _SettingsCard extends StatelessWidget {
                     Text(
                       title,
                       style: const TextStyle(
+                        color: StudioVisuals.ink,
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
                       ),
@@ -860,7 +816,7 @@ class _SettingsCard extends StatelessWidget {
                     Text(
                       subtitle,
                       style: const TextStyle(
-                        color: Colors.white54,
+                        color: StudioVisuals.muted,
                         fontSize: 11,
                         height: 1.3,
                       ),
@@ -905,7 +861,7 @@ class _VolumeRow extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: enabled ? Colors.white70 : Colors.white24,
+              color: enabled ? StudioVisuals.ink : StudioVisuals.muted,
               size: 21,
             ),
             const SizedBox(width: 8),
@@ -913,7 +869,7 @@ class _VolumeRow extends StatelessWidget {
               child: Text(
                 label,
                 style: TextStyle(
-                  color: enabled ? Colors.white70 : Colors.white24,
+                  color: enabled ? StudioVisuals.ink : StudioVisuals.muted,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -923,13 +879,13 @@ class _VolumeRow extends StatelessWidget {
               alignment: Alignment.center,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.07),
+                color: StudioVisuals.surfaceSoft,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 '%$percent',
                 style: TextStyle(
-                  color: enabled ? Colors.white : Colors.white30,
+                  color: enabled ? StudioVisuals.ink : StudioVisuals.muted,
                   fontWeight: FontWeight.w900,
                   fontSize: 12,
                 ),

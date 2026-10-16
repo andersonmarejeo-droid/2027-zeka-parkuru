@@ -107,7 +107,7 @@ exports.challengeCreated = onDocumentCreated(
       challenge.targetUid,
       event.params.challengeId,
       "Yeni meydan okuma! ⚔️",
-      `${challenge.challengerName || "Bir oyuncu"} seni refleks düellosuna çağırdı.`,
+      `${challenge.challengerName || "Bir oyuncu"} seni Zeka Parkuru meydan okumasına çağırdı.`,
     );
   },
 );

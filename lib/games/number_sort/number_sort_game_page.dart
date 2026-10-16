@@ -7,7 +7,10 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/game_audio_service.dart';
 import '../../services/replayability_service.dart';
+import '../../theme/studio_visuals.dart';
+import '../reference_games/reference_game_support.dart';
 import '../shared/parkur_game_kit.dart';
+import '../shared/studio_game_contracts.dart';
 
 class NumberSortGamePage extends StatelessWidget {
   final bool dailyCourseMode;
@@ -25,18 +28,18 @@ class NumberSortGamePage extends StatelessWidget {
     NumberSortLevel(
       number: 1,
       titleTr: 'Sekizli Isınma',
-      titleEn: 'Eight Tile Warm-Up',
-      subtitleTr: '8 sayıyı kısa bir karışımdan çıkar',
-      subtitleEn: 'Restore 8 numbers after a short shuffle',
+      titleEn: 'Eight-Tile Warm-Up',
+      subtitleTr: '8 taşı boş hücreyi kullanarak sıraya al',
+      subtitleEn: 'Order 8 tiles using the empty space',
       difficulty: 'KOLAY',
       dimension: 3,
       scrambleMoves: 8,
     ),
     NumberSortLevel(
       number: 2,
-      titleTr: 'Petek Adımları',
-      titleEn: 'Honeycomb Steps',
-      subtitleTr: 'Komşu taşları boş hücreye kaydır',
+      titleTr: 'Boşluğun Yeri',
+      titleEn: 'Space and Motion',
+      subtitleTr: 'Yalnızca boşluğa komşu taşı kaydır',
       subtitleEn: 'Slide neighboring tiles into the gap',
       difficulty: 'KOLAY',
       dimension: 3,
@@ -44,8 +47,8 @@ class NumberSortGamePage extends StatelessWidget {
     ),
     NumberSortLevel(
       number: 3,
-      titleTr: 'Karışan Sekizli',
-      titleEn: 'Mixed Eight',
+      titleTr: 'Sekizli Düğüm',
+      titleEn: 'Eight-Tile Knot',
       subtitleTr: 'Daha uzun hamle zincirini çöz',
       subtitleEn: 'Solve a longer chain of moves',
       difficulty: 'ORTA',
@@ -65,27 +68,27 @@ class NumberSortGamePage extends StatelessWidget {
     NumberSortLevel(
       number: 5,
       titleTr: 'Sekizli Usta',
-      titleEn: 'Eight Tile Master',
-      subtitleTr: 'Küçük peteğin final düzeni',
-      subtitleEn: 'The final small honeycomb',
+      titleEn: 'Eight-Tile Master',
+      subtitleTr: '3×3 tahtanın son usta dizilimi',
+      subtitleEn: 'The final master board on a 3×3 grid',
       difficulty: 'ZOR',
       dimension: 3,
       scrambleMoves: 48,
     ),
     NumberSortLevel(
       number: 6,
-      titleTr: 'On Beşli Geçiş',
-      titleEn: 'Fifteen Tile Shift',
-      subtitleTr: '15 sayılı büyük petek açıldı',
-      subtitleEn: 'The large 15-number board opens',
+      titleTr: '15 Taş Başlangıcı',
+      titleEn: 'Fifteen-Tile Shift',
+      subtitleTr: '4×4 tahta açıldı; boşluğu planlı kullan',
+      subtitleEn: 'The 4×4 board opens; plan around the gap',
       difficulty: 'ORTA',
       dimension: 4,
       scrambleMoves: 20,
     ),
     NumberSortLevel(
       number: 7,
-      titleTr: 'Büyük Petek',
-      titleEn: 'Large Honeycomb',
+      titleTr: 'Büyük Tahta',
+      titleEn: 'Expanded Board',
       subtitleTr: 'Dört satırda rotanı planla',
       subtitleEn: 'Plan your route across four rows',
       difficulty: 'ZOR',
@@ -104,8 +107,8 @@ class NumberSortGamePage extends StatelessWidget {
     ),
     NumberSortLevel(
       number: 9,
-      titleTr: 'Petek Ustası',
-      titleEn: 'Honeycomb Master',
+      titleTr: '15 Taş Ustası',
+      titleEn: 'Fifteen-Tile Master',
       subtitleTr: 'Uzun karışımı kontrollü çöz',
       subtitleEn: 'Untangle a long controlled shuffle',
       difficulty: 'ZOR',
@@ -129,12 +132,12 @@ class NumberSortGamePage extends StatelessWidget {
     return ParkurLevelHub(
       gameId: 'number_sort',
       progressPrefix: 'number_sort',
-      titleTr: 'SAYI PETEĞİ',
-      titleEn: 'NUMBER HIVE',
-      taglineTr: 'Kaydır • Planla • Sırala',
-      taglineEn: 'Slide • Plan • Order',
-      accent: const Color(0xFFFFD334),
-      icon: Icons.hive_rounded,
+      titleTr: '15 TAŞ USTASI',
+      titleEn: '15-TILE MASTER',
+      taglineTr: 'Kaydır • Alan aç • Dizilimi çöz',
+      taglineEn: 'Slide • Make space • Solve the order',
+      accent: const Color(0xFFB98548),
+      icon: Icons.grid_4x4_rounded,
       levels: levels,
       dailyCourseMode: dailyCourseMode,
       competitionLevel: competitionLevel,
@@ -150,7 +153,7 @@ class NumberSortGamePage extends StatelessWidget {
             return NumberSortPlayPage(
               level: level as NumberSortLevel,
               previousBestScore: previousBestScore,
-              fixedSessionSeed: fixedSessionSeed,
+              fixedSessionSeed: fixedSessionSeed ?? level.poolIndex,
               competitionMode: competitionMode,
             );
           },
@@ -163,6 +166,8 @@ class NumberSortLevel extends ParkurLevelSpec {
   final int scrambleMoves;
 
   const NumberSortLevel({
+    super.sourceNumber,
+    super.poolIndex,
     required super.number,
     required super.titleTr,
     required super.titleEn,
@@ -171,7 +176,27 @@ class NumberSortLevel extends ParkurLevelSpec {
     required super.difficulty,
     required this.dimension,
     required this.scrambleMoves,
-  }) : super(icon: Icons.hive_rounded);
+  }) : super(icon: Icons.grid_4x4_rounded);
+  @override
+  NumberSortLevel campaignCopy({
+    required int number,
+    int? sourceNumber,
+    int? poolIndex,
+    String? titleTr,
+    String? titleEn,
+    String? difficulty,
+  }) => NumberSortLevel(
+    number: number,
+    sourceNumber: sourceNumber,
+    poolIndex: poolIndex,
+    titleTr: titleTr ?? this.titleTr,
+    titleEn: titleEn ?? this.titleEn,
+    subtitleTr: subtitleTr,
+    subtitleEn: subtitleEn,
+    difficulty: difficulty ?? this.difficulty,
+    dimension: dimension,
+    scrambleMoves: scrambleMoves,
+  );
 }
 
 class _NumberPuzzle {
@@ -205,7 +230,7 @@ class NumberSortPlayPage extends StatefulWidget {
 }
 
 class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
-  static const Color _accent = Color(0xFFFFD334);
+  static const Color _accent = Color(0xFF8E603B);
   static String? _lastGeneratedSignature;
   late Random _random;
   final GameAudioService _audio = GameAudioService.instance;
@@ -247,12 +272,15 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
   }
 
   Future<void> _initializeSession() async {
+    final int variant = widget.fixedSessionSeed == null
+        ? await ReferenceRoundStore.reserve(
+            gameId: 'number_sort',
+            level: widget.level.number,
+          )
+        : widget.fixedSessionSeed! % ReferenceRoundStore.variantsPerLevel;
     final int seed =
         widget.fixedSessionSeed ??
-        await _replayability.newSeed(
-          gameId: 'number_sort',
-          level: widget.level.number,
-        );
+        ReferenceRoundStore.seed('number_sort', widget.level.number, variant);
     _random = _replayability.randomFor(sessionSeed: seed, round: 0, salt: 907);
     if (!mounted) return;
     _newPuzzle();
@@ -312,7 +340,7 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
           gameId: 'number_sort',
           level: widget.level.number,
           fingerprint: _lastGeneratedSignature!,
-          historyLimit: 150,
+          historyLimit: ReferenceRoundStore.variantsPerLevel,
         ),
       );
     }
@@ -359,9 +387,9 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
       (int index) => index + 1 == _tileCount ? 0 : index + 1,
     );
     final bool alternative =
-        widget.level.number == 4 ||
-        widget.level.number == 8 ||
-        (widget.level.number >= 9 && _random.nextBool());
+        widget.level.contentLevel == 4 ||
+        widget.level.contentLevel == 8 ||
+        (widget.level.contentLevel >= 9 && _random.nextBool());
     if (!alternative) return standard;
 
     final List<int> target = <int>[];
@@ -538,7 +566,10 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
           max(0, twoStarLimit - _moves) * 28 -
           _hints * 150,
     );
-    unawaited(_audio.play(GameSound.levelComplete));
+    unawaited(_audio.play(GameSound.success, gain: .38));
+    unawaited(
+      _audio.playLevelComplete(levelNumber: widget.level.number),
+    );
     _sessionBestScore = max(_sessionBestScore, score);
     _sessionBestStars = max(_sessionBestStars, stars);
     if (!mounted) return;
@@ -557,14 +588,14 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
     final ParkurResultAction? action = await showParkurResultDialog(
       context: context,
       accent: _accent,
-      titleTr: 'Sayı Peteği Tamamlandı!',
-      titleEn: 'Number Hive Complete!',
+      titleTr: 'Tahta Çözüldü!',
+      titleEn: 'Sliding Board Solved!',
       detailTr: '${_tileCount - 1} sayı • $_moves hamle • $_elapsed sn',
       detailEn: '${_tileCount - 1} numbers • $_moves moves • $_elapsed sec',
       stars: stars,
       score: score,
       previousBestScore: _sessionBestScore,
-      canGoNext: widget.level.number < NumberSortGamePage.levels.length,
+      canGoNext: widget.level.number < GameContentPolicy.campaignLevels,
     );
     if (!mounted || action == null) return;
     if (action == ParkurResultAction.replay) {
@@ -596,17 +627,23 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
     final bool english = context.l10n.isEnglish;
     if (!_ready) {
       return Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: StudioVisuals.canvas,
         body: const Center(child: CircularProgressIndicator(color: _accent)),
       );
     }
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
         title: Text(
-          '${context.l10n.gameUi(english ? widget.level.titleEn : widget.level.titleTr)}  •  ${widget.level.number}/10',
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+          '${context.l10n.gameUi(english ? widget.level.titleEn : widget.level.titleTr)}  •  ${widget.level.number}/${GameContentPolicy.campaignLevels}',
+          style: const TextStyle(
+            fontFamily: 'Roboto',
+            fontWeight: FontWeight.w900,
+            fontSize: 16,
+          ),
         ),
       ),
       body: SafeArea(
@@ -618,7 +655,10 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
             final bool narrow = limits.maxWidth < 380;
             final ButtonStyle compactOutlineStyle = OutlinedButton.styleFrom(
               padding: EdgeInsets.symmetric(horizontal: narrow ? 5 : 12),
-              textStyle: TextStyle(fontSize: narrow ? 11 : 13),
+              textStyle: TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: narrow ? 11 : 13,
+              ),
             );
             return ListView(
               padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
@@ -637,19 +677,27 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
                     child: Container(
                       padding: EdgeInsets.all(_dimension == 3 ? 20 : 15),
                       decoration: BoxDecoration(
-                        gradient: const RadialGradient(
-                          colors: <Color>[Color(0xFF304062), Color(0xFF102644)],
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: <Color>[
+                            Color(0xFFFFF8E9),
+                            Color(0xFFF0E0C4),
+                            Color(0xFFE3CAA6),
+                          ],
                         ),
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(22),
                         border: Border.all(
-                          color: _accent.withValues(alpha: 0.48),
-                          width: 2,
+                          color: const Color(0xFFC4A277),
+                          width: 1.6,
                         ),
                         boxShadow: <BoxShadow>[
                           BoxShadow(
-                            color: _accent.withValues(alpha: 0.18),
-                            blurRadius: 28,
-                            spreadRadius: -10,
+                            color: const Color(0xFF765839)
+                                .withValues(alpha: 0.13),
+                            blurRadius: 21,
+                            spreadRadius: -6,
+                            offset: const Offset(0, 8),
                           ),
                         ],
                       ),
@@ -662,20 +710,16 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
                           mainAxisSpacing: _dimension == 3 ? 7 : 5,
                         ),
                         itemBuilder: (BuildContext context, int index) {
-                          final int row = index ~/ _dimension;
                           final int value = _tiles[index];
-                          return FractionalTranslation(
-                            translation: Offset(row.isOdd ? 0.12 : -0.04, 0),
-                            child: value == 0
-                                ? _EmptyHex(size: _dimension)
-                                : _NumberHex(
-                                    value: value,
-                                    correct: value == _targetTiles[index],
-                                    hinted: _hintTileIndex == index,
-                                    compact: _dimension == 4,
-                                    onTap: () => _tapTile(index),
-                                  ),
-                          );
+                          return value == 0
+                              ? const _EmptyHex()
+                              : _NumberHex(
+                                  value: value,
+                                  correct: value == _targetTiles[index],
+                                  hinted: _hintTileIndex == index,
+                                  compact: _dimension == 4,
+                                  onTap: () => _tapTile(index),
+                                );
                         },
                       ),
                     ),
@@ -691,6 +735,9 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
                         icon: const Icon(Icons.undo_rounded),
                         label: Text(
                           context.l10n.gameUi(english ? 'UNDO' : 'GERİ AL'),
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
@@ -702,6 +749,9 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
                         icon: const Icon(Icons.refresh_rounded),
                         label: Text(
                           context.l10n.gameUi(english ? 'RESET' : 'BAŞTAN'),
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
@@ -711,15 +761,21 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
                         onPressed: _hints >= 3 ? null : _hint,
                         style: FilledButton.styleFrom(
                           backgroundColor: _accent,
-                          foregroundColor: const Color(0xFF3A2A00),
+                          foregroundColor: Colors.white,
                           padding: EdgeInsets.symmetric(
                             horizontal: narrow ? 5 : 12,
                           ),
-                          textStyle: TextStyle(fontSize: narrow ? 11 : 13),
+                          textStyle: TextStyle(
+                            fontFamily: 'Roboto',
+                            fontSize: narrow ? 11 : 13,
+                          ),
                         ),
                         icon: const Icon(Icons.lightbulb_rounded),
                         label: Text(
                           '${context.l10n.gameUi(english ? 'HINT' : 'İPUCU')} ${3 - _hints}',
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
@@ -730,12 +786,16 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
                   english
                       ? _usesAlternativeTarget
                             ? 'Snake target: ${_targetTiles.map((int value) => value == 0 ? '□' : value).join(' ')}'
-                            : 'Tap a tile touching the empty cell. Green tiles are already in place.'
+                            : 'Tap a tile next to the gap. Muted tiles are already in their target position.'
                       : _usesAlternativeTarget
                       ? 'Yılan hedefi: ${_targetTiles.map((int value) => value == 0 ? '□' : value).join(' ')}'
-                      : 'Boş hücreye temas eden bir sayıya dokun. Yeşil taşlar doğru yerindedir.',
+                      : 'Boşluğa komşu taşı kaydır. Soluk taşlar hedefindeki doğru yerinde.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white38, fontSize: 10),
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: Color(0xFF71837C),
+                    fontSize: 11,
+                  ),
                 ),
               ],
             );
@@ -744,25 +804,6 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
       ),
     );
   }
-}
-
-class _HexClipper extends CustomClipper<Path> {
-  const _HexClipper();
-
-  @override
-  Path getClip(Size size) {
-    return Path()
-      ..moveTo(size.width * 0.25, 0)
-      ..lineTo(size.width * 0.75, 0)
-      ..lineTo(size.width, size.height * 0.5)
-      ..lineTo(size.width * 0.75, size.height)
-      ..lineTo(size.width * 0.25, size.height)
-      ..lineTo(0, size.height * 0.5)
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
 class _NumberHex extends StatelessWidget {
@@ -783,38 +824,52 @@ class _NumberHex extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color color = hinted
-        ? const Color(0xFFFFD334)
+        ? const Color(0xFFE2A84F)
         : correct
-        ? const Color(0xFF6CFF9B)
-        : const Color(0xFF00D9FF);
+        ? const Color(0xFF75AF8D)
+        : const Color(0xFFBB9162);
     return GestureDetector(
       onTap: onTap,
-      child: ClipPath(
-        clipper: const _HexClipper(),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[
-                Color.lerp(color, Colors.white, 0.28)!,
-                color.withValues(alpha: 0.72),
-                Color.lerp(color, Colors.black, 0.30)!,
-              ],
-            ),
-            boxShadow: <BoxShadow>[
-              BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: <Color>[
+              Color.lerp(color, Colors.white, correct ? .70 : .78)!,
+              Color.lerp(color, const Color(0xFFF2DFC0), .55)!,
+              Color.lerp(color, const Color(0xFF8F704F), .38)!,
             ],
           ),
-          child: Text(
-            '$value',
-            style: TextStyle(
-              color: const Color(0xFF06213A),
-              fontSize: compact ? 19 : 25,
-              fontWeight: FontWeight.w900,
+          borderRadius: BorderRadius.circular(compact ? 9 : 12),
+          border: Border.all(
+            color: Color.lerp(color, Colors.white, .26)!,
+            width: hinted ? 2 : 1,
+          ),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: const Color(0xFF684A2E).withValues(alpha: .15),
+              blurRadius: 5,
+              offset: const Offset(0, 3),
             ),
+          ],
+        ),
+        child: Text(
+          '$value',
+          style: TextStyle(
+            color: const Color(0xFF493725),
+            fontFamily: 'serif',
+            fontSize: compact ? 19 : 25,
+            fontWeight: FontWeight.w900,
+            shadows: const <Shadow>[
+              Shadow(
+                color: Color(0x88FFFFFF),
+                offset: Offset(0, 1),
+                blurRadius: 1,
+              ),
+            ],
           ),
         ),
       ),
@@ -823,24 +878,22 @@ class _NumberHex extends StatelessWidget {
 }
 
 class _EmptyHex extends StatelessWidget {
-  final int size;
-
-  const _EmptyHex({required this.size});
+  const _EmptyHex();
 
   @override
   Widget build(BuildContext context) {
-    return ClipPath(
-      clipper: const _HexClipper(),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.22),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: Icon(
-          Icons.hive_outlined,
-          color: Colors.white10,
-          size: size == 3 ? 30 : 22,
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFD9C5A6).withValues(alpha: .72),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFB99D77), width: 1),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x12FFFFFF),
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
     );
   }
@@ -864,9 +917,9 @@ class _NumberSortHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: const Color(0xFF102B50),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: const Color(0xFFE3EBE7)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -875,19 +928,19 @@ class _NumberSortHeader extends StatelessWidget {
             Icons.swap_horiz_rounded,
             '$moves',
             context.l10n.gameUi(english ? 'MOVES' : 'HAMLE'),
-            const Color(0xFFFFD334),
+            const Color(0xFFB98548),
           ),
           _HeaderValue(
             Icons.timer_outlined,
             '${elapsed}s',
             context.l10n.gameUi(english ? 'TIME' : 'SÜRE'),
-            const Color(0xFF00D9FF),
+            const Color(0xFF5598D4),
           ),
           _HeaderValue(
             Icons.lightbulb_rounded,
             '$hints',
             context.l10n.gameUi(english ? 'HINTS' : 'İPUCU'),
-            const Color(0xFF6CFF9B),
+            const Color(0xFF55A67C),
           ),
         ],
       ),
@@ -914,11 +967,19 @@ class _HeaderValue extends StatelessWidget {
           children: <Widget>[
             Text(
               value,
-              style: TextStyle(color: color, fontWeight: FontWeight.w900),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: color,
+                fontWeight: FontWeight.w900,
+              ),
             ),
             Text(
               label,
-              style: const TextStyle(color: Colors.white38, fontSize: 7),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: Color(0xFF71837C),
+                fontSize: 9,
+              ),
             ),
           ],
         ),

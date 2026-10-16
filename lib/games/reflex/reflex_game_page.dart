@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../widgets/studio_chapter_card.dart';
+
 import '../../l10n/app_localizations.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,7 +13,10 @@ import '../../services/replayability_service.dart';
 import '../../services/daily_challenge_service.dart';
 import '../../services/daily_course_service.dart';
 import '../../services/game_audio_service.dart';
+import '../../services/common_level_score_service.dart';
 import '../../theme/app_visual_theme.dart';
+import '../../theme/studio_visuals.dart';
+import '../shared/studio_game_contracts.dart';
 
 class ReflexGamePage extends StatefulWidget {
   final bool dailyCourseMode;
@@ -35,11 +40,11 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
   bool loading = true;
   int unlockedLevel = 1;
 
-  List<int> stars = List<int>.filled(10, 0);
-  List<int> bestScores = List<int>.filled(10, 0);
+  List<int> stars = List<int>.filled(GameContentPolicy.campaignLevels, 0);
+  List<int> bestScores = List<int>.filled(GameContentPolicy.campaignLevels, 0);
   bool _competitionOpened = false;
 
-  final List<ReflexLevel> levels = const [
+  final List<ReflexLevel> _nativeLevels = const [
     ReflexLevel(
       number: 1,
       title: 'Yeşil Işık',
@@ -157,6 +162,27 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
     ),
   ];
 
+  late final List<ReflexLevel> levels = List.generate(
+    GameContentPolicy.campaignLevels,
+    (index) {
+      final chapter = index + 1;
+      final base = _nativeLevels[GameContentPolicy.nativeLevel(chapter) - 1];
+      return ReflexLevel(
+        number: chapter,
+        sourceNumber: base.number,
+        difficulty: GameContentPolicy.difficulty(chapter),
+        title: base.title,
+        subtitle: base.subtitle,
+        mode: base.mode,
+        rounds: base.rounds,
+        lives: base.lives,
+        timeLimitMs: base.timeLimitMs,
+        targetMs: base.targetMs,
+        distractors: base.distractors,
+      );
+    },
+    growable: false,
+  );
   @override
   void initState() {
     super.initState();
@@ -175,8 +201,8 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
     if (!mounted) return;
 
     setState(() {
-      unlockedLevel = savedLevel.clamp(1, 10);
       stars = _decodeList(savedStars);
+      unlockedLevel = GameContentPolicy.safeUnlocked(savedLevel, stars);
       bestScores = _decodeList(savedScores);
       loading = false;
     });
@@ -195,7 +221,7 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
   }
 
   List<int> _decodeList(List<String>? source) {
-    return List<int>.generate(10, (index) {
+    return List<int>.generate(GameContentPolicy.campaignLevels, (index) {
       if (source == null || index >= source.length) return 0;
       return int.tryParse(source[index]) ?? 0;
     });
@@ -222,17 +248,25 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
 
     GameAudioService.instance.play(GameSound.uiClick);
 
-    final ReflexLevelResult? result = await Navigator.push<ReflexLevelResult>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ReflexPlayPage(
-          level: levels[index],
-          totalLevels: levels.length,
-          fixedSessionSeed: widget.competitionLayoutCode,
-          competitionMode: widget.competitionLevel != null,
+    final List<int> previousStars = List<int>.from(stars);
+    final CommonLevelScoreSession scoring = CommonLevelScoreSession.begin();
+    final ReflexLevelResult? result;
+    try {
+      result = await Navigator.push<ReflexLevelResult>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ReflexPlayPage(
+            level: levels[index],
+            totalLevels: levels.length,
+            fixedSessionSeed: widget.competitionLayoutCode,
+            competitionMode: widget.competitionLevel != null,
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      scoring.finish();
+    }
+    final int commonPoints = scoring.points;
 
     if (!mounted) return;
 
@@ -245,7 +279,7 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
             ? DailyStageResult.completed(
                 gameId: 'reflex',
                 stars: result.stars,
-                rawScore: result.score,
+                rawScore: commonPoints,
               )
             : const DailyStageResult.failed(gameId: 'reflex'),
       );
@@ -258,22 +292,23 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
       }
       return;
     }
+    final ReflexLevelResult completedResult = result;
 
     if (widget.competitionLevel != null) {
       Navigator.pop(
         context,
         DailyCourseGameResult(
           gameId: 'reflex',
-          stars: result.stars,
-          score: result.score,
+          stars: completedResult.stars,
+          score: commonPoints,
         ),
       );
       return;
     }
 
     setState(() {
-      stars[index] = max(stars[index], result.stars);
-      bestScores[index] = max(bestScores[index], result.score);
+      stars[index] = max(stars[index], completedResult.stars);
+      bestScores[index] = max(bestScores[index], completedResult.score);
 
       if (index + 1 == unlockedLevel && unlockedLevel < levels.length) {
         unlockedLevel++;
@@ -281,18 +316,21 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
     });
 
     await _saveProgress();
+    await CommonLevelScoreStore.recordBest(
+      gameId: 'reflex',
+      levelIndex: index,
+      points: commonPoints,
+      levelCount: levels.length,
+      completedStars: previousStars,
+    );
 
     await DailyChallengeService.instance.recordLevelCompleted(
       gameId: 'reflex',
-      stars: result.stars,
-      score: result.score,
+      stars: completedResult.stars,
+      score: commonPoints,
     );
 
-    if (!widget.dailyCourseMode && index + 1 == levels.length) {
-      await GameAudioService.instance.playMashallahCelebration();
-    }
-
-    if (result.nextLevel && index + 1 < levels.length && mounted) {
+    if (completedResult.nextLevel && index + 1 < levels.length && mounted) {
       await Future.delayed(const Duration(milliseconds: 180));
 
       if (mounted) {
@@ -305,63 +343,81 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
   Widget build(BuildContext context) {
     if (loading || widget.competitionLevel != null) {
       return Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: StudioVisuals.canvas,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: StudioVisuals.canvas,
+        foregroundColor: StudioVisuals.ink,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LText(
               'REFLEKS ARENASI',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+              ),
             ),
             LText(
               'Gör • Karar Ver • Dokun',
-              style: TextStyle(color: Colors.white60, fontSize: 12),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 12,
+              ),
             ),
           ],
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(18),
-              child: _ReflexProgressPanel(
-                totalScore: totalScore,
-                totalStars: totalStars,
-                unlockedLevel: unlockedLevel,
-              ),
-            ),
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
-                itemCount: levels.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                  mainAxisExtent: 172,
+        top: false,
+        child: ResponsiveGameFrame(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: _ReflexProgressPanel(
+                  totalScore: totalScore,
+                  totalStars: totalStars,
+                  unlockedLevel: unlockedLevel,
                 ),
-                itemBuilder: (context, index) {
-                  return _ReflexLevelCard(
-                    level: levels[index],
-                    unlocked: index + 1 <= unlockedLevel,
-                    stars: stars[index],
-                    bestScore: bestScores[index],
-                    onTap: () => _openLevel(index),
-                  );
-                },
               ),
-            ),
-          ],
+              Expanded(
+                child: GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
+                  itemCount: levels.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 1,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    mainAxisExtent:
+                        104 *
+                        MediaQuery.textScalerOf(context)
+                            .scale(1)
+                            .clamp(1.0, 1.6),
+                  ),
+                  itemBuilder: (context, index) {
+                    return _ReflexLevelCard(
+                      level: levels[index],
+                      unlocked: index + 1 <= unlockedLevel,
+                      stars: stars[index],
+                      bestScore: bestScores[index],
+                      onTap: () => _openLevel(index),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -422,8 +478,8 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
   Alignment targetAlignment = Alignment.center;
   Alignment previousAlignment = Alignment.center;
 
-  Color targetColor = const Color(0xFF52E86B);
-  Color requestedColor = const Color(0xFF52E86B);
+  Color targetColor = const Color(0xFF34715D);
+  Color requestedColor = const Color(0xFF34715D);
 
   ReflexShape targetShape = ReflexShape.circle;
   ReflexShape requestedShape = ReflexShape.circle;
@@ -446,13 +502,13 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
   bool showConfetti = false;
 
   final List<Color> colors = const [
-    Color(0xFF00D9FF),
-    Color(0xFF745CFF),
+    Color(0xFF3D7183),
+    Color(0xFF665AA2),
     Color(0xFFFF4F9A),
     Color(0xFFFF9F1C),
-    Color(0xFFFFD93D),
-    Color(0xFF52E86B),
-    Color(0xFFFF5E57),
+    Color(0xFF8B622C),
+    Color(0xFF34715D),
+    Color(0xFFA84640),
   ];
 
   int get _initialLives =>
@@ -466,7 +522,7 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
     _audio.preload(GameAudioGroup.reflex);
     _audio.playMusic(GameMusic.action);
 
-    if (widget.level.difficulty == 'BOSS') {
+    if (widget.level.contentLevel == 10) {
       _audio.play(GameSound.bossIntro);
     }
 
@@ -543,7 +599,7 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
     // erken dokunmayı ölçebilmek için bekleme hâlâ öngörülemez kalır.
     final bool fastFallingFlow = widget.level.mode == ReflexMode.falling;
     final int waitMs = fastFallingFlow
-        ? widget.level.number >= 4
+        ? widget.level.contentLevel >= 4
               ? 160 + random.nextInt(280)
               : 240 + random.nextInt(340)
         : 600 + random.nextInt(800);
@@ -655,7 +711,7 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
 
     if (mode == ReflexMode.reaction) {
       targetAlignment = Alignment.center;
-      targetColor = const Color(0xFF52E86B);
+      targetColor = const Color(0xFF34715D);
       requestedColor = targetColor;
       targetShape = ReflexShape.circle;
       requestedShape = targetShape;
@@ -691,13 +747,14 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
 
       // 6. seviyede ve Boss'ta zaman zaman bomba/tuzak çıkar.
       final bool allowTrap =
-          widget.level.number >= 6 || widget.level.mode == ReflexMode.boss;
+          widget.level.contentLevel >= 6 ||
+          widget.level.mode == ReflexMode.boss;
 
       isGoTarget = !allowTrap || random.nextDouble() > 0.24;
 
       targetColor = isGoTarget
           ? const Color(0xFFFFB84D)
-          : const Color(0xFFFF5E57);
+          : const Color(0xFFA84640);
 
       requestedColor = targetColor;
     }
@@ -717,8 +774,8 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
       targetAlignment = _randomAlignment();
       isGoTarget = random.nextDouble() > 0.28;
       targetColor = isGoTarget
-          ? const Color(0xFF52E86B)
-          : const Color(0xFFFF5E57);
+          ? const Color(0xFF34715D)
+          : const Color(0xFFA84640);
     }
 
     if (mode == ReflexMode.dualRule) {
@@ -763,7 +820,7 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
       case ReflexMode.falling:
         return 'Yukarıdan gelen hedefi doğru anda vur';
       case ReflexMode.whack:
-        return widget.level.number >= 6
+        return widget.level.contentLevel >= 6
             ? 'Maymuna vur • bombaya dokunma'
             : 'Delikten çıkan maymuna vur';
       case ReflexMode.moving:
@@ -793,12 +850,12 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
   }
 
   String _colorName(Color color) {
-    if (color == const Color(0xFF00D9FF)) return 'MAVİ';
-    if (color == const Color(0xFF745CFF)) return 'MOR';
+    if (color == const Color(0xFF3D7183)) return 'MAVİ';
+    if (color == const Color(0xFF665AA2)) return 'MOR';
     if (color == const Color(0xFFFF4F9A)) return 'PEMBE';
     if (color == const Color(0xFFFF9F1C)) return 'TURUNCU';
-    if (color == const Color(0xFFFFD93D)) return 'SARI';
-    if (color == const Color(0xFF52E86B)) return 'YEŞİL';
+    if (color == const Color(0xFF8B622C)) return 'SARI';
+    if (color == const Color(0xFF34715D)) return 'YEŞİL';
     return 'KIRMIZI';
   }
 
@@ -1100,7 +1157,11 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
 
     _audio.hapticHeavy();
 
-    _audio.playVictory(stars: stars, boss: widget.level.difficulty == 'BOSS');
+    _audio.playVictory(
+      stars: stars,
+      boss: widget.level.contentLevel == 10,
+      levelNumber: widget.level.number,
+    );
 
     await Future.delayed(const Duration(milliseconds: 1000));
 
@@ -1133,15 +1194,15 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF123D73), Color(0xFF7A281E)],
+                colors: [StudioVisuals.surface, StudioVisuals.surfaceSoft],
               ),
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: const Color(0xFFFFD93D), width: 2),
+              border: Border.all(color: const Color(0xFF8B622C), width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFFF5A3C).withValues(alpha: 0.30),
-                  blurRadius: 30,
-                  spreadRadius: 3,
+                  color: StudioVisuals.ink.withValues(alpha: 0.12),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
@@ -1151,15 +1212,16 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
                 const Icon(
                   Icons.bolt_rounded,
                   size: 70,
-                  color: Color(0xFFFFD93D),
+                  color: Color(0xFF8B622C),
                 ),
                 const SizedBox(height: 8),
                 LText(
-                  widget.level.difficulty == 'BOSS'
+                  widget.level.contentLevel == 10
                       ? '⚡ REFLEKS BOSS YENİLDİ!'
                       : '🏆 REFLEKS USTASI!',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
+                    fontFamily: 'Roboto',
                     fontWeight: FontWeight.w900,
                     fontSize: 23,
                   ),
@@ -1173,7 +1235,7 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
                       index < stars
                           ? Icons.star_rounded
                           : Icons.star_border_rounded,
-                      color: const Color(0xFFFFD93D),
+                      color: const Color(0xFF8B622C),
                       size: 48,
                     ),
                   ),
@@ -1210,7 +1272,7 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
                   width: double.infinity,
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF5A3C),
+                      backgroundColor: const Color(0xFFA84640),
                       padding: const EdgeInsets.symmetric(vertical: 15),
                     ),
                     onPressed: () {
@@ -1300,13 +1362,16 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
             children: [
               Icon(
                 Icons.favorite_border_rounded,
-                color: Color(0xFFFF5E57),
+                color: Color(0xFFA84640),
                 size: 52,
               ),
               SizedBox(height: 8),
               LText(
                 'ARENA BİTTİ',
-                style: TextStyle(fontWeight: FontWeight.w900),
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ],
           ),
@@ -1395,7 +1460,7 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
     final double progress = (round / widget.level.rounds).clamp(0.0, 1.0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF06152B),
+      backgroundColor: const Color(0xFFF6F8F6),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -1404,11 +1469,19 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
           children: [
             LText(
               widget.level.title.toUpperCase(),
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w900,
+                fontSize: 17,
+              ),
             ),
             LText(
               'Seviye ${widget.level.number} / ${widget.totalLevels}',
-              style: const TextStyle(color: Colors.white60, fontSize: 11),
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 11,
+              ),
             ),
           ],
         ),
@@ -1445,9 +1518,9 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 8,
-                      backgroundColor: Colors.white12,
+                      backgroundColor: StudioVisuals.line,
                       valueColor: const AlwaysStoppedAnimation<Color>(
-                        Color(0xFFFF5A3C),
+                        Color(0xFFA84640),
                       ),
                     ),
                   ),
@@ -1461,12 +1534,13 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
                           headline,
                           textAlign: TextAlign.center,
                           style: TextStyle(
+                            fontFamily: 'Roboto',
                             fontWeight: FontWeight.w900,
                             fontSize: 24,
                             letterSpacing: 1.2,
                             color: waiting
-                                ? const Color(0xFFFFD93D)
-                                : const Color(0xFF52E86B),
+                                ? const Color(0xFF8B622C)
+                                : const Color(0xFF34715D),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -1474,7 +1548,8 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
                           subline,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            color: Colors.white60,
+                            fontFamily: 'Roboto',
+                            color: StudioVisuals.muted,
                             fontSize: 11,
                           ),
                         ),
@@ -1494,11 +1569,11 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
                               gradient: const LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
-                                colors: [Color(0xFF0B1F3D), Color(0xFF09182F)],
+                                colors: [Color(0xFFEEF3F0), Color(0xFFEEF3F0)],
                               ),
                               borderRadius: BorderRadius.circular(28),
                               border: Border.all(
-                                color: const Color(0xFF21466E),
+                                color: const Color(0xFFDDE7DF),
                                 width: 2,
                               ),
                               boxShadow: const [
@@ -1552,7 +1627,7 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
                                       color: targetColor,
                                       shape: targetShape,
                                       goTarget: isGoTarget,
-                                      boss: widget.level.difficulty == 'BOSS',
+                                      boss: widget.level.contentLevel == 10,
                                       whack: currentMode == ReflexMode.whack,
                                     ),
                                   ),
@@ -1614,7 +1689,7 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
                                     gradient: RadialGradient(
                                       colors: [
                                         Color(0xFFFFFFFF),
-                                        Color(0x55FFD93D),
+                                        Color(0x558B622C),
                                         Color(0x00000000),
                                       ],
                                     ),
@@ -1652,14 +1727,15 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
                                         .withValues(alpha: 0.94),
                                     borderRadius: BorderRadius.circular(18),
                                     border: Border.all(
-                                      color: const Color(0xFFFFD93D),
+                                      color: const Color(0xFF8B622C),
                                       width: 2,
                                     ),
                                   ),
                                   child: LText(
                                     floatingText,
                                     style: const TextStyle(
-                                      color: Color(0xFFFFD93D),
+                                      fontFamily: 'Roboto',
+                                      color: Color(0xFF8B622C),
                                       fontWeight: FontWeight.w900,
                                       fontSize: 20,
                                     ),
@@ -1772,9 +1848,9 @@ class _ReflexTarget extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.55),
-            blurRadius: 22,
-            spreadRadius: 4,
+            color: StudioVisuals.ink.withValues(alpha: 0.16),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -1782,7 +1858,10 @@ class _ReflexTarget extends StatelessWidget {
         child: whack
             ? LText(
                 goTarget ? '🐵' : '💣',
-                style: TextStyle(fontSize: boss ? 42 : 38),
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: boss ? 42 : 38,
+                ),
               )
             : Icon(
                 goTarget ? Icons.bolt_rounded : Icons.block_rounded,
@@ -1838,12 +1917,12 @@ class _WhackHoles extends StatelessWidget {
             width: active ? 94 : 88,
             height: active ? 48 : 42,
             decoration: BoxDecoration(
-              color: const Color(0xFF04101E),
+              color: const Color(0xFF6B614E),
               borderRadius: BorderRadius.circular(100),
               border: Border.all(
                 color: active
                     ? const Color(0xFFFFB84D)
-                    : const Color(0xFF294B6A),
+                    : const Color(0xFFC6B088),
                 width: active ? 2.2 : 1.3,
               ),
               boxShadow: [
@@ -1861,7 +1940,7 @@ class _WhackHoles extends StatelessWidget {
                 height: 10,
                 margin: const EdgeInsets.only(bottom: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF17314B),
+                  color: const Color(0xFFAD9877),
                   borderRadius: BorderRadius.circular(30),
                 ),
               ),
@@ -1896,7 +1975,7 @@ class _ReflexGameHeader extends StatelessWidget {
           child: _ReflexTopStat(
             title: 'PUAN',
             value: '$score',
-            color: const Color(0xFFFFD93D),
+            color: const Color(0xFF8B622C),
           ),
         ),
         const SizedBox(width: 6),
@@ -1904,7 +1983,7 @@ class _ReflexGameHeader extends StatelessWidget {
           child: _ReflexTopStat(
             title: 'TUR',
             value: '$round/$totalRounds',
-            color: const Color(0xFF00D9FF),
+            color: const Color(0xFF3D7183),
           ),
         ),
         const SizedBox(width: 6),
@@ -1912,7 +1991,7 @@ class _ReflexGameHeader extends StatelessWidget {
           child: _ReflexTopStat(
             title: 'CAN',
             value: '♥ $lives',
-            color: const Color(0xFFFF5E57),
+            color: const Color(0xFFA84640),
           ),
         ),
         const SizedBox(width: 6),
@@ -1920,7 +1999,7 @@ class _ReflexGameHeader extends StatelessWidget {
           child: _ReflexTopStat(
             title: 'COMBO',
             value: 'x$combo',
-            color: const Color(0xFF52E86B),
+            color: const Color(0xFF34715D),
           ),
         ),
       ],
@@ -1952,6 +2031,7 @@ class _ReflexTopStat extends StatelessWidget {
           LText(
             value,
             style: TextStyle(
+              fontFamily: 'Roboto',
               color: color,
               fontWeight: FontWeight.w900,
               fontSize: 13,
@@ -1959,7 +2039,11 @@ class _ReflexTopStat extends StatelessWidget {
           ),
           LText(
             title,
-            style: const TextStyle(color: Colors.white38, fontSize: 7),
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              color: StudioVisuals.muted,
+              fontSize: 7,
+            ),
           ),
         ],
       ),
@@ -1980,15 +2064,20 @@ class _MiniMetric extends StatelessWidget {
         LText(
           value,
           style: const TextStyle(
+            fontFamily: 'Roboto',
             fontWeight: FontWeight.w900,
             fontSize: 14,
-            color: Color(0xFF00D9FF),
+            color: Color(0xFF3D7183),
           ),
         ),
         const SizedBox(height: 2),
         LText(
           label,
-          style: const TextStyle(color: Colors.white38, fontSize: 8),
+          style: const TextStyle(
+            fontFamily: 'Roboto',
+            color: StudioVisuals.muted,
+            fontSize: 8,
+          ),
         ),
       ],
     );
@@ -2011,34 +2100,24 @@ class _ReflexProgressPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFF5A3C), Color(0xFF8A2BE2)],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF5A3C).withValues(alpha: 0.18),
-            blurRadius: 24,
-          ),
-        ],
+        color: StudioVisuals.surface,
+        borderRadius: StudioVisuals.cardRadius,
+        border: Border.all(color: StudioVisuals.line),
+        boxShadow: StudioVisuals.softShadow,
       ),
       child: Row(
         children: [
           Container(
             width: 58,
             height: 58,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFD93D), Color(0xFFFF5A3C)],
-              ),
-              borderRadius: BorderRadius.circular(19),
+            decoration: const BoxDecoration(
+              color: StudioVisuals.amberSoft,
+              shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.bolt_rounded,
               size: 38,
-              color: Colors.white,
+              color: StudioVisuals.amber,
             ),
           ),
           const SizedBox(width: 13),
@@ -2048,12 +2127,21 @@ class _ReflexProgressPanel extends StatelessWidget {
               children: [
                 const LText(
                   'REFLEKS USTALIĞI',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 17,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 LText(
-                  'Seviye $unlockedLevel / 10   •   ⭐ $totalStars / 30',
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  'Seviye $unlockedLevel / ${GameContentPolicy.campaignLevels}   •   ⭐ $totalStars / ${GameContentPolicy.campaignLevels * 3}',
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.muted,
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -2064,14 +2152,19 @@ class _ReflexProgressPanel extends StatelessWidget {
               LText(
                 '$totalScore',
                 style: const TextStyle(
-                  color: Color(0xFFFFD93D),
+                  fontFamily: 'Roboto',
+                  color: StudioVisuals.amber,
                   fontWeight: FontWeight.w900,
                   fontSize: 21,
                 ),
               ),
               const LText(
                 'PUAN',
-                style: TextStyle(color: Colors.white54, fontSize: 9),
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  color: StudioVisuals.muted,
+                  fontSize: 9,
+                ),
               ),
             ],
           ),
@@ -2099,15 +2192,15 @@ class _ReflexLevelCard extends StatelessWidget {
   Color get color {
     switch (level.difficulty) {
       case 'KOLAY':
-        return const Color(0xFF52E86B);
+        return const Color(0xFF34715D);
       case 'ORTA':
         return const Color(0xFFFF9F1C);
       case 'ZOR':
-        return const Color(0xFFFF5E57);
+        return const Color(0xFFA84640);
       case 'BOSS':
         return const Color(0xFFFF4F9A);
       default:
-        return const Color(0xFF00D9FF);
+        return const Color(0xFF3D7183);
     }
   }
 
@@ -2135,108 +2228,17 @@ class _ReflexLevelCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: unlocked ? onTap : null,
-        borderRadius: BorderRadius.circular(22),
-        child: Ink(
-          padding: const EdgeInsets.all(11),
-          decoration: BoxDecoration(
-            gradient: unlocked
-                ? const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF122B50), Color(0xFF102340)],
-                  )
-                : const LinearGradient(
-                    colors: [Color(0xFF0B1A31), Color(0xFF091526)],
-                  ),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: unlocked ? color.withValues(alpha: 0.60) : Colors.white12,
-            ),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: unlocked ? color : Colors.white12,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: unlocked
-                        ? LText(
-                            '${level.number}',
-                            style: const TextStyle(fontWeight: FontWeight.w900),
-                          )
-                        : const Icon(
-                            Icons.lock_rounded,
-                            size: 18,
-                            color: Colors.white30,
-                          ),
-                  ),
-                  const Spacer(),
-                  if (unlocked)
-                    LText(
-                      level.difficulty,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                ],
-              ),
-              const Spacer(),
-              Icon(icon, color: unlocked ? color : Colors.white12, size: 34),
-              const SizedBox(height: 5),
-              LText(
-                level.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
-                  color: unlocked ? Colors.white : Colors.white24,
-                ),
-              ),
-              LText(
-                level.subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white38, fontSize: 8),
-              ),
-              const Spacer(),
-              if (bestScore > 0)
-                LText(
-                  'En iyi: $bestScore',
-                  style: const TextStyle(color: Colors.white54, fontSize: 9),
-                ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  3,
-                  (index) => Icon(
-                    index < stars
-                        ? Icons.star_rounded
-                        : Icons.star_border_rounded,
-                    color: unlocked ? const Color(0xFFFFD93D) : Colors.white12,
-                    size: 18,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => StudioChapterCard(
+    gameId: 'reflex',
+    number: level.number,
+    title: level.title,
+    detail: level.subtitle,
+    difficulty: GameContentPolicy.difficulty(level.number),
+    unlocked: unlocked,
+    stars: stars,
+    best: bestScore,
+    onTap: onTap,
+  );
 }
 
 class _ReflexResultBox extends StatelessWidget {
@@ -2257,11 +2259,19 @@ class _ReflexResultBox extends StatelessWidget {
         children: [
           LText(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+            ),
           ),
           LText(
             title,
-            style: const TextStyle(color: Colors.white54, fontSize: 8),
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              color: StudioVisuals.muted,
+              fontSize: 8,
+            ),
           ),
         ],
       ),
@@ -2276,7 +2286,7 @@ class _ReflexBackgroundPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Paint glow = Paint()
       ..shader =
-          const RadialGradient(colors: [Color(0x22FF5A3C), Color(0x00000000)])
+          const RadialGradient(colors: [Color(0x22A84640), Color(0x00000000)])
               .createShader(
                 Rect.fromCircle(
                   center: Offset(size.width * 0.18, size.height * 0.22),
@@ -2319,10 +2329,10 @@ class _ReflexBurstPainter extends CustomPainter {
     final Offset center = Offset(size.width / 2, size.height / 2);
 
     const List<Color> colors = [
-      Color(0xFF00D9FF),
-      Color(0xFFFFD93D),
-      Color(0xFFFF5A3C),
-      Color(0xFF52E86B),
+      Color(0xFF3D7183),
+      Color(0xFF8B622C),
+      Color(0xFFA84640),
+      Color(0xFF34715D),
       Color(0xFFFF4F9A),
     ];
 
@@ -2361,13 +2371,13 @@ class _ReflexConfettiPainter extends CustomPainter {
     final Random rng = Random(seed);
 
     const List<Color> colors = [
-      Color(0xFF00D9FF),
-      Color(0xFF745CFF),
+      Color(0xFF3D7183),
+      Color(0xFF665AA2),
       Color(0xFFFF4F9A),
       Color(0xFFFF9F1C),
-      Color(0xFFFFD93D),
-      Color(0xFF52E86B),
-      Color(0xFFFF5E57),
+      Color(0xFF8B622C),
+      Color(0xFF34715D),
+      Color(0xFFA84640),
     ];
 
     for (int i = 0; i < 90; i++) {
@@ -2423,6 +2433,8 @@ enum ReflexShape { circle, square, diamond }
 
 class ReflexLevel {
   final int number;
+  final int? sourceNumber;
+  int get contentLevel => sourceNumber ?? number;
   final String title;
   final String subtitle;
   final String difficulty;
@@ -2438,6 +2450,7 @@ class ReflexLevel {
 
   const ReflexLevel({
     required this.number,
+    this.sourceNumber,
     required this.title,
     required this.subtitle,
     required this.difficulty,

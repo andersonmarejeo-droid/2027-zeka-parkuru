@@ -1,3 +1,5 @@
+import '../games/shared/studio_game_contracts.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -6,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../features/catalog/domain/studio_game_catalog.dart';
 import 'firebase_bootstrap_service.dart';
 import 'online_leaderboard_service.dart';
 import 'player_progress_service.dart';
@@ -110,7 +113,12 @@ class ArenaEvent {
       title: _text(data['title'], fallback: 'Zekâ Yarışı'),
       format: _text(data['format'], fallback: 'direct'),
       status: _text(data['status'], fallback: 'active'),
-      level: _safeInt(data['level'], 1, 10, fallback: 1),
+      level: _safeInt(
+        data['level'],
+        1,
+        GameContentPolicy.campaignLevels,
+        fallback: 1,
+      ),
       gameIds: _stringList(data['gameIds'], maxItems: 11),
       participantIds: _stringList(data['participantIds'], maxItems: 30),
       layoutCodes: layouts,
@@ -124,6 +132,10 @@ class ArenaEvent {
   bool get active => status == 'active' && !expired;
   bool get completed => status == 'completed';
   bool get expired => endsAt != null && DateTime.now().isAfter(endsAt!);
+  bool get isPlayable =>
+      gameIds.isNotEmpty &&
+      gameIds.toSet().length == gameIds.length &&
+      gameIds.every(StudioGameCatalog.isAvailable);
   int layoutCodeFor(String gameId) => layoutCodes[gameId] ?? 1;
 }
 
@@ -282,24 +294,16 @@ class ArenaService {
   static const String inviteBaseUrl =
       'https://zeka-parkuru-eu-2026.web.app/arena.html';
 
-  static const List<String> allGameIds = <String>[
-    'logic',
-    'numbers',
-    'blocks',
-    'memory',
-    'hanoi',
-    'word_hunt',
-    'picture_iq',
-    'candy_sort',
-    'number_sort',
-    'shape_puzzle',
-    'reflex',
-  ];
+  static final List<String> allGameIds = List<String>.unmodifiable(
+    StudioGameCatalog.playable.map((GameDefinition game) => game.id),
+  );
+
+  static const int eventGameCount = 6;
 
   static const List<String> featuredGameIds = <String>[
     'hanoi',
     'picture_iq',
-    'candy_sort',
+    'number_sort',
   ];
 
   static const String _pendingAttemptsKey = 'arena_pending_attempts_v1';
@@ -313,6 +317,7 @@ class ArenaService {
   Future<void>? _pendingAttemptSync;
   bool _lastAttemptQueued = false;
   String? _lastAttemptError;
+  String? _lastEventError;
 
   CollectionReference<Map<String, dynamic>> get _groups =>
       FirebaseFirestore.instance.collection('arena_groups_v1');
@@ -333,6 +338,7 @@ class ArenaService {
   String? get lastError => _firebase.lastError;
   bool get lastAttemptQueued => _lastAttemptQueued;
   String? get lastAttemptError => _lastAttemptError;
+  String? get lastEventError => _lastEventError;
 
   Future<bool> ensureOnline({bool forceRetry = false}) async {
     await _firebase.initialize(forceRetry: forceRetry);
@@ -566,6 +572,7 @@ class ArenaService {
         .map((QuerySnapshot<Map<String, dynamic>> snapshot) {
           final List<ArenaEvent> events = snapshot.docs
               .map(ArenaEvent.fromSnapshot)
+              .where((ArenaEvent event) => event.isPlayable)
               .toList();
           events.sort((ArenaEvent a, ArenaEvent b) {
             final DateTime left = a.createdAt ?? DateTime(2000);
@@ -584,13 +591,13 @@ class ArenaService {
       yield null;
       return;
     }
-    yield* _events
-        .doc(eventId.trim())
-        .snapshots()
-        .map(
-          (DocumentSnapshot<Map<String, dynamic>> snapshot) =>
-              snapshot.exists ? ArenaEvent.fromSnapshot(snapshot) : null,
-        );
+    yield* _events.doc(eventId.trim()).snapshots().map((
+      DocumentSnapshot<Map<String, dynamic>> snapshot,
+    ) {
+      if (!snapshot.exists) return null;
+      final ArenaEvent event = ArenaEvent.fromSnapshot(snapshot);
+      return event.isPlayable ? event : null;
+    });
   }
 
   Future<ArenaEvent?> getEvent(String eventId) async {
@@ -599,7 +606,9 @@ class ArenaService {
       final DocumentSnapshot<Map<String, dynamic>> snapshot = await _events
           .doc(eventId.trim())
           .get();
-      return snapshot.exists ? ArenaEvent.fromSnapshot(snapshot) : null;
+      if (!snapshot.exists) return null;
+      final ArenaEvent event = ArenaEvent.fromSnapshot(snapshot);
+      return event.isPlayable ? event : null;
     } catch (error) {
       debugPrint('Arena event read failed: $error');
       return null;
@@ -612,9 +621,14 @@ class ArenaService {
     required List<String> selectedGameIds,
     Duration duration = const Duration(hours: 48),
   }) async {
-    if (!await ensureOnline()) return null;
+    _lastEventError = null;
+    if (!await ensureOnline()) {
+      _lastEventError = 'firebase-unavailable';
+      return null;
+    }
     final String? uid = currentUid;
     if (uid == null || !group.isOwner(uid) || group.memberIds.length < 2) {
+      _lastEventError = 'owner-or-members-invalid';
       return null;
     }
 
@@ -623,125 +637,185 @@ class ArenaService {
         .toSet()
         .toList(growable: true);
     final List<String> shuffledGames = List<String>.from(
-      requestedPool.length >= 6 ? requestedPool : allGameIds,
+      requestedPool.length >= eventGameCount ? requestedPool : allGameIds,
     )..shuffle(_random);
-    final List<String> games = shuffledGames.take(6).toList(growable: false);
+    final List<String> games = shuffledGames
+        .take(eventGameCount)
+        .toList(growable: false);
 
     try {
-      final QuerySnapshot<Map<String, dynamic>> legacyActive = await _events
-          .where('groupId', isEqualTo: group.id)
-          .where('status', isEqualTo: 'active')
-          .limit(10)
-          .get();
-      for (final QueryDocumentSnapshot<Map<String, dynamic>> document
-          in legacyActive.docs) {
-        final ArenaEvent candidate = ArenaEvent.fromSnapshot(document);
-        if (candidate.active) return candidate;
-      }
-
-      final Map<String, int> layoutCodes = <String, int>{
-        for (final String gameId in games)
-          gameId: _random.nextInt(0x7ffffffe) + 1,
-      };
-      final DocumentReference<Map<String, dynamic>> reference = _events.doc();
-      final DateTime ends = DateTime.now().toUtc().add(duration);
-      final DocumentReference<Map<String, dynamic>> groupRef = _groups.doc(
-        group.id,
+      return await _createEventTransaction(
+        group: group,
+        uid: uid,
+        rawTitle: rawTitle,
+        games: games,
+        duration: duration,
+        legacySchema: false,
       );
-
-      await FirebaseFirestore.instance.runTransaction((
-        Transaction transaction,
-      ) async {
-        final DocumentSnapshot<Map<String, dynamic>> groupSnapshot =
-            await transaction.get(groupRef);
-        if (!groupSnapshot.exists) {
-          throw StateError('arena-group-missing');
-        }
-
-        final Map<String, dynamic> groupData =
-            groupSnapshot.data() ?? <String, dynamic>{};
-        if (_text(groupData['ownerUid']) != uid) {
-          throw StateError('arena-owner-mismatch');
-        }
-
-        final String? activeEventId = _nullableText(groupData['activeEventId']);
-        if (activeEventId != null) {
-          final DocumentSnapshot<Map<String, dynamic>> activeSnapshot =
-              await transaction.get(_events.doc(activeEventId));
-          if (activeSnapshot.exists) {
-            final ArenaEvent activeEvent = ArenaEvent.fromSnapshot(
-              activeSnapshot,
-            );
-            if (activeEvent.active) {
-              throw _ArenaActiveEventError(activeEventId);
-            }
-          }
-        }
-
-        final List<String> currentMembers = _stringList(
-          groupData['memberIds'],
-          maxItems: 30,
-        );
-        if (currentMembers.length < 2) {
-          throw StateError('arena-not-enough-members');
-        }
-
-        final int nextSequence =
-            _safeInt(groupData['eventSequence'], 0, 1000000) + 1;
-
-        transaction.set(reference, <String, dynamic>{
-          'groupId': group.id,
-          'ownerUid': uid,
-          'title': _cleanName(rawTitle, fallback: 'Zekâ Yarışı'),
-          'format': 'direct',
-          'status': 'active',
-          'level': 1,
-          'gameIds': games,
-          'participantIds': currentMembers,
-          'layoutCodes': layoutCodes,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-          'endsAt': Timestamp.fromDate(ends),
-          'schemaVersion': 2,
-        });
-        transaction.update(groupRef, <String, dynamic>{
-          'activeEventId': reference.id,
-          'eventSequence': nextSequence,
-          'schemaVersion': 2,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      });
-      final DocumentSnapshot<Map<String, dynamic>> snapshot = await reference
-          .get();
-      return snapshot.exists ? ArenaEvent.fromSnapshot(snapshot) : null;
     } on _ArenaActiveEventError catch (error) {
       return getEvent(error.eventId);
+    } on FirebaseException catch (error) {
+      _lastEventError = error.code;
+      debugPrint('Arena event create failed (${error.code}): ${error.message}');
+
+      // Some installed builds can reach a Firebase project whose rules were
+      // deployed before the schema-2 migration.  Retry the same atomic write
+      // in the old document shape so an already-created group remains usable.
+      // Once the current rules are deployed this branch is never needed.
+      if (error.code != 'permission-denied') return null;
+      try {
+        final ArenaEvent? legacyEvent = await _createEventTransaction(
+          group: group,
+          uid: uid,
+          rawTitle: rawTitle,
+          games: games,
+          duration: duration,
+          legacySchema: true,
+        );
+        _lastEventError = null;
+        return legacyEvent;
+      } on _ArenaActiveEventError catch (activeError) {
+        return getEvent(activeError.eventId);
+      } on FirebaseException catch (legacyError) {
+        _lastEventError = legacyError.code;
+        debugPrint(
+          'Legacy arena event create failed '
+          '(${legacyError.code}): ${legacyError.message}',
+        );
+        return null;
+      }
     } catch (error) {
+      _lastEventError = error.toString();
       debugPrint('Arena event create failed: $error');
       return null;
     }
   }
 
-  Stream<List<ArenaAttempt>> watchAttempts(String eventId) =>
-      _restartableStream<List<ArenaAttempt>>(
-        () => _watchAttemptsSingle(eventId),
-      );
+  Future<ArenaEvent?> _createEventTransaction({
+    required ArenaGroup group,
+    required String uid,
+    required String rawTitle,
+    required List<String> games,
+    required Duration duration,
+    required bool legacySchema,
+  }) async {
+    // The transaction below is the source of truth for activeEventId. A
+    // preflight groupId + status query can require an index and can be
+    // rejected by Firestore rules before the atomic write starts.
+    final Map<String, int> layoutCodes = <String, int>{
+      for (final String gameId in games)
+        gameId: _random.nextInt(0x7ffffffe) + 1,
+    };
+    final DocumentReference<Map<String, dynamic>> reference = _events.doc();
+    final DateTime ends = DateTime.now().toUtc().add(duration);
+    final DocumentReference<Map<String, dynamic>> groupRef = _groups.doc(
+      group.id,
+    );
 
-  Stream<List<ArenaAttempt>> _watchAttemptsSingle(String eventId) async* {
-    if (!await ensureOnline() || eventId.trim().isEmpty) {
+    await FirebaseFirestore.instance.runTransaction((
+      Transaction transaction,
+    ) async {
+      final DocumentSnapshot<Map<String, dynamic>> groupSnapshot =
+          await transaction.get(groupRef);
+      if (!groupSnapshot.exists) {
+        throw StateError('arena-group-missing');
+      }
+
+      final Map<String, dynamic> groupData =
+          groupSnapshot.data() ?? <String, dynamic>{};
+      if (_text(groupData['ownerUid']) != uid) {
+        throw StateError('arena-owner-mismatch');
+      }
+
+      final String? activeEventId = _nullableText(groupData['activeEventId']);
+      if (activeEventId != null) {
+        final DocumentSnapshot<Map<String, dynamic>> activeSnapshot =
+            await transaction.get(_events.doc(activeEventId));
+        if (activeSnapshot.exists) {
+          final ArenaEvent activeEvent = ArenaEvent.fromSnapshot(
+            activeSnapshot,
+          );
+          if (activeEvent.active && activeEvent.isPlayable) {
+            throw _ArenaActiveEventError(activeEventId);
+          }
+        }
+      }
+
+      final List<String> currentMembers = _stringList(
+        groupData['memberIds'],
+        maxItems: 30,
+      );
+      if (currentMembers.length < 2) {
+        throw StateError('arena-not-enough-members');
+      }
+
+      final int nextSequence =
+          _safeInt(groupData['eventSequence'], 0, 1000000) + 1;
+      final Map<String, dynamic> eventData = <String, dynamic>{
+        'groupId': group.id,
+        'ownerUid': uid,
+        'title': _cleanName(rawTitle, fallback: 'Zekâ Yarışı'),
+        'format': 'direct',
+        'status': 'active',
+        'level': 1,
+        'gameIds': games,
+        'participantIds': currentMembers,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'endsAt': Timestamp.fromDate(ends),
+        'schemaVersion': legacySchema ? 1 : 2,
+      };
+      if (!legacySchema) eventData['layoutCodes'] = layoutCodes;
+      transaction.set(reference, eventData);
+
+      final Map<String, dynamic> groupUpdate = <String, dynamic>{
+        'activeEventId': reference.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (!legacySchema) {
+        groupUpdate['eventSequence'] = nextSequence;
+        groupUpdate['schemaVersion'] = 2;
+      }
+      transaction.update(groupRef, groupUpdate);
+    });
+    final DocumentSnapshot<Map<String, dynamic>> snapshot = await reference
+        .get();
+    return snapshot.exists ? ArenaEvent.fromSnapshot(snapshot) : null;
+  }
+
+  /// Watches attempts for one event and its group.
+  ///
+  /// Firestore evaluates security rules against every document a query could
+  /// return.  The read rule for arena attempts checks the owning group's
+  /// membership, so an `eventId`-only query cannot be proven safe and is
+  /// rejected with `permission-denied`.  Keeping the group constraint in the
+  /// query makes the rule provable and avoids locking the arena screen.
+  Stream<List<ArenaAttempt>> watchAttempts({
+    required String eventId,
+    required String groupId,
+  }) => _restartableStream<List<ArenaAttempt>>(
+    () => _watchAttemptsSingle(eventId, groupId),
+  );
+
+  Stream<List<ArenaAttempt>> _watchAttemptsSingle(
+    String eventId,
+    String groupId,
+  ) async* {
+    final String cleanEventId = eventId.trim();
+    final String cleanGroupId = groupId.trim();
+    if (!await ensureOnline() || cleanEventId.isEmpty || cleanGroupId.isEmpty) {
       yield const <ArenaAttempt>[];
       return;
     }
     unawaited(_flushPendingAttempts());
-    yield* _attempts
-        .where('eventId', isEqualTo: eventId.trim())
-        .limit(400)
-        .snapshots()
-        .map(
-          (QuerySnapshot<Map<String, dynamic>> snapshot) => snapshot.docs
-              .map(ArenaAttempt.fromSnapshot)
-              .toList(growable: false),
-        );
+    final Query<Map<String, dynamic>> query = _attempts
+        .where('eventId', isEqualTo: cleanEventId)
+        .where('groupId', isEqualTo: cleanGroupId)
+        .limit(400);
+    yield* query.snapshots().map(
+      (QuerySnapshot<Map<String, dynamic>> snapshot) =>
+          snapshot.docs.map(ArenaAttempt.fromSnapshot).toList(growable: false),
+    );
   }
 
   Future<List<ArenaAttempt>> loadPendingAttemptsForEvent(
@@ -777,33 +851,43 @@ class ArenaService {
         .toList(growable: false);
   }
 
-  Stream<List<ArenaReaction>> watchReactions(String eventId) =>
-      _restartableStream<List<ArenaReaction>>(
-        () => _watchReactionsSingle(eventId),
-      );
+  /// Same rule-safe query constraint as [watchAttempts].
+  Stream<List<ArenaReaction>> watchReactions({
+    required String eventId,
+    required String groupId,
+  }) => _restartableStream<List<ArenaReaction>>(
+    () => _watchReactionsSingle(eventId, groupId),
+  );
 
-  Stream<List<ArenaReaction>> _watchReactionsSingle(String eventId) async* {
-    if (!await ensureOnline() || eventId.trim().isEmpty) {
+  Stream<List<ArenaReaction>> _watchReactionsSingle(
+    String eventId,
+    String groupId,
+  ) async* {
+    final String cleanEventId = eventId.trim();
+    final String cleanGroupId = groupId.trim();
+    if (!await ensureOnline() || cleanEventId.isEmpty || cleanGroupId.isEmpty) {
       yield const <ArenaReaction>[];
       return;
     }
-    yield* _reactions
-        .where('eventId', isEqualTo: eventId.trim())
-        .limit(30)
-        .snapshots()
-        .map((QuerySnapshot<Map<String, dynamic>> snapshot) {
-          final List<ArenaReaction> reactions = snapshot.docs
-              .map(ArenaReaction.fromSnapshot)
-              .toList(growable: false);
-          reactions.sort((ArenaReaction left, ArenaReaction right) {
-            final DateTime leftTime =
-                left.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-            final DateTime rightTime =
-                right.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-            return rightTime.compareTo(leftTime);
-          });
-          return reactions;
-        });
+    final Query<Map<String, dynamic>> query = _reactions
+        .where('eventId', isEqualTo: cleanEventId)
+        .where('groupId', isEqualTo: cleanGroupId)
+        .limit(30);
+    yield* query.snapshots().map((
+      QuerySnapshot<Map<String, dynamic>> snapshot,
+    ) {
+      final List<ArenaReaction> reactions = snapshot.docs
+          .map(ArenaReaction.fromSnapshot)
+          .toList(growable: false);
+      reactions.sort((ArenaReaction left, ArenaReaction right) {
+        final DateTime leftTime =
+            left.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final DateTime rightTime =
+            right.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return rightTime.compareTo(leftTime);
+      });
+      return reactions;
+    });
   }
 
   Future<bool> sendReaction({
@@ -907,7 +991,7 @@ class ArenaService {
       ),
       'avatar': _limitedText(
         dashboard.profile.avatar,
-        maxRunes: 16,
+        maxRunes: 32,
         fallback: '🧠',
       ),
       'gameId': gameId,
@@ -968,19 +1052,32 @@ class ArenaService {
       documentId,
     );
 
-    return FirebaseFirestore.instance
-        .runTransaction<bool>((Transaction transaction) async {
+    // The attempt rules intentionally let participants CREATE a result and
+    // read existing results, but do not let them read a missing attempt
+    // document. A transaction starts by reading that missing document, so
+    // Firestore denies the very first result before the create can be tried.
+    // A direct set is evaluated as a create when the deterministic ID is
+    // unused; if a previous request already created it, read back the
+    // immutable result and treat an identical retry as successful.
+    try {
+      await reference
+          .set(_attemptCloudData(pending))
+          .timeout(_attemptWriteTimeout);
+      return true;
+    } catch (error, stackTrace) {
+      if (error is FirebaseException && error.code == 'permission-denied') {
+        try {
           final DocumentSnapshot<Map<String, dynamic>> existing =
-              await transaction.get(reference);
-
+              await reference.get().timeout(_attemptWriteTimeout);
           if (existing.exists) {
             return _existingAttemptMatches(existing.data(), pending);
           }
-
-          transaction.set(reference, _attemptCloudData(pending));
-          return true;
-        })
-        .timeout(_attemptWriteTimeout);
+        } catch (readError) {
+          debugPrint('Arena existing attempt lookup failed: $readError');
+        }
+      }
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   bool _existingAttemptMatches(
