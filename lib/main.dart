@@ -132,7 +132,6 @@ import 'package:zeka_parkuru/services/app_language_controller.dart';
 import 'package:zeka_parkuru/services/daily_challenge_service.dart';
 import 'package:zeka_parkuru/services/daily_reminder_service.dart';
 import 'package:zeka_parkuru/services/game_audio_service.dart';
-import 'package:zeka_parkuru/services/home_personalization_service.dart';
 import 'package:zeka_parkuru/services/onboarding_preference_service.dart';
 import 'package:zeka_parkuru/services/online_leaderboard_service.dart';
 import 'package:zeka_parkuru/services/player_progress_service.dart';
@@ -155,6 +154,29 @@ void main() async {
   ]);
 
   AppErrorMonitoringService.instance.installGlobalHandlers();
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    AppErrorMonitoringService.instance.recordFlutterFatalError(details);
+    if (kDebugMode) {
+      return ErrorWidget(details.exception);
+    }
+    return Material(
+      color: StudioVisuals.canvas,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Bir ekran bileşeni yüklenemedi. Lütfen tekrar deneyin.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: StudioVisuals.ink,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  };
 
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
     FirebaseMessaging.onBackgroundMessage(
@@ -449,9 +471,6 @@ class _AnaSayfaState extends State<AnaSayfa> {
   final OnboardingPreferenceService _preferences =
       OnboardingPreferenceService.instance;
 
-  final HomePersonalizationService _personalization =
-      const HomePersonalizationService();
-
   DailyChallengeData? gunlukVeri;
   OnboardingPreferences? tercihVeri;
 
@@ -465,6 +484,7 @@ class _AnaSayfaState extends State<AnaSayfa> {
 
   bool yukleniyor = true;
   bool _gameOpening = false;
+  Future<void>? _refreshInFlight;
   Map<String, ParkurProgressSnapshot> _referenceGameProgress =
       const <String, ParkurProgressSnapshot>{};
 
@@ -792,7 +812,38 @@ class _AnaSayfaState extends State<AnaSayfa> {
     }
   }
 
-  Future<void> anaSayfayiYenile() async {
+  Future<void> anaSayfayiYenile() {
+    final Future<void>? active = _refreshInFlight;
+    if (active != null) return active;
+
+    final Future<void> operation = _anaSayfayiYenileGuarded();
+    _refreshInFlight = operation;
+    return operation.whenComplete(() {
+      if (identical(_refreshInFlight, operation)) {
+        _refreshInFlight = null;
+      }
+    });
+  }
+
+  Future<void> _anaSayfayiYenileGuarded() async {
+    try {
+      await _anaSayfayiYenileCore();
+    } catch (error, stackTrace) {
+      unawaited(
+        AppErrorMonitoringService.instance.recordError(
+          error,
+          stackTrace,
+          fatal: false,
+          reason: 'home_refresh_failed',
+        ),
+      );
+      if (mounted && yukleniyor) {
+        setState(() => yukleniyor = false);
+      }
+    }
+  }
+
+  Future<void> _anaSayfayiYenileCore() async {
     // Bağımsız yerel okumalar aynı anda başlar; ana ekran ve oyun dönüşü
     // gereksiz yere üç ayrı bekleme süresi ödemez.
     final Future<UnifiedProgressData> progressFuture = _progressService
@@ -2234,623 +2285,6 @@ class _AnaSayfaState extends State<AnaSayfa> {
     return oyuncuVeri?.rankTitle ?? 'ZEKA ÇIRAĞI';
   }
 
-  _HomeRecommendationPresentation _homeRecommendation(BuildContext context) {
-    final HomeGameRecommendation recommendation = _personalization.recommend(
-      preferences: tercihVeri,
-      unlockedLevels: <String, int>{
-        'logic': mantikSeviye,
-        'numbers': sayiSeviye,
-        'blocks': blokSeviye,
-        'memory': hafizaSeviye,
-        'card_pairs': cardPairsSeviye,
-        'focus_filter': focusFilterSeviye,
-        'spot_change': spotChangeSeviye,
-        'rhythm_memory': rhythmMemorySeviye,
-        'attention_tunnel': attentionTunnelSeviye,
-        'hanoi': hanoiSeviye,
-        'word_hunt': kelimeSeviye,
-        'picture_iq': gorselIqSeviye,
-        'candy_sort': sekerSeviye,
-        'number_sort': sayiPetegiSeviye,
-        'shape_puzzle': sekilSeviye,
-        'reflex': refleksSeviye,
-        'pin_unlock': kilitAcSeviye,
-        'balance_scale': agirlikDengesiSeviye,
-        'target_24': hedef24Seviye,
-        'mini_sudoku': miniSudokuSeviye,
-        'kenken_cube': kenkenSeviye,
-        'mahjong_layers': mahjongSeviye,
-        'mine_detective': mayinSeviye,
-        'warehouse_master': depoUstasiSeviye,
-        'word_wheel': kelimeCarkiSeviye,
-        'meaning_match': meaningMatchSeviye,
-        'proverb_finish': proverbFinishSeviye,
-        'sentence_builder': sentenceBuilderSeviye,
-        'near_meaning': nearMeaningSeviye,
-        'letter_maze': letterMazeSeviye,
-        'language_detective': languageDetectiveSeviye,
-        'story_order': storyOrderSeviye,
-        'hidden_masses': gizliKutleSeviye,
-        'kakuro': kakuroSeviye,
-        'reversi_arena': reversiSeviye,
-        'picross_master': picrossSeviye,
-        'tavla_master': tavlaSeviye,
-        'arrow_route': arrowRouteSeviye,
-        'mini_chess_tactics': satrancMatiSeviye,
-        'loop_master': donguUstasiSeviye,
-        'go_life_death': goYasamOlumSeviye,
-        'code_breaker': kodKiriciSeviye,
-        'shogi_mate': shogiMatSeviye,
-        'island_sea': adaDenizSeviye,
-        'peg_solitaire': tekTasSeviye,
-        'futoshiki': futoshikiSeviye,
-        'hex_connection': hexConnectionSeviye,
-        'skyscrapers': skyscrapersSeviye,
-        'hitori': hitoriSeviye,
-        'balloon_pop': balloonSeviye,
-        'bottle_target': bottleTargetSeviye,
-        'color_match': colorReactorSeviye,
-        'ball_merge': ballMergeSeviye,
-        'tower_balance': towerBalanceSeviye,
-        'magnet_path': magnetPathSeviye,
-        'mini_golf_route': miniGolfSeviye,
-        'slide_sweets': slideSweetsSeviye,
-        'ring_toss': ringTossSeviye,
-        'little_fisher': littleFisherSeviye,
-        'marble_route': marbleRouteSeviye,
-        'block_flow': blockFlowSeviye,
-        'paper_flight': paperFlightSeviye,
-        'neon_pinball': neonPinballSeviye,
-        'kite_runner': kiteRunnerSeviye,
-        'rhythm_drums': rhythmDrumsSeviye,
-        'skate_combo': skateComboSeviye,
-        'snowboard_slalom': snowboardSlalomSeviye,
-        'jetpack_courier': jetpackCourierSeviye,
-        'orbit_rescue': orbitRescueSeviye,
-        'drift_league': driftLeagueSeviye,
-        'table_tennis_rally': tableTennisRallySeviye,
-        'penalty_mindgame': penaltyMindgameSeviye,
-        'air_hockey_arena': airHockeyArenaSeviye,
-        'relic_run': relicRunSeviye,
-        'lighthouse_defense': lighthouseDefenseSeviye,
-        'museum_after_hours': museumAfterHoursSeviye,
-        'deep_current': deepCurrentSeviye,
-        'cafe_shift': cafeShiftSeviye,
-        'interior_studio': interiorStudioSeviye,
-        'tideglass_aquarium': tideglassAquariumSeviye,
-        'pet_rescue_clinic': petRescueClinicSeviye,
-        'boardwalk_builder': boardwalkBuilderSeviye,
-        'moonbase_ops': moonbaseOpsSeviye,
-        'museum_curator': museumCuratorSeviye,
-        'festival_producer': festivalProducerSeviye,
-        'secret_room_party': secretRoomPartySeviye,
-        'dice_bluff_arena': diceBluffArenaSeviye,
-        'signal_pair': signalPairSeviye,
-        'deckforge_duel': deckforgeDuelSeviye,
-        'city_atlas': _referenceGameProgress['city_atlas']?.unlockedLevel ?? 1,
-        'world_atlas':
-            _referenceGameProgress['world_atlas']?.unlockedLevel ?? 1,
-        'katamino_workshop':
-            _referenceGameProgress['katamino_workshop']?.unlockedLevel ?? 1,
-        'single_stroke':
-            _referenceGameProgress['single_stroke']?.unlockedLevel ?? 1,
-        'arrow_maze': _referenceGameProgress['arrow_maze']?.unlockedLevel ?? 1,
-        'bubble_shooter':
-            _referenceGameProgress['bubble_shooter']?.unlockedLevel ?? 1,
-      },
-      earnedStars: <String, int>{
-        'logic': mantikYildiz,
-        'numbers': sayiYildiz,
-        'blocks': blokYildiz,
-        'memory': hafizaYildiz,
-        'card_pairs': cardPairsYildiz,
-        'focus_filter': focusFilterYildiz,
-        'spot_change': spotChangeYildiz,
-        'rhythm_memory': rhythmMemoryYildiz,
-        'attention_tunnel': attentionTunnelYildiz,
-        'hanoi': hanoiYildiz,
-        'word_hunt': kelimeYildiz,
-        'picture_iq': gorselIqYildiz,
-        'candy_sort': sekerYildiz,
-        'number_sort': sayiPetegiYildiz,
-        'shape_puzzle': sekilYildiz,
-        'reflex': refleksYildiz,
-        'parking_puzzle': parkYeriYildiz,
-        'pin_unlock': kilitAcYildiz,
-        'balance_scale': agirlikDengesiYildiz,
-        'target_24': hedef24Yildiz,
-        'mini_sudoku': miniSudokuYildiz,
-        'kenken_cube': kenkenYildiz,
-        'mahjong_layers': mahjongYildiz,
-        'mine_detective': mayinYildiz,
-        'warehouse_master': depoUstasiYildiz,
-        'word_wheel': kelimeCarkiYildiz,
-        'meaning_match': meaningMatchYildiz,
-        'proverb_finish': proverbFinishYildiz,
-        'sentence_builder': sentenceBuilderYildiz,
-        'near_meaning': nearMeaningYildiz,
-        'letter_maze': letterMazeYildiz,
-        'language_detective': languageDetectiveYildiz,
-        'story_order': storyOrderYildiz,
-        'hidden_masses': gizliKutleYildiz,
-        'kakuro': kakuroYildiz,
-        'reversi_arena': reversiYildiz,
-        'picross_master': picrossYildiz,
-        'tavla_master': tavlaYildiz,
-        'arrow_route': arrowRouteYildiz,
-        'mini_chess_tactics': satrancMatiYildiz,
-        'loop_master': donguUstasiYildiz,
-        'go_life_death': goYasamOlumYildiz,
-        'code_breaker': kodKiriciYildiz,
-        'shogi_mate': shogiMatYildiz,
-        'island_sea': adaDenizYildiz,
-        'peg_solitaire': tekTasYildiz,
-        'futoshiki': futoshikiYildiz,
-        'hex_connection': hexConnectionYildiz,
-        'skyscrapers': skyscrapersYildiz,
-        'hitori': hitoriYildiz,
-        'balloon_pop': balloonYildiz,
-        'bottle_target': bottleTargetYildiz,
-        'color_match': colorReactorYildiz,
-        'ball_merge': ballMergeYildiz,
-        'tower_balance': towerBalanceYildiz,
-        'magnet_path': magnetPathYildiz,
-        'mini_golf_route': miniGolfYildiz,
-        'slide_sweets': slideSweetsYildiz,
-        'ring_toss': ringTossYildiz,
-        'little_fisher': littleFisherYildiz,
-        'marble_route': marbleRouteYildiz,
-        'block_flow': blockFlowYildiz,
-        'paper_flight': paperFlightYildiz,
-        'neon_pinball': neonPinballYildiz,
-        'kite_runner': kiteRunnerYildiz,
-        'rhythm_drums': rhythmDrumsYildiz,
-        'skate_combo': skateComboYildiz,
-        'snowboard_slalom': snowboardSlalomYildiz,
-        'jetpack_courier': jetpackCourierYildiz,
-        'orbit_rescue': orbitRescueYildiz,
-        'drift_league': driftLeagueYildiz,
-        'table_tennis_rally': tableTennisRallyYildiz,
-        'penalty_mindgame': penaltyMindgameYildiz,
-        'air_hockey_arena': airHockeyArenaYildiz,
-        'relic_run': relicRunYildiz,
-        'lighthouse_defense': lighthouseDefenseYildiz,
-        'museum_after_hours': museumAfterHoursYildiz,
-        'deep_current': deepCurrentYildiz,
-        'cafe_shift': cafeShiftYildiz,
-        'interior_studio': interiorStudioYildiz,
-        'tideglass_aquarium': tideglassAquariumYildiz,
-        'pet_rescue_clinic': petRescueClinicYildiz,
-        'boardwalk_builder': boardwalkBuilderYildiz,
-        'moonbase_ops': moonbaseOpsYildiz,
-        'museum_curator': museumCuratorYildiz,
-        'festival_producer': festivalProducerYildiz,
-        'secret_room_party': secretRoomPartyYildiz,
-        'dice_bluff_arena': diceBluffArenaYildiz,
-        'signal_pair': signalPairYildiz,
-        'deckforge_duel': deckforgeDuelYildiz,
-        'city_atlas': _referenceGameStars('city_atlas'),
-        'world_atlas': _referenceGameStars('world_atlas'),
-        'katamino_workshop': _referenceGameStars('katamino_workshop'),
-        'single_stroke': _referenceGameStars('single_stroke'),
-        'arrow_maze': _referenceGameStars('arrow_maze'),
-        'bubble_shooter': _referenceGameStars('bubble_shooter'),
-      },
-    );
-
-    final ({int number, IconData icon, Color color}) identity =
-        switch (recommendation.gameId) {
-          'numbers' => (
-            number: 2,
-            icon: Icons.calculate_rounded,
-            color: const Color(0xFF39B54A),
-          ),
-          'blocks' => (
-            number: 3,
-            icon: Icons.grid_view_rounded,
-            color: const Color(0xFF168CFF),
-          ),
-          'memory' => (
-            number: 4,
-            icon: Icons.psychology_rounded,
-            color: const Color(0xFFE748CF),
-          ),
-          'hanoi' => (
-            number: 5,
-            icon: Icons.account_tree_rounded,
-            color: const Color(0xFFFF5A3C),
-          ),
-          'word_hunt' => (
-            number: 6,
-            icon: Icons.travel_explore_rounded,
-            color: const Color(0xFF00D9A6),
-          ),
-          'word_wheel' => (
-            number: 26,
-            icon: Icons.casino_outlined,
-            color: StudioGameClass.language.accent,
-          ),
-          'meaning_match' => (
-            number: 64,
-            icon: Icons.hub_rounded,
-            color: StudioGameClass.language.accent,
-          ),
-          'proverb_finish' => (
-            number: 65,
-            icon: Icons.menu_book_rounded,
-            color: StudioGameClass.language.accent,
-          ),
-          'sentence_builder' => (
-            number: 66,
-            icon: Icons.format_align_left_rounded,
-            color: StudioGameClass.language.accent,
-          ),
-          'near_meaning' => (
-            number: 67,
-            icon: Icons.manage_search_rounded,
-            color: StudioGameClass.language.accent,
-          ),
-          'letter_maze' => (
-            number: 68,
-            icon: Icons.route_rounded,
-            color: StudioGameClass.language.accent,
-          ),
-          'language_detective' => (
-            number: 69,
-            icon: Icons.manage_search_rounded,
-            color: StudioGameClass.language.accent,
-          ),
-          'story_order' => (
-            number: 70,
-            icon: Icons.timeline_rounded,
-            color: StudioGameClass.language.accent,
-          ),
-          'picture_iq' => (
-            number: 7,
-            icon: Icons.auto_awesome_mosaic_rounded,
-            color: const Color(0xFFFF4FA3),
-          ),
-          'candy_sort' => (
-            number: 8,
-            icon: Icons.water_drop_rounded,
-            color: const Color(0xFF318C82),
-          ),
-          'number_sort' => (
-            number: 9,
-            icon: Icons.grid_4x4_rounded,
-            color: const Color(0xFFB98548),
-          ),
-          'shape_puzzle' => (
-            number: 10,
-            icon: Icons.interests_rounded,
-            color: const Color(0xFF8C6CFF),
-          ),
-          'reflex' => (
-            number: 11,
-            icon: Icons.bolt_rounded,
-            color: const Color(0xFFFF5B5B),
-          ),
-          'parking_puzzle' => (
-            number: 17,
-            icon: Icons.directions_car_filled_rounded,
-            color: StudioGameClass.strategy.accent,
-          ),
-          'pin_unlock' => (
-            number: 18,
-            icon: Icons.lock_open_rounded,
-            color: StudioGameClass.logic.accent,
-          ),
-          'balance_scale' => (
-            number: 19,
-            icon: Icons.balance_rounded,
-            color: StudioGameClass.logic.accent,
-          ),
-          'hidden_masses' => (
-            number: 27,
-            icon: Icons.scale_outlined,
-            color: StudioGameClass.logic.accent,
-          ),
-          'kakuro' => (
-            number: 28,
-            icon: Icons.grid_on_rounded,
-            color: StudioGameClass.numbers.accent,
-          ),
-          'reversi_arena' => (
-            number: 29,
-            icon: Icons.change_circle_outlined,
-            color: StudioGameClass.strategy.accent,
-          ),
-          'picross_master' => (
-            number: 30,
-            icon: Icons.grid_4x4_rounded,
-            color: StudioGameClass.visual.accent,
-          ),
-          'tavla_master' => (
-            number: 31,
-            icon: Icons.casino_outlined,
-            color: StudioGameClass.strategy.accent,
-          ),
-          'arrow_route' => (
-            number: 32,
-            icon: Icons.near_me_outlined,
-            color: StudioGameClass.visual.accent,
-          ),
-          'mini_chess_tactics' => (
-            number: 33,
-            icon: Icons.grid_4x4_rounded,
-            color: StudioGameClass.strategy.accent,
-          ),
-          'loop_master' => (
-            number: 34,
-            icon: Icons.loop_rounded,
-            color: StudioGameClass.logic.accent,
-          ),
-          'go_life_death' => (
-            number: 35,
-            icon: Icons.circle_outlined,
-            color: StudioGameClass.strategy.accent,
-          ),
-          'code_breaker' => (
-            number: 36,
-            icon: Icons.password_rounded,
-            color: StudioGameClass.logic.accent,
-          ),
-          'shogi_mate' => (
-            number: 37,
-            icon: Icons.grid_on_rounded,
-            color: StudioGameClass.strategy.accent,
-          ),
-          'island_sea' => (
-            number: 38,
-            icon: Icons.waves_rounded,
-            color: StudioGameClass.logic.accent,
-          ),
-          'peg_solitaire' => (
-            number: 39,
-            icon: Icons.circle_outlined,
-            color: StudioGameClass.strategy.accent,
-          ),
-          'futoshiki' => (
-            number: 40,
-            icon: Icons.grid_4x4_rounded,
-            color: StudioGameClass.numbers.accent,
-          ),
-          'hex_connection' => (
-            number: 41,
-            icon: Icons.hexagon_outlined,
-            color: StudioGameClass.strategy.accent,
-          ),
-          'skyscrapers' => (
-            number: 42,
-            icon: Icons.location_city_outlined,
-            color: StudioGameClass.logic.accent,
-          ),
-          'hitori' => (
-            number: 43,
-            icon: Icons.grid_view_rounded,
-            color: StudioGameClass.logic.accent,
-          ),
-          'balloon_pop' => (
-            number: 44,
-            icon: Icons.air_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'bottle_target' => (
-            number: 45,
-            icon: Icons.sports_baseball_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'color_match' => (
-            number: 46,
-            icon: Icons.bubble_chart_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'ball_merge' => (
-            number: 47,
-            icon: Icons.blur_circular_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'tower_balance' => (
-            number: 48,
-            icon: Icons.balance_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'magnet_path' => (
-            number: 49,
-            icon: Icons.flare_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'mini_golf_route' => (
-            number: 50,
-            icon: Icons.sports_golf_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'slide_sweets' => (
-            number: 51,
-            icon: Icons.factory_rounded,
-            color: StudioGameClass.speed.accent,
-          ),
-          'ring_toss' => (
-            number: 52,
-            icon: Icons.sports_handball_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'little_fisher' => (
-            number: 53,
-            icon: Icons.phishing_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'marble_route' => (
-            number: 54,
-            icon: Icons.sports_handball_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'block_flow' => (
-            number: 55,
-            icon: Icons.view_in_ar_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'paper_flight' => (
-            number: 56,
-            icon: Icons.airplanemode_active_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'neon_pinball' => (
-            number: 57,
-            icon: Icons.sports_esports_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'kite_runner' => (
-            number: 58,
-            icon: Icons.air_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'rhythm_drums' => (
-            number: 59,
-            icon: Icons.graphic_eq_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'skate_combo' => (
-            number: 60,
-            icon: Icons.skateboarding_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'snowboard_slalom' => (
-            number: 61,
-            icon: Icons.downhill_skiing_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'jetpack_courier' => (
-            number: 62,
-            icon: Icons.rocket_launch_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'orbit_rescue' => (
-            number: 63,
-            icon: Icons.public_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'drift_league' => (
-            number: 80,
-            icon: Icons.sports_motorsports_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'table_tennis_rally' => (
-            number: 81,
-            icon: Icons.sports_tennis_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'penalty_mindgame' => (
-            number: 82,
-            icon: Icons.sports_soccer_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'air_hockey_arena' => (
-            number: 83,
-            icon: Icons.sports_hockey_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'relic_run' => (
-            number: 84,
-            icon: Icons.explore_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'lighthouse_defense' => (
-            number: 85,
-            icon: Icons.light_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'museum_after_hours' => (
-            number: 86,
-            icon: Icons.museum_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'deep_current' => (
-            number: 87,
-            icon: Icons.sailing_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'cafe_shift' => (
-            number: 88,
-            icon: Icons.local_cafe_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          'target_24' => (
-            number: 20,
-            icon: Icons.functions_rounded,
-            color: StudioGameClass.numbers.accent,
-          ),
-          'mini_sudoku' => (
-            number: 21,
-            icon: Icons.grid_on_rounded,
-            color: StudioGameClass.numbers.accent,
-          ),
-          'kenken_cube' => (
-            number: 22,
-            icon: Icons.functions_rounded,
-            color: StudioGameClass.numbers.accent,
-          ),
-          'mahjong_layers' => (
-            number: 23,
-            icon: Icons.layers_rounded,
-            color: StudioGameClass.visual.accent,
-          ),
-          'mine_detective' => (
-            number: 24,
-            icon: Icons.radar_rounded,
-            color: StudioGameClass.logic.accent,
-          ),
-          'warehouse_master' => (
-            number: 25,
-            icon: Icons.inventory_2_outlined,
-            color: StudioGameClass.strategy.accent,
-          ),
-          'city_atlas' => (
-            number: 123,
-            icon: Icons.map_outlined,
-            color: StudioGameClass.visual.accent,
-          ),
-          'world_atlas' => (
-            number: 124,
-            icon: Icons.public_rounded,
-            color: StudioGameClass.visual.accent,
-          ),
-          'katamino_workshop' => (
-            number: 125,
-            icon: Icons.extension_rounded,
-            color: StudioGameClass.visual.accent,
-          ),
-          'single_stroke' => (
-            number: 126,
-            icon: Icons.gesture_rounded,
-            color: StudioGameClass.logic.accent,
-          ),
-          'arrow_maze' => (
-            number: 127,
-            icon: Icons.alt_route_rounded,
-            color: StudioGameClass.logic.accent,
-          ),
-          'bubble_shooter' => (
-            number: 128,
-            icon: Icons.bubble_chart_rounded,
-            color: StudioGameClass.fun.accent,
-          ),
-          _ => (
-            number: 1,
-            icon: Icons.extension_rounded,
-            color: const Color(0xFF8A4FFF),
-          ),
-        };
-
-    return _HomeRecommendationPresentation(
-      gameId: recommendation.gameId,
-      number: identity.number,
-      icon: identity.icon,
-      color: identity.color,
-      reason: recommendation.reason(isEnglish: context.l10n.isEnglish),
-    );
-  }
-
   Future<void> ayarlariAc() async {
     unawaited(_analytics.logScreen('settings'));
 
@@ -3613,15 +3047,18 @@ class _AnaSayfaState extends State<AnaSayfa> {
             const _StudioMark(),
             const SizedBox(width: 8),
             Flexible(
-              child: Text(
-                'Zeka Parkuru',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: StudioVisuals.ink,
-                  fontSize: gardenTheme ? 17 : 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.35,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Zeka Parkuru',
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: StudioVisuals.ink,
+                    fontSize: gardenTheme ? 17 : 18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.35,
+                  ),
                 ),
               ),
             ),
@@ -4926,151 +4363,6 @@ class _StudioMark extends StatelessWidget {
   }
 }
 
-class _StudioSkillOverview extends StatelessWidget {
-  const _StudioSkillOverview({
-    required this.logicStars,
-    required this.memoryStars,
-    required this.speedStars,
-  });
-
-  final int logicStars;
-  final int memoryStars;
-  final int speedStars;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isEnglish = context.l10n.isEnglish;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: StudioVisuals.surface,
-        borderRadius: StudioVisuals.cardRadius,
-        border: Border.all(color: StudioVisuals.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            isEnglish ? 'YOUR SKILL MAP' : 'BECERİ HARİTAN',
-            style: const TextStyle(
-              color: StudioVisuals.muted,
-              fontSize: 9,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: <Widget>[
-              _StudioSkillMetric(
-                icon: Icons.account_tree_outlined,
-                label: isEnglish ? 'Logic' : 'Mantık',
-                value: logicStars,
-                color: StudioVisuals.teal,
-              ),
-              const SizedBox(width: 10),
-              _StudioSkillMetric(
-                icon: Icons.visibility_outlined,
-                label: isEnglish ? 'Focus' : 'Dikkat',
-                value: memoryStars,
-                color: StudioVisuals.amber,
-              ),
-              const SizedBox(width: 10),
-              _StudioSkillMetric(
-                icon: Icons.bolt_outlined,
-                label: isEnglish ? 'Speed' : 'Hız',
-                value: speedStars,
-                color: StudioVisuals.ink,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StudioSkillMetric extends StatelessWidget {
-  const _StudioSkillMetric({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final int value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: StudioVisuals.compactRadius,
-        ),
-        child: Column(
-          children: <Widget>[
-            Icon(icon, color: color, size: 19),
-            const SizedBox(height: 5),
-            Text(
-              '$value',
-              style: const TextStyle(
-                color: StudioVisuals.ink,
-                fontWeight: FontWeight.w900,
-                fontSize: 14,
-              ),
-            ),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: StudioVisuals.muted,
-                fontSize: 8,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StudioSectionHeading extends StatelessWidget {
-  const _StudioSectionHeading({required this.title, required this.subtitle});
-
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          title,
-          style: const TextStyle(
-            color: StudioVisuals.ink,
-            fontSize: 23,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.4,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: const TextStyle(color: StudioVisuals.muted, fontSize: 12),
-        ),
-      ],
-    );
-  }
-}
-
 class _StudioPlayableGame {
   const _StudioPlayableGame({
     required this.number,
@@ -6306,22 +5598,6 @@ class _DailyPanel extends StatelessWidget {
   }
 }
 
-class _HomeRecommendationPresentation {
-  const _HomeRecommendationPresentation({
-    required this.gameId,
-    required this.number,
-    required this.icon,
-    required this.color,
-    required this.reason,
-  });
-
-  final String gameId;
-  final int number;
-  final IconData icon;
-  final Color color;
-  final String reason;
-}
-
 class _HomeArenaCard extends StatelessWidget {
   const _HomeArenaCard({required this.onTap});
 
@@ -6405,100 +5681,6 @@ class _HomeArenaCard extends StatelessWidget {
       ),
     ),
   );
-}
-
-class _PersonalRecommendationCard extends StatelessWidget {
-  const _PersonalRecommendationCard({
-    required this.recommendation,
-    required this.title,
-    required this.onTap,
-  });
-
-  final _HomeRecommendationPresentation recommendation;
-  final String title;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isEnglish = context.l10n.isEnglish;
-    return RepaintBoundary(
-      key: const ValueKey<String>('v9_personal_recommendation'),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: StudioVisuals.cardRadius,
-          child: Ink(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: StudioVisuals.surface,
-              borderRadius: StudioVisuals.cardRadius,
-              border: Border.all(color: StudioVisuals.line),
-              boxShadow: StudioVisuals.softShadow,
-            ),
-            child: Row(
-              children: <Widget>[
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: recommendation.color.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: StudioGameArtwork(gameId: recommendation.gameId),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        isEnglish ? 'YOUR NEXT COURSE' : 'SIRADAKİ PARKURUN',
-                        style: TextStyle(
-                          color: StudioVisuals.teal,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: StudioVisuals.ink,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        recommendation.reason,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: StudioVisuals.muted,
-                          fontSize: 10,
-                          height: 1.25,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.play_circle_fill_rounded,
-                  color: StudioVisuals.teal,
-                  size: 32,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 IconData _plannedGameIcon(String gameId) => switch (gameId) {
