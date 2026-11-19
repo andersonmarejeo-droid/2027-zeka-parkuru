@@ -37,8 +37,17 @@ class ZekaScoringService {
   ZekaScoringService._();
 
   static const int pointsPerCompletedLevel = 10;
+  static const int pointsPerLevel = 10;
+  static const int maxHintsPerGame = 3;
+  static const int hintPenalty = 2;
   static const int dailyCompletionBasePoints = 100;
   static const int dailyStarPoints = 50;
+
+  static int calculateScore(int completedLevels, int hintsUsed) {
+    final int base = completedLevels * pointsPerCompletedLevel;
+    final int penalty = hintsUsed * hintPenalty;
+    return (base - penalty).clamp(0, base);
+  }
 
   static int courseScore(ParkurProgressData course) {
     return course.toplamOrtakPuan;
