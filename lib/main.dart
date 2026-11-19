@@ -5,7 +5,9 @@ import 'widgets/avatar_icon.dart';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:zeka_parkuru/features/catalog/domain/studio_game_catalog.dart';
@@ -143,8 +145,14 @@ import 'package:zeka_parkuru/theme/studio_visuals.dart';
 import 'package:zeka_parkuru/widgets/fast_game_route.dart';
 import 'package:zeka_parkuru/widgets/studio_card.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  GestureBinding.instance.resamplingEnabled = true;
+
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
   AppErrorMonitoringService.instance.installGlobalHandlers();
 
@@ -3589,30 +3597,29 @@ class _AnaSayfaState extends State<AnaSayfa> {
   Widget build(BuildContext context) {
     final bool gardenTheme =
         _experience.visualTheme == AppVisualTheme.studioGarden;
-    final _HomeRecommendationPresentation recommendation = _homeRecommendation(
-      context,
-    );
     final List<_StudioPlayableGame> playableGames = _visiblePlayableGames();
     return Scaffold(
       key: const ValueKey<String>('v9_pro_home'),
       backgroundColor: StudioVisuals.canvas,
 
+      extendBody: true,
       appBar: AppBar(
         backgroundColor: StudioVisuals.canvas,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        titleSpacing: 14,
         title: Row(
           children: <Widget>[
             const _StudioMark(),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Flexible(
               child: Text(
-                'Zekâ Parkuru',
+                'Zeka Parkuru',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: StudioVisuals.ink,
-                  fontSize: gardenTheme ? 18 : 19,
+                  fontSize: gardenTheme ? 17 : 18,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.35,
                 ),
@@ -3688,22 +3695,6 @@ class _AnaSayfaState extends State<AnaSayfa> {
 
                       _HomeArenaCard(onTap: arenayiAc),
 
-                      const SizedBox(height: 18),
-
-                      _StudioSkillOverview(
-                        logicStars: mantikYildiz,
-                        memoryStars: hafizaYildiz,
-                        speedStars: refleksYildiz,
-                      ),
-
-                      const SizedBox(height: 22),
-
-                      _PersonalRecommendationCard(
-                        recommendation: recommendation,
-                        title: context.l10n.gameTitle(recommendation.gameId),
-                        onTap: () => oyunuAc(recommendation.number),
-                      ),
-
                       const SizedBox(height: 26),
 
                     ],
@@ -3712,38 +3703,82 @@ class _AnaSayfaState extends State<AnaSayfa> {
         ),
       ),
 
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        onDestinationSelected: altMenuSec,
-        backgroundColor: StudioVisuals.surface,
-        indicatorColor: StudioVisuals.tealSoft,
-        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((states) {
-          return TextStyle(
-            color: states.contains(WidgetState.selected)
-                ? StudioVisuals.ink
-                : StudioVisuals.muted,
-            fontWeight: FontWeight.w800,
-            fontSize: 11,
-          );
-        }),
-        destinations: [
-          NavigationDestination(
-            icon: Icon(Icons.home_rounded),
-            label: context.l10n.home,
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+          child: Container(
+            height: 68,
+            decoration: BoxDecoration(
+              color: StudioVisuals.surface,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: StudioVisuals.line),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: StudioVisuals.ink.withValues(alpha: 0.08),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: NavigationBar(
+                selectedIndex: 0,
+                onDestinationSelected: altMenuSec,
+                backgroundColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+                height: 68,
+                indicatorColor: StudioVisuals.tealSoft,
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((states) {
+                  return TextStyle(
+                    color: states.contains(WidgetState.selected)
+                        ? StudioVisuals.ink
+                        : StudioVisuals.muted,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  );
+                }),
+                destinations: [
+                  NavigationDestination(
+                    icon: const Icon(Icons.grid_view_outlined),
+                    selectedIcon: const Icon(
+                      Icons.grid_view_rounded,
+                      color: StudioVisuals.teal,
+                    ),
+                    label: context.l10n.home,
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.auto_awesome_outlined),
+                    selectedIcon: const Icon(
+                      Icons.auto_awesome_rounded,
+                      color: StudioVisuals.teal,
+                    ),
+                    label: context.l10n.tasks,
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.military_tech_outlined),
+                    selectedIcon: const Icon(
+                      Icons.military_tech_rounded,
+                      color: StudioVisuals.teal,
+                    ),
+                    label: context.l10n.leaderboard,
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.person_outline_rounded),
+                    selectedIcon: const Icon(
+                      Icons.person_rounded,
+                      color: StudioVisuals.teal,
+                    ),
+                    label: context.l10n.profile,
+                  ),
+                ],
+              ),
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.task_alt_rounded),
-            label: context.l10n.tasks,
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.emoji_events_rounded),
-            label: context.l10n.leaderboard,
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_rounded),
-            label: context.l10n.profile,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -4882,7 +4917,11 @@ class _StudioMark extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: StudioVisuals.teal.withValues(alpha: 0.22)),
       ),
-      child: const Icon(Icons.hub_rounded, color: StudioVisuals.teal, size: 23),
+      child: const Icon(
+        Icons.psychology_rounded,
+        color: StudioVisuals.teal,
+        size: 23,
+      ),
     );
   }
 }
@@ -5410,36 +5449,47 @@ class _StudioGardenCategorySection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        for (
-          int index = 0;
-          index < StudioGameClass.values.length;
-          index++
-        ) ...<Widget>[
-          if (index > 0) const SizedBox(height: 10),
-          _StudioGardenCategoryCard(
-            gameClass: StudioGameClass.values[index],
-            index: index,
-            isEnglish: isEnglish,
-            gameCount: games
-                .where(
-                  (game) => game.gameClass == StudioGameClass.values[index],
-                )
-                .length,
-            onTap: () => Navigator.of(context).push<void>(
-              MaterialPageRoute<void>(
-                builder: (_) => _StudioClassGamesPage(
-                  gameClass: StudioGameClass.values[index],
-                  isEnglish: isEnglish,
-                  loadGames: loadGames,
-                  onOpenGame: onOpenGame,
+        ...() {
+          final List<StudioGameClass> visibleClasses = StudioGameClass.values
+              .where(
+                (StudioGameClass gameClass) => games.any(
+                  (_StudioPlayableGame game) => game.gameClass == gameClass,
                 ),
-                settings: RouteSettings(
-                  name: '/catalog/${StudioGameClass.values[index].name}',
+              )
+              .toList(growable: false);
+          return <Widget>[
+            for (
+              int index = 0;
+              index < visibleClasses.length;
+              index++
+            ) ...<Widget>[
+              if (index > 0) const SizedBox(height: 10),
+              _StudioGardenCategoryCard(
+                gameClass: visibleClasses[index],
+                index: StudioGameClass.values.indexOf(visibleClasses[index]),
+                isEnglish: isEnglish,
+                gameCount: games
+                    .where(
+                      (game) => game.gameClass == visibleClasses[index],
+                    )
+                    .length,
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => _StudioClassGamesPage(
+                      gameClass: visibleClasses[index],
+                      isEnglish: isEnglish,
+                      loadGames: loadGames,
+                      onOpenGame: onOpenGame,
+                    ),
+                    settings: RouteSettings(
+                      name: '/catalog/${visibleClasses[index].name}',
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-        ],
+            ],
+          ];
+        }(),
       ],
     );
   }
