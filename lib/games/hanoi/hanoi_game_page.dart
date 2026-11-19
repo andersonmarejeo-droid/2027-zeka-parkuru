@@ -883,6 +883,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
 
     setState(() {
       _hintsUsed++;
+      CommonLevelScoreSession.recordHint();
       selectedPeg = hint.from;
       hintTargetPeg = hint.to;
       invalidPeg = null;
@@ -916,8 +917,7 @@ class _HanoiPlayPageState extends State<HanoiPlayPage> {
   }
 
   int _scoreForResult(int stars) {
-    final int efficiency = max(0, level.twoStarLimit - moveCount) * 25;
-    return stars * 1000 + efficiency + level.number * 40;
+    return CommonLevelScoreSession.activePoints;
   }
 
   Future<void> _showResult() async {
