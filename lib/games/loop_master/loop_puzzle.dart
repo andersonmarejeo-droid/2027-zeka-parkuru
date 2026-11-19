@@ -41,7 +41,7 @@ class LoopPuzzle {
     required this.proofNodes,
   });
 
-  static const int maximumLevels = 20;
+  static const int maximumLevels = 30;
   static const int maximumVerifiedBoards = 300;
   static final Map<int, LoopPuzzle> _campaign = <int, LoopPuzzle>{};
   static final Map<int, LoopPuzzle> _practice = <int, LoopPuzzle>{};

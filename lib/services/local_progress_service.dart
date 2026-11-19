@@ -138,13 +138,24 @@ class LocalProgressService {
       _numberPuanlarKey,
     );
 
+    final int star30 = yildizKaydi != null &&
+            yildizKaydi.length >= GameContentPolicy.campaignLevels
+        ? (int.tryParse(yildizKaydi[GameContentPolicy.campaignLevels - 1]) ?? 0)
+        : 0;
+    final int hedefUzunluk = star30 > 0
+        ? [
+            GameContentPolicy.campaignLevels,
+            acikSeviye,
+            yildizKaydi?.length ?? 0,
+            puanKaydi?.length ?? 0,
+          ].reduce((a, b) => a > b ? a : b)
+        : GameContentPolicy.campaignLevels;
+    final List<int> yildizlar = _listeOku(yildizKaydi, hedefUzunluk);
+
     return NumberProgressData(
-      acikSeviye: GameContentPolicy.safeUnlocked(
-        acikSeviye,
-        _listeOku(yildizKaydi, GameContentPolicy.campaignLevels),
-      ),
-      yildizlar: _listeOku(yildizKaydi, GameContentPolicy.campaignLevels),
-      enIyiPuanlar: _listeOku(puanKaydi, GameContentPolicy.campaignLevels),
+      acikSeviye: GameContentPolicy.safeUnlocked(acikSeviye, yildizlar),
+      yildizlar: yildizlar,
+      enIyiPuanlar: _listeOku(puanKaydi, hedefUzunluk),
     );
   }
 
@@ -181,13 +192,24 @@ class LocalProgressService {
       _blockPuanlarKey,
     );
 
+    final int star30 = yildizKaydi != null &&
+            yildizKaydi.length >= GameContentPolicy.campaignLevels
+        ? (int.tryParse(yildizKaydi[GameContentPolicy.campaignLevels - 1]) ?? 0)
+        : 0;
+    final int hedefUzunluk = star30 > 0
+        ? [
+            GameContentPolicy.campaignLevels,
+            acikSeviye,
+            yildizKaydi?.length ?? 0,
+            puanKaydi?.length ?? 0,
+          ].reduce((a, b) => a > b ? a : b)
+        : GameContentPolicy.campaignLevels;
+    final List<int> yildizlar = _listeOku(yildizKaydi, hedefUzunluk);
+
     return BlockProgressData(
-      acikSeviye: GameContentPolicy.safeUnlocked(
-        acikSeviye,
-        _listeOku(yildizKaydi, GameContentPolicy.campaignLevels),
-      ),
-      yildizlar: _listeOku(yildizKaydi, GameContentPolicy.campaignLevels),
-      enIyiPuanlar: _listeOku(puanKaydi, GameContentPolicy.campaignLevels),
+      acikSeviye: GameContentPolicy.safeUnlocked(acikSeviye, yildizlar),
+      yildizlar: yildizlar,
+      enIyiPuanlar: _listeOku(puanKaydi, hedefUzunluk),
     );
   }
 

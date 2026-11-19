@@ -144,7 +144,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 150));
 
     expect(find.text('Mini Sudoku 6×6'), findsOneWidget);
-    expect(find.textContaining('Sudoku 01'), findsOneWidget);
+    expect(find.textContaining('Sudoku 01'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 }

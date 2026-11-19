@@ -736,6 +736,82 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
     );
   }
 
+  void _showHowToPlay(BuildContext context, bool english) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: StudioVisuals.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: StudioVisuals.line,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Icon(Icons.extension_rounded, color: _accent, size: 24),
+                    const SizedBox(width: 8),
+                    Text(
+                      english ? 'How to Play' : 'Nasıl Oynanır?',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: StudioVisuals.ink,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  english
+                      ? '• Look at the puzzle pieces shown above.\n• Mentally merge the pieces without overlapping them.\n• Choose the option that shows the exact combined shape.\n• Solve as fast and accurately as possible to earn 3 stars!'
+                      : '• Üst paneldeki renkli şekil parçalarını inceleyin.\n• Parçaları üst üste binmeyecek şekilde zihninizde birleştirin.\n• Parçaların tam olarak oluşturduğu doğru hedef şekli seçeneklerden işaretleyin.\n• En yüksek puan ve 3 yıldız için doğru ve hızlı yanıtlayın!',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    color: StudioVisuals.ink,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _accent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      english ? 'Got it' : 'Anladım',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool english = context.l10n.isEnglish;
@@ -745,6 +821,7 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
         body: const Center(child: CircularProgressIndicator(color: _accent)),
       );
     }
+    final ColorScheme colors = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -757,15 +834,21 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
             fontSize: 16,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded),
+            tooltip: english ? 'How to play' : 'Nasıl Oynanır?',
+            onPressed: () => _showHowToPlay(context, english),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints limits) {
-            final bool compact = limits.maxHeight < 650;
-            final ColorScheme colors = Theme.of(context).colorScheme;
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
+        child: ResponsiveGameFrame(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 _ShapeHeader(
                   current: _questionIndex + 1,
@@ -774,25 +857,14 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
                   elapsed: _elapsed,
                   english: english,
                 ),
-                SizedBox(height: compact ? 9 : 14),
-                Text(
-                  _prompt(english),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Roboto',
-                    color: colors.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-                SizedBox(height: compact ? 9 : 14),
+                const SizedBox(height: 6),
                 Container(
-                  padding: EdgeInsets.all(compact ? 10 : 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: <Color>[Color(0xFFFFFFFF), Color(0xFFEEF3F0)],
                     ),
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: _accent.withValues(alpha: 0.42)),
                   ),
                   child: Row(
@@ -800,25 +872,13 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
                       Expanded(
                         child: Wrap(
                           alignment: WrapAlignment.center,
-                          spacing: 8,
-                          runSpacing: 8,
+                          spacing: 6,
+                          runSpacing: 6,
                           children: List<Widget>.generate(
                             _question.pieces.length,
                             (int index) => SizedBox(
-                              width: _question.pieces.length >= 4
-                                  ? compact
-                                        ? 58
-                                        : 68
-                                  : compact
-                                  ? 72
-                                  : 84,
-                              height: _question.pieces.length >= 4
-                                  ? compact
-                                        ? 58
-                                        : 68
-                                  : compact
-                                  ? 72
-                                  : 84,
+                              width: _question.pieces.length >= 4 ? 44 : 54,
+                              height: _question.pieces.length >= 4 ? 44 : 54,
                               child: _MaskView(
                                 mask: _question.pieces[index],
                                 dimension: widget.level.dimension,
@@ -829,20 +889,20 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
                         ),
                       ),
                       const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        padding: EdgeInsets.symmetric(horizontal: 6),
                         child: Icon(
-                          Icons.double_arrow_rounded,
+                          Icons.arrow_forward_rounded,
                           color: Color(0xFFBBAAFF),
-                          size: 27,
+                          size: 20,
                         ),
                       ),
                       Container(
-                        width: compact ? 72 : 88,
-                        height: compact ? 72 : 88,
+                        width: 54,
+                        height: 54,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: _accent.withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(19),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: _accent),
                         ),
                         child: const Text(
@@ -850,7 +910,7 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
                           style: TextStyle(
                             fontFamily: 'Roboto',
                             color: Color(0xFF665AA2),
-                            fontSize: 38,
+                            fontSize: 26,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
@@ -858,76 +918,106 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
                     ],
                   ),
                 ),
-                SizedBox(height: compact ? 10 : 15),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _question.options.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    mainAxisExtent: compact ? 117 : 137,
+                const SizedBox(height: 6),
+                Text(
+                  _prompt(english),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: colors.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
                   ),
-                  itemBuilder: (BuildContext context, int index) {
-                    final bool correct = index == _question.correctIndex;
-                    final bool selected = index == _selected;
-                    Color border = colors.outlineVariant;
-                    Color background = colors.surface;
-                    if (_locked && correct) {
-                      border = const Color(0xFF27865A);
-                      background = const Color(0xFFEAF7EF);
-                    }
-                    if (_locked && selected && !correct) {
-                      border = const Color(0xFFD64F63);
-                      background = const Color(0xFFFFEFF1);
-                    } else if (selected && !_locked) {
-                      border = const Color(0xFF4A84C5);
-                      background = const Color(0xFFEEF5FC);
-                    }
-                    return Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => _select(index),
-                        borderRadius: BorderRadius.circular(20),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          padding: const EdgeInsets.all(11),
-                          decoration: BoxDecoration(
-                            color: background,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: border, width: 1.4),
-                          ),
-                          child: Stack(
-                            children: <Widget>[
-                              Center(
-                                child: SizedBox.square(
-                                  dimension: compact ? 78 : 98,
-                                  child: _MaskView(
-                                    mask: _question.options[index],
-                                    dimension: widget.level.dimension,
-                                    color: _locked && correct
-                                        ? const Color(0xFF34715D)
-                                        : const Color(0xFF665AA2),
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                String.fromCharCode(65 + index),
-                                style: TextStyle(
-                                  fontFamily: 'Roboto',
-                                  color: colors.onSurfaceVariant,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (BuildContext context, BoxConstraints gridConstraints) {
+                      final double itemWidth = (gridConstraints.maxWidth - 10) / 2;
+                      final double itemHeight = (gridConstraints.maxHeight - 10) / 2;
+                      final double childAspectRatio = (itemWidth / itemHeight).clamp(0.65, 1.8);
+                      return GridView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _question.options.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          childAspectRatio: childAspectRatio,
+                        ),
+                        itemBuilder: (BuildContext context, int index) {
+                          final bool correct = index == _question.correctIndex;
+                          final bool selected = index == _selected;
+                          Color border = colors.outlineVariant;
+                          Color background = colors.surface;
+                          if (_locked && correct) {
+                            border = const Color(0xFF27865A);
+                            background = const Color(0xFFEAF7EF);
+                          }
+                          if (_locked && selected && !correct) {
+                            border = const Color(0xFFD64F63);
+                            background = const Color(0xFFFFEFF1);
+                          } else if (selected && !_locked) {
+                            border = const Color(0xFF4A84C5);
+                            background = const Color(0xFFEEF5FC);
+                          }
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => _select(index),
+                              borderRadius: BorderRadius.circular(18),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: background,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(color: border, width: 1.4),
+                                ),
+                                child: Stack(
+                                  children: <Widget>[
+                                    Center(
+                                      child: LayoutBuilder(
+                                        builder: (context, optBox) {
+                                          final double sz = (min(optBox.maxWidth, optBox.maxHeight) - 6).clamp(40.0, 110.0);
+                                          return SizedBox.square(
+                                            dimension: sz,
+                                            child: _MaskView(
+                                              mask: _question.options[index],
+                                              dimension: widget.level.dimension,
+                                              color: _locked && correct
+                                                  ? const Color(0xFF34715D)
+                                                  : const Color(0xFF665AA2),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    Positioned(
+                                      left: 4,
+                                      top: 2,
+                                      child: Text(
+                                        String.fromCharCode(65 + index),
+                                        style: TextStyle(
+                                          fontFamily: 'Roboto',
+                                          color: colors.onSurfaceVariant,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 4),
                 Text(
                   _locked
                       ? _explanation(english)
@@ -935,15 +1025,17 @@ class _ShapePuzzlePlayPageState extends State<ShapePuzzlePlayPage> {
                       ? 'Inspect the grid positions before choosing.'
                       : 'Seçmeden önce hücre konumlarını dikkatle incele.',
                   textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontFamily: 'Roboto',
                     color: colors.onSurfaceVariant,
-                    fontSize: 12,
+                    fontSize: 11,
                   ),
                 ),
               ],
-            );
-          },
+            ),
+          ),
         ),
       ),
     );

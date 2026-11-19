@@ -68,32 +68,11 @@ class CardPairsScenario {
 
   int get decoyCount => cards.where((CardPairCard card) => card.isDecoy).length;
 
-  String get ruleTitle => switch (rule) {
-    CardPairsRule.exactTwin => english ? 'IDENTICAL IMAGE' : 'AYNI GÖRSEL',
-    CardPairsRule.sameShape => english ? 'SAME SHAPE' : 'AYNI ŞEKİL',
-    CardPairsRule.sameColor => english ? 'SAME COLOR' : 'AYNI RENK',
-    CardPairsRule.semanticLink =>
-      english ? 'MEANINGFUL PAIRS' : 'ANLAMLI ÇİFTLER',
-  };
+  String get ruleTitle => english ? 'IDENTICAL IMAGE' : 'AYNI GÖRSEL';
 
-  String get instruction => switch (rule) {
-    CardPairsRule.exactTwin =>
-      english
-          ? 'Find cards with the exact same image.'
-          : 'Görseli tamamen aynı olan kartları bul.',
-    CardPairsRule.sameShape =>
-      english
-          ? 'Pair matching silhouettes; ignore the surface pattern.'
-          : 'Aynı silüetleri eşleştir; yüzey desenini önemseme.',
-    CardPairsRule.sameColor =>
-      english
-          ? 'Match by color, even when the symbols differ.'
-          : 'Semboller farklı olsa da rengine göre eşleştir.',
-    CardPairsRule.semanticLink =>
-      english
-          ? 'Recall the two ideas that belong together.'
-          : 'Birbiriyle ilişkili iki kavramı hatırla.',
-  };
+  String get instruction => english
+      ? 'Find cards with the exact same image.'
+      : 'Görseli tamamen aynı olan kartları bul.';
 
   String get boardSignature {
     final List<String> faces =
@@ -241,47 +220,20 @@ class CardPairsScenario {
     for (int index = 0; index < pairCount; index++) {
       final int contentIndex =
           (stage * 3 + variant * 2 + index * 5) % _semanticPairs.length;
-      final _SemanticPair semantic = _semanticPairs[contentIndex];
       final String pairId = 'pair_${index}_content_$contentIndex';
       final int color = (stage + variant * 3 + index * 5) % 8;
       final int pattern = (variant + index * 3) % 15;
-      final String leftLabel = switch (rule) {
-        CardPairsRule.exactTwin =>
-          english ? 'Signal ${contentIndex + 1}' : 'Sinyal ${contentIndex + 1}',
-        CardPairsRule.sameShape =>
-          english ? 'Form ${contentIndex + 1}A' : 'Biçim ${contentIndex + 1}A',
-        CardPairsRule.sameColor =>
-          english
-              ? 'Tone ${color + 1} • ${index + 1}'
-              : 'Ton ${color + 1} • ${index + 1}',
-        CardPairsRule.semanticLink =>
-          english ? semantic.leftEn : semantic.leftTr,
-      };
-      final String rightLabel = switch (rule) {
-        CardPairsRule.exactTwin => leftLabel,
-        CardPairsRule.sameShape =>
-          english ? 'Form ${contentIndex + 1}B' : 'Biçim ${contentIndex + 1}B',
-        CardPairsRule.sameColor =>
-          english
-              ? 'Tone ${color + 1} • ${index + 1}B'
-              : 'Ton ${color + 1} • ${index + 1}B',
-        CardPairsRule.semanticLink =>
-          english ? semantic.rightEn : semantic.rightTr,
-      };
-      final String leftIcon = rule == CardPairsRule.semanticLink
-          ? semantic.leftIcon
-          : _shapeKeys[(contentIndex + variant) % _shapeKeys.length];
-      final String rightIcon = rule == CardPairsRule.semanticLink
-          ? semantic.rightIcon
-          : rule == CardPairsRule.sameColor
-          ? _shapeKeys[(contentIndex + variant + 3) % _shapeKeys.length]
-          : leftIcon;
+      final String cardLabel =
+          english ? 'Card ${contentIndex + 1}' : 'Kart ${contentIndex + 1}';
+      final String pairIcon =
+          _shapeKeys[(contentIndex + variant) % _shapeKeys.length];
+
       deck.add(
         CardPairCard(
           id: '${pairId}_a',
           pairId: pairId,
-          label: leftLabel,
-          iconKey: leftIcon,
+          label: cardLabel,
+          iconKey: pairIcon,
           colorIndex: color,
           patternIndex: pattern,
           isDecoy: false,
@@ -291,30 +243,31 @@ class CardPairsScenario {
         CardPairCard(
           id: '${pairId}_b',
           pairId: pairId,
-          label: rightLabel,
-          iconKey: rightIcon,
-          colorIndex: rule == CardPairsRule.sameColor
-              ? color
-              : rule == CardPairsRule.exactTwin
-              ? color
-              : (color + 1 + variant % 4) % 8,
-          patternIndex: rule == CardPairsRule.exactTwin
-              ? pattern
-              : (pattern + 1) % 15,
+          label: cardLabel,
+          iconKey: pairIcon,
+          colorIndex: color,
+          patternIndex: pattern,
           isDecoy: false,
         ),
       );
     }
+    final Set<String> pairIcons = deck.map((c) => c.iconKey).toSet();
+    final List<String> availableDecoyIcons =
+        _shapeKeys.where((k) => !pairIcons.contains(k)).toList();
+
     for (int index = 0; index < decoys; index++) {
       final int contentIndex =
           (stage + variant + index + 7) % _semanticPairs.length;
       final int color = (stage * 2 + variant + index) % 8;
+      final String decoyIcon = availableDecoyIcons.isNotEmpty
+          ? availableDecoyIcons[index % availableDecoyIcons.length]
+          : _shapeKeys[(contentIndex + 7) % _shapeKeys.length];
       deck.add(
         CardPairCard(
           id: 'decoy_${stage}_${variant}_$index',
           pairId: null,
-          label: english ? 'Near match ${index + 1}' : 'Yakın eş ${index + 1}',
-          iconKey: _shapeKeys[(contentIndex + 4) % _shapeKeys.length],
+          label: english ? 'Decoy ${index + 1}' : 'Tuzak ${index + 1}',
+          iconKey: decoyIcon,
           colorIndex: color,
           patternIndex: (variant + index * 2) % 15,
           isDecoy: true,

@@ -2,6 +2,11 @@ import 'package:flutter/widgets.dart';
 
 part 'app_localizations_global.dart';
 
+String uppercaseUiText(String value, {required bool english}) {
+  if (english) return value.toUpperCase();
+  return value.replaceAll('i', 'İ').replaceAll('ı', 'I').toUpperCase();
+}
+
 class AppLocalizations {
   final Locale locale;
 
@@ -39,7 +44,30 @@ class AppLocalizations {
 
   bool get isRtl => locale.languageCode.toLowerCase() == 'ar';
 
-  String get appName => 'Zeka Parkuru';
+  /// Uppercases UI labels with Turkish dotted and dotless i rules.
+  String uppercaseLabel(String value) =>
+      uppercaseUiText(value, english: isEnglish);
+
+  String get appName => isEnglish ? 'Mind Arena' : 'Zeka Parkuru';
+  String get categories => isEnglish ? 'Categories' : 'Kategoriler';
+  String get challengeFriends =>
+      isEnglish ? 'Challenge Your Friends' : 'Arkadaşlarına Meydan Oku';
+  String get challengeFriendsSub => isEnglish
+      ? 'Live duels, room codes & rank race'
+      : 'WhatsApp veya kodla canlı düello';
+  String get whatsappArena =>
+      isEnglish ? 'WHATSAPP & ARENA' : 'WHATSAPP & MEYDAN OKU';
+  String get todaysBrainCourse =>
+      isEnglish ? "Today's Brain Course" : 'Günün Zekâ Parkuru';
+  String get dailyCourseBadge =>
+      isEnglish ? 'DAILY COURSE' : 'GÜNLÜK PARKUR';
+  String dailyTasksProgress(int completed, int total) => isEnglish
+      ? '$completed of $total tasks today'
+      : 'Bugün $completed / $total görev';
+  String gameCountLabel(int count) => isEnglish
+      ? (count == 1 ? '1 game' : '$count games')
+      : '$count oyun';
+  String get playAction => isEnglish ? 'PLAY' : 'OYNA';
 
   // Common
   String get settings => isEnglish ? 'Settings' : 'Ayarlar';
@@ -107,9 +135,9 @@ class AppLocalizations {
       case 'balance_scale':
         return isEnglish ? 'Balance Scale' : 'Ağırlık Dengesi';
       case 'target_24':
-        return isEnglish ? 'Target 24' : 'Hedef 24';
+        return isEnglish ? 'Target Number' : 'Bir İşlem';
       case 'mini_sudoku':
-        return 'Mini Sudoku 6×6';
+        return isEnglish ? 'Sudoku' : 'Su Doku';
       case 'kenken_cube':
         return isEnglish ? 'KenKen Cube' : 'KenKen Küpü';
       case 'mahjong_layers':
@@ -349,8 +377,8 @@ class AppLocalizations {
             : 'Dört sayı kartını kesin işlemlerle birleştirerek 24’e ulaş.';
       case 'mini_sudoku':
         return isEnglish
-            ? 'Fill the 6×6 grid so every row, column and 2×3 region contains 1–6 once.'
-            : '6×6 tabloyu; her satır, sütun ve 2×3 bölgeye 1–6 birer kez gelecek şekilde doldur.';
+            ? 'Fill each grid so every row, column and region contains each digit once. The board grows from 6×6 to 9×9.'
+            : 'Her satır, sütun ve bölgeye her sayıyı bir kez yerleştir. Tahta 6×6’dan 9×9’a büyür.';
       case 'kenken_cube':
         return isEnglish
             ? 'Complete each Latin grid and solve every arithmetic cage with its target.'
@@ -1172,7 +1200,11 @@ class AppLocalizations {
   }
 
   String gameUi(String raw) {
-    if (!isEnglish) return raw;
+    if (!isEnglish) {
+      final String? tr = _gameUiTurkish[raw];
+      if (tr != null) return tr;
+      return raw;
+    }
 
     final String? exact = _gameUiEnglish[raw];
     if (exact != null) return exact;
@@ -1283,7 +1315,49 @@ class AppLocalizations {
   }
 }
 
+const Map<String, String> _gameUiTurkish = <String, String>{
+  'Mind tools': 'Zihin Araçları',
+  'Useful, personal tools alongside the games.':
+      'Oyunların yanı sıra faydalı, kişisel araçlar.',
+  'Smart Vocabulary Notebook': 'Akıllı Kelime Defteri',
+  'Save your own words and review them on time.':
+      'Kendi kelimelerini kaydet ve zamanında tekrar et.',
+  'SHOPPING · TRAVEL · TO-DO': 'ALIŞVERİŞ · SEYAHAT · GÖREV',
+  'Shopping & Prep Assistant': 'Alışveriş ve Hazırlık Asistanı',
+  'Keep everyday lists together, right on your device.':
+      'Günlük listelerini cihazında bir arada tut.',
+  'READ · LISTEN · RECALL': 'OKU · DİNLE · HATIRLA',
+  'Micro-stories & comprehension': 'Mikro Hikayeler ve Anlama',
+  'Read or hear original short passages, then retrieve the details.':
+      'Kısa metinleri oku veya dinle, ardından detayları hatırla.',
+  'REAL-LIFE PRACTICE': 'GÜNLÜK YAŞAM PRATİĞİ',
+  'Daily Conversation Tasks': 'Günlük Konuşma Görevleri',
+  'Practice clear, considerate choices in useful scenarios.':
+      'Faydalı senaryolarda net ve düşünceli seçimler yap.',
+};
+
 const Map<String, String> _gameUiEnglish = <String, String>{
+  // Mind tools
+  'Zihin Araçları': 'Mind tools',
+  'Zihin araçları': 'Mind tools',
+  'Oyunların yanı sıra faydalı, kişisel araçlar.':
+      'Useful, personal tools alongside the games.',
+  'Akıllı Kelime Defteri': 'Smart Vocabulary Notebook',
+  'Kendi kelimelerini kaydet ve zamanında tekrar et.':
+      'Save your own words and review them on time.',
+  'ALIŞVERİŞ · SEYAHAT · GÖREV': 'SHOPPING · TRAVEL · TO-DO',
+  'Alışveriş ve Hazırlık Asistanı': 'Shopping & Prep Assistant',
+  'Günlük listelerini cihazında bir arada tut.':
+      'Keep everyday lists together, right on your device.',
+  'OKU · DİNLE · HATIRLA': 'READ · LISTEN · RECALL',
+  'Mikro Hikayeler ve Anlama': 'Micro-stories & comprehension',
+  'Kısa metinleri oku veya dinle, ardından detayları hatırla.':
+      'Read or hear original short passages, then retrieve the details.',
+  'GÜNLÜK YAŞAM PRATİĞİ': 'REAL-LIFE PRACTICE',
+  'Günlük Konuşma Görevleri': 'Daily Conversation Tasks',
+  'Faydalı senaryolarda net ve düşünceli seçimler yap.':
+      'Practice clear, considerate choices in useful scenarios.',
+
   // Generic difficulty / game labels
   'KOLAY': 'EASY',
   'ORTA': 'MEDIUM',
@@ -1306,9 +1380,105 @@ const Map<String, String> _gameUiEnglish = <String, String>{
   'SONRAKİ SEVİYE': 'NEXT LEVEL',
   'BÖLÜM LİSTESİ': 'LEVEL LIST',
   'BÖLÜMLER': 'LEVELS',
+  'BÖLÜM': 'CHAPTER',
+  'Bölüm': 'Chapter',
   'TEKRAR OYNA': 'PLAY AGAIN',
   'Yeniden Başlat': 'Restart',
   'Yeniden başlat': 'Restart',
+  'YENİ REKOR': 'NEW RECORD',
+  'Yeni Rekor': 'New Record',
+  'YENİ TUR': 'NEW ROUND',
+  'Yeni Tur': 'New Round',
+  'SONRAKİ': 'NEXT',
+  'Sonraki': 'Next',
+  'HARİTA': 'MAP',
+  'Harita': 'Map',
+  'TEKRAR DENE': 'RETRY',
+  'Tekrar Dene': 'Retry',
+  'Tekrar dene': 'Retry',
+  'OYNA': 'PLAY',
+  'Oyna': 'Play',
+  'BAŞLA': 'START',
+  'Başla': 'Start',
+  'DEVAM ET': 'CONTINUE',
+  'Devam Et': 'Continue',
+  'Devam et': 'Continue',
+  'DURDURULDU': 'PAUSED',
+  'Durduruldu': 'Paused',
+  'OYUNA DÖN': 'RESUME',
+  'Oyuna Dön': 'Resume',
+  'Oyuna dön': 'Resume',
+  'ÇIKIŞ': 'EXIT',
+  'Çıkış': 'Exit',
+  'İPTAL': 'CANCEL',
+  'İptal': 'Cancel',
+  'KAPAT': 'CLOSE',
+  'Kapat': 'Close',
+  'TAMAM': 'OK',
+  'Tamam': 'OK',
+  'EVET': 'YES',
+  'Evet': 'Yes',
+  'HAYIR': 'NO',
+  'Hayır': 'No',
+  'KONTROL ET': 'CHECK',
+  'Kontrol Et': 'Check',
+  'Kontrol et': 'Check',
+  'CEVABI KONTROL ET': 'CHECK ANSWER',
+  'Cevabı Kontrol Et': 'Check Answer',
+  'Cevabı kontrol et': 'Check answer',
+  'CEVAP DOĞRU': 'CORRECT ANSWER',
+  'Cevap doğru': 'Correct answer',
+  'İPUCU AL': 'TAKE HINT',
+  'İpucu Al': 'Take Hint',
+  'İpucu al': 'Take hint',
+  'İPUÇLARI TAMAMLANDI': 'HINTS COMPLETE',
+  'İpuçları tamamlandı': 'Hints complete',
+  'SIFIRLA': 'RESET',
+  'Sıfırla': 'Reset',
+  'GERİ AL': 'UNDO',
+  'Geri Al': 'Undo',
+  'Geri al': 'Undo',
+  'TEMİZLE': 'CLEAR',
+  'Temizle': 'Clear',
+  'VAKAYI ÇÖZ': 'SOLVE CASE',
+  'Vakayı Çöz': 'Solve Case',
+  'Vakayı çöz': 'Solve case',
+  'KİLİDİ AÇ': 'UNLOCK',
+  'Kilidi Aç': 'Unlock',
+  'Kilidi aç': 'Unlock',
+  'NASIL OYNANIR?': 'HOW TO PLAY',
+  'Nasıl oynanır?': 'How to play',
+  'Nasıl Oynanır?': 'How to Play',
+  'Nasıl Oynanır': 'How to Play',
+  'Alan yeniden kurulsun mu?': 'Restart this field?',
+  'Aynı doğrulanmış ok yerleşimi yeniden kurulacak.': 'The same certified arrow layout will be restored.',
+  'Bu ızgara sıfırlansın mı?': 'Reset this grid?',
+  'Aynı başlangıç ipuçları ve eşitsizlikler geri yüklenecek.': 'The same clues and inequalities will be restored.',
+  'Bu bulmaca sıfırlansın mı?': 'Reset this puzzle?',
+  'Bu tsumego sıfırlansın mı?': 'Reset this tsumego?',
+  'Aynı doğrulanmış konum yeniden kurulacak.': 'The same certified position will be restored.',
+  'Hedef kayboldu': 'Target lost',
+  'Deneme hakkın doldu. Kartları sıfırla ve hedefi yeniden izle.': 'Your attempts are used. Reset the cards and follow the target again.',
+  'DENGE SAĞLANDI': 'BALANCE ACHIEVED',
+  'Denge sağlandı': 'Balance achieved',
+  'KASA AÇILDI': 'VAULT OPENED',
+  'Kasa açıldı': 'Vault opened',
+  'Arena tamamlandı': 'Arena point',
+  'SEVİYE TAMAMLANDI': 'LEVEL COMPLETED',
+  'Seviye tamamlandı': 'Level completed',
+  'Seviye Tamamlandı': 'Level completed',
+  'REKOR': 'RECORD',
+  'Rekor': 'Record',
+  'SÜRE': 'TIME',
+  'Süre': 'Time',
+  'KALAN': 'REMAINING',
+  'Kalan': 'Remaining',
+  'YANLIŞ': 'WRONG',
+  'Yanlış': 'Wrong',
+  'TEBRİKLER!': 'CONGRATULATIONS!',
+  'Tebrikler!': 'Congratulations!',
+  'ZAFER!': 'VICTORY!',
+  'Zafer!': 'Victory!',
   'PARKURU TAMAMLA': 'FINISH COURSE',
   '3 ⭐ HEDEF': '3 ⭐ TARGET',
   'İpucu': 'Hint',
@@ -1513,7 +1683,6 @@ const Map<String, String> _gameUiEnglish = <String, String>{
   'Beş Halka': 'Five Rings',
   'Usta Rotası': 'Master Route',
   'Hanoi Ustası': 'Hanoi Master',
-  'GERİ AL': 'UNDO',
   'İPUCU': 'HINT',
   'YENİDEN': 'RESTART',
   'KULE TAMAMLANDI!': 'TOWER COMPLETED!',

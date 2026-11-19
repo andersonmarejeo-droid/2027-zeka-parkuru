@@ -81,9 +81,11 @@ class GameDefinition {
   final StudioGameClass gameClass;
   final bool _hasPlayableImplementation;
 
+  bool get hasImplementation => _hasPlayableImplementation;
+
   /// True when the game is intentionally removed from player-facing flows.
   /// Its definition remains available so historical save keys stay stable.
-  bool get isRetired => StudioGameCatalog.retiredGameIds.contains(id);
+  bool get isRetired => StudioGameCatalog.isGameRetired(id);
 
   bool get isPlayable => _hasPlayableImplementation && !isRetired;
 
@@ -96,10 +98,25 @@ class GameDefinition {
 /// Planned entries are intentionally metadata only. Their routes, progress
 /// prefixes and feature flags are created only in their dedicated sprint.
 abstract final class StudioGameCatalog {
+  /// Kullanıcının yerel panelden seçerek emekliye ayırdığı dinamik oyun kümesi.
+  static final Set<String> userRetiredIds = <String>{};
+
+  static bool isGameRetired(String id) =>
+      retiredGameIds.contains(id) || userRetiredIds.contains(id);
+
   /// Parked from the active catalog after quality reviews and user selection.
   /// Do not delete these ids: progress stored under their legacy keys remains
   /// intact and the games can be restored deliberately in a later release.
   static const Set<String> retiredGameIds = <String>{
+    // Kullanıcının seçerek sistemden çıkardığı 8 oyun:
+    'proverb_finish',
+    'city_atlas',
+    'arrow_route',
+    'arrow_maze',
+    'picture_iq',
+    'single_stroke',
+    'hidden_masses',
+    'island_sea',
     'block_flow',
     'balloon_pop',
     'bottle_target',
@@ -262,16 +279,16 @@ abstract final class StudioGameCatalog {
     GameDefinition(
       order: 13,
       id: 'target_24',
-      titleTr: 'Hedef 24',
-      titleEn: 'Target 24',
+      titleTr: 'Bir İşlem',
+      titleEn: 'Target Number',
       gameClass: StudioGameClass.numbers,
       isPlayable: true,
     ),
     GameDefinition(
       order: 14,
       id: 'mini_sudoku',
-      titleTr: 'Mini Sudoku 6×6',
-      titleEn: 'Mini Sudoku 6×6',
+      titleTr: 'Su Doku',
+      titleEn: 'Sudoku',
       gameClass: StudioGameClass.numbers,
       isPlayable: true,
     ),

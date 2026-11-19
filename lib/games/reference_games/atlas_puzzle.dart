@@ -1156,31 +1156,76 @@ abstract final class AtlasDataset {
         'USA': <String>[
           'ABD',
           'Amerika',
+          'Amerika Birlesik Devletleri',
           'United States of America',
+          'United States',
           'US',
           'U.S.',
           'USA',
         ],
         'GBR': <String>[
-          'Birleşik Krallık',
-          'İngiltere',
+          'Birlesik Krallik',
+          'Ingiltere',
           'Britanya',
           'United Kingdom',
           'Great Britain',
           'Britain',
           'UK',
         ],
-        'TUR': <String>['Türkiye', 'Turkiye', 'Turkey'],
-        'RUS': <String>['Russian Federation'],
-        'CZE': <String>['Çek Cumhuriyeti', 'Czech Republic'],
-        'KOR': <String>['Korea', 'Republic of Korea', 'South Korea'],
-        'ZAF': <String>['Republic of South Africa', 'RSA'],
-        'NZL': <String>['Aotearoa'],
+        'TUR': <String>['Turkiye', 'Turkey', 'Türkiye'],
+        'RUS': <String>['Rusya', 'Russia', 'Russian Federation', 'Rusya Federasyonu'],
+        'CZE': <String>['Cekya', 'Cek Cumhuriyeti', 'Çekya', 'Çek Cumhuriyeti', 'Czech Republic', 'Czechia'],
+        'KOR': <String>['Kore', 'Korea', 'Guney Kore', 'Güney Kore', 'Republic of Korea', 'South Korea'],
+        'ZAF': <String>['Guney Afrika', 'Güney Afrika', 'Republic of South Africa', 'South Africa', 'RSA'],
+        'NZL': <String>['Yeni Zelanda', 'New Zealand', 'Aotearoa'],
+        'CUB': <String>['Kuba', 'Küba', 'Cuba'],
+        'DEU': <String>['Almanya', 'Germany', 'Deutschland', 'Alman'],
+        'FRA': <String>['Fransa', 'France'],
+        'ITA': <String>['Italya', 'İtalya', 'Italy', 'Italia'],
+        'ESP': <String>['Ispanya', 'İspanya', 'Spain', 'Espana'],
+        'CHN': <String>['Cin', 'Çin', 'China', 'Cin Halk Cumhuriyeti', 'PRC'],
+        'JPN': <String>['Japonya', 'Japan', 'Nippon'],
+        'EGY': <String>['Misir', 'Mısır', 'Egypt'],
+        'SAU': <String>['Suudi Arabistan', 'Saudi Arabia', 'Suudi', 'Saudi'],
+        'IRN': <String>['Iran', 'İran', 'Persia'],
+        'IRQ': <String>['Irak', 'Iraq'],
+        'GRC': <String>['Yunanistan', 'Greece', 'Hellas'],
+        'NOR': <String>['Norvec', 'Norveç', 'Norway', 'Norge'],
+        'SWE': <String>['Isvec', 'İsveç', 'Sweden', 'Sverige'],
+        'FIN': <String>['Finlandiya', 'Finland', 'Suomi'],
+        'POL': <String>['Polonya', 'Polanya', 'Poland', 'Polska'],
+        'CHE': <String>['Isvicre', 'İsviçre', 'Switzerland', 'Swiss'],
+        'AUT': <String>['Avusturya', 'Austria'],
+        'AUS': <String>['Avustralya', 'Avusturalya', 'Australia'],
+        'ARG': <String>['Arjantin', 'Argentina'],
+        'BRA': <String>['Brezilya', 'Brazil', 'Brasil'],
+        'CHL': <String>['Sili', 'Şili', 'Chile'],
+        'CAN': <String>['Kanada', 'Canada'],
+        'MEX': <String>['Meksika', 'Mexico'],
+        'IND': <String>['Hindistan', 'India'],
+        'IDN': <String>['Endonezya', 'Indonesia'],
+        'MYS': <String>['Malezya', 'Malaysia'],
+        'PHL': <String>['Filipinler', 'Filipin', 'Philippines'],
+        'THA': <String>['Tayland', 'Thailand'],
+        'VNM': <String>['Vietnam', 'Viet Nam'],
+        'MAR': <String>['Fas', 'Morocco', 'Maroc'],
+        'KEN': <String>['Kenya'],
+        'NGA': <String>['Nijerya', 'Nigeria'],
+        'UKR': <String>['Ukrayna', 'Ukraine'],
+        'AZE': <String>['Azerbaycan', 'Azerbaijan'],
+        'KAZ': <String>['Kazakistan', 'Kazakhstan'],
+        'MNG': <String>['Mogolistan', 'Moğolistan', 'Mongolia'],
+        'PAK': <String>['Pakistan'],
+        'AFG': <String>['Afganistan', 'Afghanistan'],
+        'NPL': <String>['Nepal'],
+        'PER': <String>['Peru'],
+        'COL': <String>['Kolombiya', 'Colombia'],
+        'ISL': <String>['Izlanda', 'İzlanda', 'Iceland'],
         'TR-03': <String>['Afyon'],
-        'TR-27': <String>['Antep'],
-        'TR-33': <String>['İçel'],
-        'TR-46': <String>['Maraş'],
-        'TR-63': <String>['Urfa'],
+        'TR-27': <String>['Antep', 'Gaziantep'],
+        'TR-33': <String>['İçel', 'Icel', 'Mersin'],
+        'TR-46': <String>['Maraş', 'Maras', 'Kahramanmaras', 'Kahramanmaraş'],
+        'TR-63': <String>['Urfa', 'Sanliurfa', 'Şanlıurfa'],
       };
 
   static bool answerMatches(AtlasKind kind, String code, String answer) {
@@ -1191,9 +1236,38 @@ abstract final class AtlasDataset {
       if (kind == AtlasKind.world) label(kind, code, english: true),
       ...?_answerAliases[code],
     ];
-    return accepted.any(
-      (String candidate) => normalizeAnswer(candidate) == normalized,
-    );
+    for (final String candidate in accepted) {
+      final String candNorm = normalizeAnswer(candidate);
+      if (candNorm == normalized) return true;
+      // 1 harf yazım toleransı (uzunluğu en az 4 harf olan yanıtlar için)
+      if (candNorm.length >= 4 && normalized.length >= 4 && (candNorm.length - normalized.length).abs() <= 1) {
+        if (_levenshteinDistance(candNorm, normalized) <= 1) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  static int _levenshteinDistance(String s, String t) {
+    if (s == t) return 0;
+    if (s.isEmpty) return t.length;
+    if (t.isEmpty) return s.length;
+
+    List<int> v0 = List<int>.generate(t.length + 1, (int i) => i);
+    List<int> v1 = List<int>.filled(t.length + 1, 0);
+
+    for (int i = 0; i < s.length; i++) {
+      v1[0] = i + 1;
+      for (int j = 0; j < t.length; j++) {
+        final int cost = (s.codeUnitAt(i) == t.codeUnitAt(j)) ? 0 : 1;
+        v1[j + 1] = [v1[j] + 1, v0[j + 1] + 1, v0[j] + cost].reduce((a, b) => a < b ? a : b);
+      }
+      for (int j = 0; j <= t.length; j++) {
+        v0[j] = v1[j];
+      }
+    }
+    return v1[t.length];
   }
 
   static String normalizeAnswer(String answer) => answer

@@ -328,75 +328,95 @@ class _KataminoPlayPageState extends State<_KataminoPlayPage> {
       level: widget.level.number,
       accent: _accent,
       english: _english,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          ReferenceCard(
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        _english
-                            ? 'Fill the silhouette'
-                            : 'Tahtayı eksiksiz döşe',
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF26343A),
-                        ),
+      scrollable: false,
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final double maxH = constraints.maxHeight;
+          final double maxW = constraints.maxWidth;
+          final bool isCompact = maxH < 650;
+
+          // Ekran dikey yüksekliğine göre tahta boyutunu optimize et (asla taşma yapmaz)
+          final double availableForBoard = maxH - (isCompact ? 190 : 220);
+          final double boardMaxDim = min(
+            maxW - 32,
+            availableForBoard.clamp(160.0, 300.0),
+          );
+          final double cell = boardMaxDim / max(puzzle.width, puzzle.height);
+          final double boardWidth = cell * puzzle.width;
+          final double boardHeight = cell * puzzle.height;
+          final double pieceCardHeight = isCompact ? 54.0 : 64.0;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              ReferenceCard(
+                padding: isCompact ? 8 : 10,
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(
+                            _english
+                                ? 'Fill the silhouette'
+                                : 'Tahtayı eksiksiz döşe',
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: isCompact ? 15 : 17,
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFF26343A),
+                            ),
+                          ),
+                          if (!isCompact) ...<Widget>[
+                            const SizedBox(height: 2),
+                            Text(
+                              hint,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: 'Roboto',
+                                fontSize: 11,
+                                color: Color(0xFF788780),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        hint,
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
-                          fontSize: 12,
-                          height: 1.35,
-                          color: Color(0xFF788780),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 9,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8EFF3),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(
-                    '${puzzle.pieces.length} parça',
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      color: _accent,
-                      fontWeight: FontWeight.w900,
                     ),
-                  ),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isCompact ? 10 : 12,
+                        vertical: isCompact ? 5 : 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8EFF3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${puzzle.pieces.length} ${_english ? 'pieces' : 'parça'}',
+                        style: TextStyle(
+                          fontFamily: 'Roboto',
+                          color: _accent,
+                          fontSize: isCompact ? 12 : 13,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          ReferenceCard(
-            padding: 13,
-            child: Column(
-              children: <Widget>[
-                LayoutBuilder(
-                  builder: (BuildContext context, BoxConstraints constraints) {
-                    final double width = min(constraints.maxWidth, 440);
-                    final double cell = width / puzzle.width;
-                    final double height = cell * puzzle.height;
-                    return Center(
+              ),
+              SizedBox(height: isCompact ? 6 : 8),
+              ReferenceCard(
+                padding: isCompact ? 8 : 10,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Center(
                       child: Container(
-                        width: width,
-                        height: height,
+                        width: boardWidth,
+                        height: boardHeight,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             begin: Alignment.topLeft,
@@ -505,7 +525,7 @@ class _KataminoPlayPageState extends State<_KataminoPlayPage> {
                                                                       .length]
                                                             : const Color(
                                                                 0xFFE5D0AC,
-                                                              )
+                                                             )
                                                       : _palette[piece %
                                                             _palette.length],
                                                   seed:
@@ -526,133 +546,131 @@ class _KataminoPlayPageState extends State<_KataminoPlayPage> {
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        _previewPlacement != null
-                            ? (_english
-                                  ? 'Nearest valid fit is highlighted'
-                                  : 'Uygun yer yeşil ışıkla gösteriliyor')
-                            : _selected == null
-                            ? (_english
-                                  ? 'Choose a piece below'
-                                  : 'Aşağıdan bir parça seç')
-                            : '${_english ? 'Selected piece' : 'Seçili parça'} ${_selected! + 1}',
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF5E7069),
+                    ),
+                    SizedBox(height: isCompact ? 6 : 8),
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            _previewPlacement != null
+                                ? (_english
+                                      ? 'Fit is highlighted'
+                                      : 'Uygun yer yeşil ışıkla gösteriliyor')
+                                : _selected == null
+                                ? (_english
+                                      ? 'Choose a piece below'
+                                      : 'Aşağıdan bir parça seç')
+                                : '${_english ? 'Piece' : 'Parça'} ${_selected! + 1}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              fontWeight: FontWeight.w800,
+                              fontSize: isCompact ? 12 : 13,
+                              color: const Color(0xFF5E7069),
+                            ),
+                          ),
+                        ),
+                        IconButton.filledTonal(
+                          visualDensity: VisualDensity.compact,
+                          tooltip: _english ? 'Rotate' : 'Döndür',
+                          onPressed: _selected == null
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _rotation = (_rotation + 1) % 4;
+                                    _previewPlacement = null;
+                                  });
+                                  _sound(GameAudioEvent.primaryAction);
+                                },
+                          icon: const Icon(Icons.rotate_right_rounded, size: 20),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton.filledTonal(
+                          visualDensity: VisualDensity.compact,
+                          tooltip: _english ? 'Mirror' : 'Aynala',
+                          onPressed: _selected == null
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _mirrored = !_mirrored;
+                                    _previewPlacement = null;
+                                  });
+                                  _sound(GameAudioEvent.primaryAction);
+                                },
+                          icon: const Icon(Icons.flip_rounded, size: 20),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton.filledTonal(
+                          visualDensity: VisualDensity.compact,
+                          tooltip: _english ? 'Undo' : 'Geri al',
+                          onPressed: _undo.isEmpty ? null : _undoMove,
+                          icon: const Icon(Icons.undo_rounded, size: 20),
+                        ),
+                      ],
+                    ),
+                    if (_boardMessage != null) ...<Widget>[
+                      const SizedBox(height: 3),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _boardMessage!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: Color(0xFFAD5745),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
-                    IconButton.filledTonal(
-                      tooltip: _english ? 'Rotate' : 'Döndür',
-                      onPressed: _selected == null
-                          ? null
-                          : () {
-                              setState(() {
-                                _rotation = (_rotation + 1) % 4;
-                                _previewPlacement = null;
-                              });
-                              _sound(GameAudioEvent.primaryAction);
-                            },
-                      icon: const Icon(Icons.rotate_right_rounded),
-                    ),
-                    const SizedBox(width: 6),
-                    IconButton.filledTonal(
-                      tooltip: _english ? 'Mirror' : 'Aynala',
-                      onPressed: _selected == null
-                          ? null
-                          : () {
-                              setState(() {
-                                _mirrored = !_mirrored;
-                                _previewPlacement = null;
-                              });
-                              _sound(GameAudioEvent.primaryAction);
-                            },
-                      icon: const Icon(Icons.flip_rounded),
-                    ),
-                    const SizedBox(width: 6),
-                    IconButton.filledTonal(
-                      tooltip: _english ? 'Undo' : 'Geri al',
-                      onPressed: _undo.isEmpty ? null : _undoMove,
-                      icon: const Icon(Icons.undo_rounded),
-                    ),
+                    ],
                   ],
                 ),
-                if (_boardMessage != null) ...<Widget>[
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      _boardMessage!,
+              ),
+              SizedBox(height: isCompact ? 6 : 8),
+              ReferenceCard(
+                padding: isCompact ? 8 : 10,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      _english ? 'PIECES' : 'PARÇALAR',
                       style: const TextStyle(
                         fontFamily: 'Roboto',
-                        color: Color(0xFFAD5745),
-                        fontSize: 12,
-                        height: 1.3,
-                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF7D8B85),
                       ),
                     ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          ReferenceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  _english ? 'PIECES' : 'PARÇALAR',
-                  style: const TextStyle(
-                    fontFamily: 'Roboto',
-                    letterSpacing: 1.2,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF7D8B85),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                LayoutBuilder(
-                  builder: (BuildContext context, BoxConstraints constraints) {
-                    // Four compact columns keep every available piece visible
-                    // together, while each card remains comfortably tappable.
-                    const int columns = 4;
-                    const double spacing = 6;
-                    const double cardHeight = 76;
-                    final double cardWidth =
-                        (constraints.maxWidth - spacing * (columns - 1)) /
-                        columns;
-                    return GridView.builder(
+                    SizedBox(height: isCompact ? 4 : 6),
+                    GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: puzzle.pieces.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: columns,
-                            crossAxisSpacing: spacing,
-                            mainAxisSpacing: spacing,
-                            mainAxisExtent: cardHeight,
-                          ),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        crossAxisSpacing: 6,
+                        mainAxisSpacing: 6,
+                        mainAxisExtent: pieceCardHeight,
+                      ),
                       itemBuilder: (BuildContext context, int index) {
                         final bool placed = _board.contains(index);
                         final bool active = _selected == index;
                         final List<PolyCell> previewCells = active
                             ? (_previewPlacement?.cells ?? _shape(index))
                             : puzzle.pieces[index];
+                        final double pieceCardWidth =
+                            (maxW - 32 - 18) / 4;
                         final Widget pieceCard = InkWell(
                           onTap: placed ? null : () => _selectPiece(index),
-                          borderRadius: BorderRadius.circular(11),
+                          borderRadius: BorderRadius.circular(10),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 120),
-                            padding: const EdgeInsets.all(5),
+                            padding: const EdgeInsets.all(4),
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               color: placed
@@ -666,14 +684,14 @@ class _KataminoPlayPageState extends State<_KataminoPlayPage> {
                                     : const Color(0xFFD5B895),
                                 width: active ? 1.8 : 1,
                               ),
-                              borderRadius: BorderRadius.circular(11),
+                              borderRadius: BorderRadius.circular(10),
                               boxShadow: <BoxShadow>[
                                 BoxShadow(
                                   color: const Color(0xFF754827).withValues(
                                     alpha: active ? .20 : .10,
                                   ),
-                                  blurRadius: active ? 7 : 3,
-                                  offset: const Offset(0, 2),
+                                  blurRadius: active ? 6 : 2,
+                                  offset: const Offset(0, 1),
                                 ),
                               ],
                             ),
@@ -684,14 +702,15 @@ class _KataminoPlayPageState extends State<_KataminoPlayPage> {
                                 color: _palette[index % _palette.length],
                                 tileExtent: _pieceTileExtent(
                                   previewCells,
-                                  maxWidth: cardWidth - 10,
-                                  maxHeight: cardHeight - 10,
+                                  maxWidth: pieceCardWidth - 8,
+                                  maxHeight: pieceCardHeight - 8,
                                 ),
                               ),
                             ),
                           ),
                         );
                         return LongPressDraggable<int>(
+                          delay: const Duration(milliseconds: 90),
                           data: index,
                           maxSimultaneousDrags: placed ? 0 : 1,
                           dragAnchorStrategy: pointerDragAnchorStrategy,
@@ -706,16 +725,16 @@ class _KataminoPlayPageState extends State<_KataminoPlayPage> {
                           feedback: Material(
                             color: Colors.transparent,
                             child: Container(
-                              padding: const EdgeInsets.all(9),
+                              padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFDFBF7),
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: _accent, width: 1.5),
                                 boxShadow: const <BoxShadow>[
                                   BoxShadow(
                                     color: Color(0x558D5A35),
-                                    blurRadius: 14,
-                                    offset: Offset(0, 5),
+                                    blurRadius: 12,
+                                    offset: Offset(0, 4),
                                   ),
                                 ],
                               ),
@@ -728,29 +747,31 @@ class _KataminoPlayPageState extends State<_KataminoPlayPage> {
                             ),
                           ),
                           childWhenDragging: Opacity(
-                            opacity: .32,
+                            opacity: .30,
                             child: pieceCard,
                           ),
                           child: pieceCard,
                         );
                       },
-                    );
-                  },
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '${_english ? 'Moves' : 'Hamle'}: $_moves   ·   ${_english ? 'Placed' : 'Yerleşen'}: ${_board.where((int? value) => value != null).length}/${_board.length}',
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              color: Color(0xFF798780),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+              ),
+              const SizedBox(height: 4),
+              Center(
+                child: Text(
+                  '${_english ? 'Moves' : 'Hamle'}: $_moves   ·   ${_english ? 'Placed' : 'Yerleşen'}: ${_board.where((int? value) => value != null).length}/${_board.length}',
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: Color(0xFF798780),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -760,13 +781,13 @@ class _KataminoPlayPageState extends State<_KataminoPlayPage> {
     required double maxWidth,
     required double maxHeight,
   }) {
-    if (cells.isEmpty) return 16;
+    if (cells.isEmpty) return 14;
     final int width = cells.map((PolyCell cell) => cell.x).reduce(max) + 1;
     final int height = cells.map((PolyCell cell) => cell.y).reduce(max) + 1;
     return min(
-      20.0,
+      18.0,
       min(maxWidth / width, maxHeight / height),
-    ).clamp(11.0, 20.0).toDouble();
+    ).clamp(9.0, 18.0).toDouble();
   }
 }
 

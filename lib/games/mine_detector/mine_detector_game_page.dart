@@ -979,7 +979,10 @@ class _MineToolButton extends StatelessWidget {
   Widget build(BuildContext context) => OutlinedButton.icon(
     onPressed: onPressed,
     icon: Icon(icon, size: 16),
-    label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+    label: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(label, maxLines: 1),
+    ),
     style: OutlinedButton.styleFrom(
       foregroundColor: onPressed == null ? _MinePalette.muted : color,
       backgroundColor: selected

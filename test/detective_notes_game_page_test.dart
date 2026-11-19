@@ -42,7 +42,7 @@ void main() {
         ),
       );
       await tester.pump();
-      await tester.drag(find.byType(ListView), const Offset(0, -1000));
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -1000));
       await tester.pumpAndSettle();
       final Object? initialLayoutIssue = tester.takeException();
       expect(
@@ -93,7 +93,7 @@ void main() {
         await tester.tap(cell);
         await tester.pump();
       }
-      await tester.drag(find.byType(ListView), const Offset(0, -520));
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -520));
       await tester.pumpAndSettle();
       final Finder solveButton = find.text('VAKAYI ÇÖZ');
       await tester.ensureVisible(solveButton);

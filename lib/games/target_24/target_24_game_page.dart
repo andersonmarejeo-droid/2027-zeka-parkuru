@@ -7,6 +7,7 @@ import '../../theme/studio_visuals.dart';
 
 import '../../features/catalog/domain/studio_game_catalog.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/common_level_score_service.dart';
 import '../../services/game_audio_service.dart';
 import '../shared/game_audio_profile.dart';
 import '../shared/parkur_game_kit.dart';
@@ -30,24 +31,28 @@ class Target24GamePage extends StatelessWidget {
   static const int totalCases = GameContentPolicy.campaignLevels;
   static const int totalStars = totalCases * 3;
 
+  static ParkurLevelSpec levelSpec(int index) {
+    final int safeLevel = GameContentPolicy.endlessHighChapter(index + 1);
+    final int stage = ((safeLevel - 1) % 10) + 1;
+    final int target = Target24Puzzle.targetNumberForLevel(index + 1);
+    return ParkurLevelSpec(
+      number: index + 1,
+      titleTr: 'Hedef $target',
+      titleEn: 'Target $target',
+      subtitleTr: 'Dört kartı tek işlem ağacında kullan',
+      subtitleEn: 'Use all four cards in one expression tree',
+      difficulty: stage <= 6
+          ? 'USTALAŞMA'
+          : stage <= 8
+          ? 'İLERİ'
+          : 'UZMAN',
+      icon: Icons.functions_rounded,
+    );
+  }
+
   static final List<ParkurLevelSpec> _levels = List<ParkurLevelSpec>.generate(
-    GameContentPolicy.nativeStages('target_24'),
-    (int index) {
-      final int stage = (index % 10) + 1;
-      return ParkurLevelSpec(
-        number: index + 1,
-        titleTr: 'Hedef ${'${index + 1}'.padLeft(3, '0')}',
-        titleEn: 'Target ${'${index + 1}'.padLeft(3, '0')}',
-        subtitleTr: 'Dört kartı tek işlem ağacında kullan',
-        subtitleEn: 'Use all four cards in one expression tree',
-        difficulty: stage <= 6
-            ? 'USTALAŞMA'
-            : stage <= 8
-            ? 'İLERİ'
-            : 'UZMAN',
-        icon: Icons.functions_rounded,
-      );
-    },
+    totalCases,
+    levelSpec,
   );
 
   @override
@@ -56,10 +61,10 @@ class Target24GamePage extends StatelessWidget {
     return ParkurLevelHub(
       gameId: 'target_24',
       progressPrefix: 'target_24',
-      titleTr: 'Hedef 24',
-      titleEn: 'Target 24',
-      taglineTr: 'İşlemi seç • Kartları birleştir • 24’e ulaş',
-      taglineEn: 'Choose an operation • Combine cards • Reach 24',
+      titleTr: 'Bir İşlem',
+      titleEn: 'Target Number',
+      taglineTr: 'Hedef sayıya ulaş • Tam sayılarla 4 işlem',
+      taglineEn: 'Reach target number • 4 operations with whole numbers',
       accent: skin.accent,
       icon: Icons.functions_rounded,
       levels: _levels,
@@ -97,8 +102,6 @@ class _Target24PlayPageState extends State<Target24PlayPage> {
   static const Color _canvas = StudioVisuals.canvas;
   static const Color _surface = StudioVisuals.surface;
   static const Color _accent = Color(0xFF247568);
-  static const Color _brass = Color(0xFFB58A58);
-  static const Color _success = Color(0xFF548775);
 
   final GameAudioService _audio = GameAudioService.instance;
   final GameAudioProfile _audioProfile = GameAudioProfile.forClass(
@@ -195,6 +198,7 @@ class _Target24PlayPageState extends State<Target24PlayPage> {
     Target24Operator operation, {
     bool fromHint = false,
   }) {
+    // 1. Sıfıra bölme kontrolü
     if (operation == Target24Operator.divide && second.value.isZero) {
       if (!fromHint) {
         _session.recordMistake();
@@ -213,6 +217,49 @@ class _Target24PlayPageState extends State<Target24PlayPage> {
       });
       return;
     }
+
+    // 2. Küsüratsız / Tam bölme kontrolü
+    if (operation == Target24Operator.divide &&
+        first.value.numerator % second.value.numerator != 0) {
+      if (!fromHint) {
+        _session.recordMistake();
+        unawaited(
+          _audioProfile.play(_audio, GameAudioEvent.rejected, gain: .34),
+        );
+        _showMessage(
+          _english
+              ? 'Only exact whole division is allowed (remainder must be 0).'
+              : 'Yalnızca kalansız tam bölünen sayılar bölünebilir.',
+        );
+      }
+      setState(() {
+        _selectedOperation = null;
+        _firstOperandSignature = null;
+      });
+      return;
+    }
+
+    // 3. Çıkarma: Pozitif tam sayı kontrolü (küçükten büyük çıkarılamaz)
+    if (operation == Target24Operator.subtract &&
+        first.value.numerator <= second.value.numerator) {
+      if (!fromHint) {
+        _session.recordMistake();
+        unawaited(
+          _audioProfile.play(_audio, GameAudioEvent.rejected, gain: .34),
+        );
+        _showMessage(
+          _english
+              ? 'Subtraction must yield a positive integer (cannot subtract larger from smaller).'
+              : 'Küçük sayıdan büyük sayı çıkarılamaz (sonuç pozitif tam sayı olmalıdır).',
+        );
+      }
+      setState(() {
+        _selectedOperation = null;
+        _firstOperandSignature = null;
+      });
+      return;
+    }
+
     final Target24Expression combined = Target24Expression.combine(
       operation: operation,
       first: first,
@@ -237,10 +284,10 @@ class _Target24PlayPageState extends State<Target24PlayPage> {
     unawaited(_audioProfile.play(_audio, GameAudioEvent.accepted, gain: .35));
     if (_activeExpressions.length == 1) {
       _showMessage(
-        _activeExpressions.single.value == Target24Puzzle.target
+        _activeExpressions.single.value == _puzzle.target
             ? (_english
-                  ? '24 is ready. Check your expression.'
-                  : '24 hazır. İşlemini kontrol et.')
+                  ? 'Target ${_puzzle.targetValue} is ready! Tap check.'
+                  : 'Hedef ${_puzzle.targetValue} hazır! Hedefi kontrol et.')
             : (_english
                   ? 'Your final value is ${_activeExpressions.single.value}.'
                   : 'Sonucun ${_activeExpressions.single.value} oldu.'),
@@ -316,8 +363,8 @@ class _Target24PlayPageState extends State<Target24PlayPage> {
     unawaited(_audioProfile.play(_audio, GameAudioEvent.rejected, gain: .37));
     _showMessage(
       _english
-          ? 'The result is ${_activeExpressions.single.value}, not 24. Undo a step and rework it.'
-          : 'Sonuç ${_activeExpressions.single.value}; 24 değil. Bir adımı geri alıp yeniden dene.',
+          ? 'The result is ${_activeExpressions.single.value}, not ${_puzzle.targetValue}. Undo a step and rework it.'
+          : 'Sonuç ${_activeExpressions.single.value}; hedef ${_puzzle.targetValue} değil. Bir adımı geri alıp yeniden dene.',
     );
   }
 
@@ -331,6 +378,77 @@ class _Target24PlayPageState extends State<Target24PlayPage> {
           duration: const Duration(milliseconds: 1900),
         ),
       );
+  }
+
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: _surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.help_outline_rounded, color: _accent, size: 24),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _english ? 'HOW TO PLAY?' : 'NASIL OYNANIR?',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: _ink,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _english
+                    ? '• Reach the TARGET NUMBER using all 4 cards and arithmetic operations (+, −, ×, ÷).\n• Tap an operation, then choose two cards in sequence to combine them.\n• All calculations use whole positive numbers only; no fractions or decimals.\n• Division is only valid when numbers divide evenly (remainder 0).\n• Subtraction must yield a positive number.\n• Combine until exactly one card matching the target remains!'
+                    : '• Verilen 4 sayıyı ve 4 işlemi (+, −, ×, ÷) kullanarak HEDEF SAYI\'ya ulaşın.\n• Önce bir işlem seçin, ardından sırayla iki karta dokunun.\n• İki kart birleşerek yeni bir tam sayı karta dönüşür.\n• Tüm işlemler kesinlikle pozitif tam sayılarla yapılır; kesir veya küsürat çıkmaz.\n• Bölme yalnızca kalansız tam bölünen sayılarda geçerlidir.\n• Çıkarma yalnızca pozitif sonuçlarda geçerlidir (küçükten büyük çıkmaz).\n• 3 işlem sonunda tek kartta hedef sayıyı elde edip onaylayın!',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 14,
+                  height: 1.5,
+                  color: _ink,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _english
+                    ? 'Difficulty: ${_puzzle.difficultyTier}  •  Target: ${_puzzle.targetValue}'
+                    : 'Zorluk: ${_puzzle.difficultyTier}  •  Hedef: ${_puzzle.targetValue}',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: _muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _complete() async {
@@ -363,6 +481,9 @@ class _Target24PlayPageState extends State<Target24PlayPage> {
     ));
     await Future<void>.delayed(const Duration(milliseconds: 170));
     if (!mounted) return;
+    final int zpEarned = CommonLevelScoreSession.isActive
+        ? CommonLevelScoreSession.activePoints
+        : math.max(0, 10 - _hints * 2);
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -377,11 +498,38 @@ class _Target24PlayPageState extends State<Target24PlayPage> {
             fontWeight: FontWeight.w900,
           ),
         ),
-        content: Text(
-          _english
-              ? '$stars stars  •  $score points\nFour cards, one exact expression.'
-              : '$stars yıldız  •  $score puan\nDört kart, tek doğru işlem.',
-          style: const TextStyle(fontFamily: 'Roboto', color: Colors.white70),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1B3B36),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF2E6B62)),
+              ),
+              child: Text(
+                _english
+                    ? '$stars stars  •  +$zpEarned ZP'
+                    : '$stars yıldız  •  +$zpEarned ZP',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  color: Color(0xFF64D2B7),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+            Text(
+              _english
+                  ? 'Target ${_puzzle.targetValue} achieved with whole numbers!\n($score points)'
+                  : 'Hedef ${_puzzle.targetValue} tam sayılarla başarıyla yakalandı!\n($score puan)',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontFamily: 'Roboto', color: Colors.white70),
+            ),
+          ],
         ),
         actions: <Widget>[
           TextButton(
@@ -422,41 +570,39 @@ class _Target24PlayPageState extends State<Target24PlayPage> {
         backgroundColor: _canvas,
         foregroundColor: _ink,
         surfaceTintColor: Colors.transparent,
-        titleSpacing: 10,
+        titleSpacing: 12,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              _english ? 'TARGET 24' : 'HEDEF 24',
+              _english ? 'TARGET NUMBER' : 'BİR İŞLEM',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontFamily: 'Roboto',
-                fontSize: 12,
+                fontSize: 15,
                 fontWeight: FontWeight.w900,
-                letterSpacing: .8,
+                letterSpacing: .6,
               ),
             ),
             Text(
-              '${_english ? 'DEAL' : 'EL'} ${widget.level.number.toString().padLeft(3, '0')} · ${_puzzle.difficultyTier}',
+              '${_english ? 'DEAL' : 'EL'} ${widget.level.number.toString().padLeft(3, '0')} · ${_english ? 'TARGET' : 'HEDEF'} ${_puzzle.targetValue}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 color: _muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
         ),
         actions: <Widget>[
           IconButton(
-            onPressed: _hint,
-            tooltip: _english
-                ? 'Combine one correct pair'
-                : 'Doğru bir kart çiftini birleştir',
-            icon: const Icon(Icons.lightbulb_outline_rounded),
+            onPressed: _showHowToPlay,
+            tooltip: _english ? 'How to play' : 'Nasıl oynanır',
+            icon: const Icon(Icons.help_outline_rounded),
           ),
           IconButton(
             onPressed: _reset,
@@ -468,122 +614,138 @@ class _Target24PlayPageState extends State<Target24PlayPage> {
       body: SafeArea(
         top: false,
         child: ResponsiveGameFrame(
-          maxContentWidth: 640,
-          child: ListView(
-            key: const ValueKey<String>('target24_scroll'),
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 26),
-            children: <Widget>[
-              _Target24Hero(
-                level: widget.level.number,
-                combinations: _completedCombinations,
-                moves: _moves,
-                hints: _hints,
-                bestScore: widget.previousBestScore,
-                stage: _puzzle.localStage,
-                english: _english,
-              ),
-              const SizedBox(height: 13),
-              _TargetPlate(english: _english, stage: _puzzle.localStage),
-              const SizedBox(height: 14),
-              _SectionHeading(
-                title: _english ? 'CHOOSE AN OPERATION' : 'İŞLEMİ SEÇ',
-                detail: _english
-                    ? 'Choose first, then select the two cards in operand order.'
-                    : 'Önce işlemi, sonra kartları işlem sırasıyla seç.',
-              ),
-              const SizedBox(height: 7),
-              _OperationTray(
-                selected: _selectedOperation,
-                english: _english,
-                onSelect: _selectOperation,
-              ),
-              const SizedBox(height: 12),
-              _SectionHeading(
-                title: _english ? 'NUMBER CARDS' : 'SAYI KARTLARI',
-                detail: _instruction,
-              ),
-              const SizedBox(height: 7),
-              _NumberCardBoard(
-                expressions: _activeExpressions,
-                selectedSignature: _firstOperandSignature,
-                english: _english,
-                onTap: _selectExpression,
-                expressionKey: _expressionKey,
-              ),
-              const SizedBox(height: 10),
-              _CombinationProgress(
-                completed: _completedCombinations,
-                english: _english,
-              ),
-              const SizedBox(height: 9),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                alignment: WrapAlignment.spaceBetween,
-                children: <Widget>[
-                  _SmallAction(
-                    key: const ValueKey<String>('target24_undo'),
-                    icon: Icons.undo_rounded,
-                    label: _english ? 'UNDO' : 'GERİ AL',
-                    onPressed: _undo.isEmpty ? null : _undoMove,
-                  ),
-                  _SmallAction(
-                    icon: Icons.lightbulb_outline_rounded,
-                    label: _english ? 'HINT' : 'İPUCU',
-                    onPressed: _hint,
-                  ),
-                  _SmallAction(
-                    icon: Icons.restart_alt_rounded,
-                    label: _english ? 'RESET' : 'SIFIRLA',
-                    onPressed: _reset,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 3),
-              FilledButton.icon(
-                key: const ValueKey<String>('target24_check'),
-                onPressed: _activeExpressions.length == 1 ? _checkTarget : null,
-                icon: const Icon(Icons.track_changes_rounded),
-                label: Text(
-                  _english ? 'CHECK THE TARGET' : 'HEDEFİ KONTROL ET',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          maxContentWidth: 600,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                _Target24StatusBar(
+                  stage: _puzzle.localStage,
+                  targetValue: _puzzle.targetValue,
+                  combinations: _completedCombinations,
+                  moves: _moves,
+                  hints: _hints,
+                  bestScore: widget.previousBestScore,
+                  english: _english,
                 ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _accent,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: const Color(0xFFDDE5E1),
-                  disabledForegroundColor: const Color(0xFF85938D),
-                  minimumSize: const Size.fromHeight(
-                    GameInputPolicy.minimumTargetSize + 8,
-                  ),
-                  shape: RoundedRectangleBorder(
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _surface,
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E7E4)),
                   ),
-                  textStyle: const TextStyle(
-                    fontFamily: 'Roboto',
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: .4,
+                  child: Column(
+                    children: <Widget>[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          Text(
+                            _english ? 'OPERATION' : 'İŞLEM SEÇİN',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: _muted,
+                              letterSpacing: .5,
+                            ),
+                          ),
+                          Flexible(
+                            child: Text(
+                              _instruction,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.start,
+                              style: TextStyle(
+                                fontFamily: 'Roboto',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: _selectedOperation != null
+                                    ? _accent
+                                    : _muted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      _OperationTray(
+                        selected: _selectedOperation,
+                        english: _english,
+                        onSelect: _selectOperation,
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 7),
-              Center(
-                child: Text(
-                  _english
-                      ? 'Use every card once · Exact fractions allowed · ${_puzzle.difficultyTier}'
-                      : 'Her kartı bir kez kullan · Kesirli ara sonuç serbest · ${_puzzle.difficultyTier}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: 'Roboto',
-                    color: _muted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: .35,
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Center(
+                    child: _NumberCardBoard(
+                      expressions: _activeExpressions,
+                      selectedSignature: _firstOperandSignature,
+                      english: _english,
+                      onTap: _selectExpression,
+                      expressionKey: _expressionKey,
+                    ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Row(
+                  children: <Widget>[
+                    _SmallAction(
+                      key: const ValueKey<String>('target24_undo'),
+                      icon: Icons.undo_rounded,
+                      label: _english ? 'UNDO' : 'GERİ AL',
+                      onPressed: _undo.isEmpty ? null : _undoMove,
+                    ),
+                    const SizedBox(width: 6),
+                    _SmallAction(
+                      icon: Icons.lightbulb_outline_rounded,
+                      label: _english ? 'HINT' : 'İPUCU',
+                      onPressed: _hint,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: FilledButton.icon(
+                        key: const ValueKey<String>('target24_check'),
+                        onPressed: _activeExpressions.length == 1
+                            ? _checkTarget
+                            : null,
+                        icon: const Icon(Icons.track_changes_rounded, size: 18),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _english
+                                ? 'CHECK TARGET'
+                                : 'HEDEFİ KONTROL ET',
+                            maxLines: 1,
+                          ),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _accent,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: const Color(0xFFDDE5E1),
+                          disabledForegroundColor: const Color(0xFF85938D),
+                          minimumSize: const Size.fromHeight(44),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Roboto',
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: .3,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -607,293 +769,142 @@ class _Target24PlayPageState extends State<Target24PlayPage> {
   }
 }
 
-class _Target24Hero extends StatelessWidget {
-  const _Target24Hero({
-    required this.level,
+class _Target24StatusBar extends StatelessWidget {
+  const _Target24StatusBar({
+    required this.stage,
+    required this.targetValue,
     required this.combinations,
     required this.moves,
     required this.hints,
     required this.bestScore,
-    required this.stage,
     required this.english,
   });
 
-  final int level;
+  final int stage;
+  final int targetValue;
   final int combinations;
   final int moves;
   final int hints;
   final int bestScore;
-  final int stage;
   final bool english;
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
     decoration: BoxDecoration(
       color: _Target24PlayPageState._surface,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(16),
       border: Border.all(color: const Color(0xFFE2E6E3)),
       boxShadow: const <BoxShadow>[
         BoxShadow(
-          color: Color(0x0B283640),
-          blurRadius: 20,
-          offset: Offset(0, 8),
+          color: Color(0x06283640),
+          blurRadius: 10,
+          offset: Offset(0, 3),
         ),
       ],
     ),
-    child: Row(
-      children: <Widget>[
-        SizedBox(
-          width: 88,
-          height: 78,
-          child: CustomPaint(painter: _NumberStudioPainter(stage: stage)),
-        ),
-        const SizedBox(width: 13),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                english ? 'ARITHMETIC STUDIO' : 'İŞLEM ATÖLYESİ',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: _Target24PlayPageState._muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: .8,
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: _Target24PlayPageState._ink,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(
+                  Icons.track_changes_rounded,
+                  size: 14,
+                  color: Color(0xFFE1C49E),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                english ? 'Build it to 24.' : '24’e adım adım ulaş.',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: _Target24PlayPageState._ink,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: <Widget>[
-                  _MetricPill(
-                    text: '${english ? 'JOINED' : 'BİRLEŞİM'} $combinations/3',
-                  ),
-                  _MetricPill(text: '${english ? 'MOVES' : 'HAMLE'} $moves'),
-                  _MetricPill(text: '${english ? 'HINTS' : 'İPUCU'} $hints'),
-                ],
-              ),
-              if (bestScore > 0) ...<Widget>[
-                const SizedBox(height: 4),
+                const SizedBox(width: 5),
                 Text(
-                  '${english ? 'BEST' : 'REKOR'} $bestScore · ${english ? 'DEAL' : 'EL'} $level',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  '${english ? 'TARGET' : 'HEDEF'} $targetValue',
                   style: const TextStyle(
                     fontFamily: 'Roboto',
-                    color: _Target24PlayPageState._success,
+                    color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w900,
+                    letterSpacing: .5,
                   ),
                 ),
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          _StatPill(
+            label: english ? 'STEP' : 'ADIM',
+            value: '$combinations/3',
+          ),
+          const SizedBox(width: 6),
+          _StatPill(
+            label: english ? 'MOVES' : 'HAMLE',
+            value: '$moves',
+          ),
+          const SizedBox(width: 6),
+          _StatPill(
+            label: english ? 'BEST' : 'EN İYİ',
+            value: bestScore > 0 ? '$bestScore' : '—',
+            highlight: bestScore > 0,
+          ),
+        ],
+      ),
     ),
   );
 }
 
-class _NumberStudioPainter extends CustomPainter {
-  const _NumberStudioPainter({required this.stage});
+class _StatPill extends StatelessWidget {
+  const _StatPill({
+    required this.label,
+    required this.value,
+    this.highlight = false,
+  });
 
-  final int stage;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Rect bounds = Offset.zero & size;
-    final RRect panel = RRect.fromRectAndRadius(
-      bounds.deflate(2),
-      const Radius.circular(18),
-    );
-    canvas.drawRRect(
-      panel,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[Color(0xFFFAFCFB), Color(0xFFE8EFEC)],
-        ).createShader(bounds),
-    );
-    canvas.drawRRect(
-      panel,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..color = const Color(0xFFD3DEDA),
-    );
-    final double centerX = size.width / 2;
-    final double centerY = size.height / 2;
-    final double cardWidth = math.min(size.width * .28, 22);
-    final double cardHeight = 28;
-    final List<Offset> positions = <Offset>[
-      Offset(centerX - cardWidth - 4, centerY - cardHeight - 4),
-      Offset(centerX + 4, centerY - cardHeight - 4),
-      Offset(centerX - cardWidth - 4, centerY + 4),
-      Offset(centerX + 4, centerY + 4),
-    ];
-    final List<Color> colors = <Color>[
-      const Color(0xFFDCEAE5),
-      const Color(0xFFECE4D8),
-      const Color(0xFFE1E8EB),
-      const Color(0xFFE9E8DF),
-    ];
-    const List<String> symbols = <String>['7', '×', '3', '+'];
-    for (int index = 0; index < positions.length; index++) {
-      final Rect card = Rect.fromLTWH(
-        positions[index].dx,
-        positions[index].dy,
-        cardWidth,
-        cardHeight,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(card, const Radius.circular(6)),
-        Paint()..color = colors[(index + stage) % colors.length],
-      );
-      final TextPainter label = TextPainter(
-        text: TextSpan(
-          text: symbols[index],
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            color: _Target24PlayPageState._accent,
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      label.paint(
-        canvas,
-        card.center - Offset(label.width / 2, label.height / 2),
-      );
-    }
-    final Paint line = Paint()
-      ..color = _Target24PlayPageState._brass.withValues(alpha: .62)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(centerX, 6), Offset(centerX, size.height - 6), line);
-  }
-
-  @override
-  bool shouldRepaint(_NumberStudioPainter oldDelegate) =>
-      stage != oldDelegate.stage;
-}
-
-class _TargetPlate extends StatelessWidget {
-  const _TargetPlate({required this.english, required this.stage});
-
-  final bool english;
-  final int stage;
+  final String label;
+  final String value;
+  final bool highlight;
 
   @override
   Widget build(BuildContext context) => Container(
-    height: 86,
-    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
     decoration: BoxDecoration(
-      color: _Target24PlayPageState._ink,
-      borderRadius: BorderRadius.circular(20),
-      boxShadow: const <BoxShadow>[
-        BoxShadow(
-          color: Color(0x18283640),
-          blurRadius: 16,
-          offset: Offset(0, 6),
-        ),
-      ],
+      color: highlight ? const Color(0xFFE8F3EE) : const Color(0xFFF3F5F4),
+      borderRadius: BorderRadius.circular(9),
     ),
     child: Row(
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        SizedBox(
-          width: 62,
-          child: CustomPaint(painter: _TargetRingPainter(stage: stage)),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                english ? 'EXACT TARGET' : 'KESİN HEDEF',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: Color(0xFFBBC8C2),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1,
-                ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                '24',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: Colors.white,
-                  fontSize: 32,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -.8,
-                ),
-              ),
-            ],
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Roboto',
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+            color: highlight
+                ? _Target24PlayPageState._accent
+                : _Target24PlayPageState._muted,
           ),
         ),
+        const SizedBox(width: 4),
         Text(
-          english ? '3 COMBINATIONS' : '3 BİRLEŞİM',
-          textAlign: TextAlign.right,
-          style: const TextStyle(
+          value,
+          style: TextStyle(
             fontFamily: 'Roboto',
-            color: Color(0xFFE1C49E),
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: FontWeight.w900,
-            letterSpacing: .5,
+            color: highlight
+                ? _Target24PlayPageState._accent
+                : _Target24PlayPageState._ink,
           ),
         ),
       ],
     ),
   );
-}
-
-class _TargetRingPainter extends CustomPainter {
-  const _TargetRingPainter({required this.stage});
-
-  final int stage;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    final double radius = math.min(size.width, size.height) * .45;
-    final Paint ring = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    for (int index = 0; index < 4; index++) {
-      ring.color = index == stage % 4
-          ? const Color(0xFFE1C49E)
-          : const Color(0xFF6C827A);
-      canvas.drawCircle(center, radius * (1 - index * .21), ring);
-    }
-    canvas.drawCircle(center, 3, Paint()..color = const Color(0xFFE1C49E));
-  }
-
-  @override
-  bool shouldRepaint(_TargetRingPainter oldDelegate) =>
-      stage != oldDelegate.stage;
 }
 
 class _OperationTray extends StatelessWidget {
@@ -908,96 +919,78 @@ class _OperationTray extends StatelessWidget {
   final ValueChanged<Target24Operator> onSelect;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: <Widget>[
-      for (
-        int index = 0;
-        index < Target24Operator.values.length;
-        index++
-      ) ...<Widget>[
-        if (index > 0) const SizedBox(width: 7),
-        Expanded(
-          child: _OperationButton(
-            operation: Target24Operator.values[index],
-            selected: selected == Target24Operator.values[index],
-            english: english,
-            onTap: () => onSelect(Target24Operator.values[index]),
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        for (final Target24Operator operation in Target24Operator.values) ...<Widget>[
+          if (operation != Target24Operator.values.first)
+            const SizedBox(width: 8),
+          Expanded(
+            child: _OperatorButton(
+              key: ValueKey<String>('target24_op_${operation.name}'),
+              operation: operation,
+              isSelected: selected == operation,
+              onTap: () => onSelect(operation),
+            ),
           ),
-        ),
+        ],
       ],
-    ],
-  );
+    );
+  }
 }
 
-class _OperationButton extends StatelessWidget {
-  const _OperationButton({
+class _OperatorButton extends StatelessWidget {
+  const _OperatorButton({
+    super.key,
     required this.operation,
-    required this.selected,
-    required this.english,
+    required this.isSelected,
     required this.onTap,
   });
 
   final Target24Operator operation;
-  final bool selected;
-  final bool english;
+  final bool isSelected;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    selected: selected,
-    label: '${english ? 'Operation' : 'İşlem'} ${operation.symbol}',
-    child: Material(
-      color: selected
-          ? _Target24PlayPageState._accent
-          : _Target24PlayPageState._surface,
-      borderRadius: BorderRadius.circular(14),
+  Widget build(BuildContext context) {
+    final Color bg = isSelected
+        ? _Target24PlayPageState._accent
+        : const Color(0xFFF3F5F4);
+    final Color fg = isSelected
+        ? Colors.white
+        : _Target24PlayPageState._ink;
+
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        key: ValueKey<String>('target24_op_${operation.name}'),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: SizedBox(
-          height: GameInputPolicy.minimumTargetSize + 7,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Text(
-                operation.symbol,
-                style: TextStyle(
-                  fontFamily: 'Roboto',
-                  color: selected ? Colors.white : _Target24PlayPageState._ink,
-                  fontSize: 21,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _operationName(operation, english),
-                style: TextStyle(
-                  fontFamily: 'Roboto',
-                  color: selected
-                      ? Colors.white70
-                      : _Target24PlayPageState._muted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: .4,
-                ),
-              ),
-            ],
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? _Target24PlayPageState._accent
+                  : const Color(0xFFE2E7E4),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Text(
+            operation.symbol,
+            style: TextStyle(
+              fontFamily: 'Roboto',
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: fg,
+            ),
           ),
         ),
       ),
-    ),
-  );
-
-  String _operationName(Target24Operator value, bool english) =>
-      switch (value) {
-        Target24Operator.add => english ? 'ADD' : 'TOPLA',
-        Target24Operator.subtract => english ? 'SUBTRACT' : 'ÇIKAR',
-        Target24Operator.multiply => english ? 'MULTIPLY' : 'ÇARP',
-        Target24Operator.divide => english ? 'DIVIDE' : 'BÖL',
-      };
+    );
+  }
 }
 
 class _NumberCardBoard extends StatelessWidget {
@@ -1016,270 +1009,131 @@ class _NumberCardBoard extends StatelessWidget {
   final String Function(Target24Expression) expressionKey;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (BuildContext context, BoxConstraints constraints) {
-      final double gap = 8;
-      final double width = (constraints.maxWidth - gap) / 2;
-      return Wrap(
-        spacing: gap,
-        runSpacing: gap,
-        children: <Widget>[
-          for (final Target24Expression expression in expressions)
-            _NumberCard(
-              key: ValueKey<String>(expressionKey(expression)),
-              expression: expression,
-              width: width,
-              selected: expression.signature == selectedSignature,
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double maxW = constraints.maxWidth;
+        final double maxH = constraints.maxHeight;
+
+        // Kart sayısına göre esnek 2x2 veya tekli grid
+        final int count = expressions.length;
+        final int crossAxisCount = count <= 2 ? count : 2;
+
+        return GridView.builder(
+          key: const ValueKey<String>('target24_scroll'),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(8),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: count == 1 ? 1.6 : (maxW / (maxH > 0 ? maxH : 300)).clamp(1.0, 1.4),
+          ),
+          itemCount: count,
+          itemBuilder: (BuildContext context, int index) {
+            final Target24Expression expr = expressions[index];
+            final bool isSelected = expr.signature == selectedSignature;
+            return _Target24BoardCard(
+              key: ValueKey<String>(expressionKey(expr)),
+              expression: expr,
+              isSelected: isSelected,
               english: english,
-              onTap: () => onTap(expression),
-            ),
-        ],
-      );
-    },
-  );
+              onTap: () => onTap(expr),
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
-class _NumberCard extends StatelessWidget {
-  const _NumberCard({
+class _Target24BoardCard extends StatelessWidget {
+  const _Target24BoardCard({
     super.key,
     required this.expression,
-    required this.width,
-    required this.selected,
+    required this.isSelected,
     required this.english,
     required this.onTap,
   });
 
   final Target24Expression expression;
-  final double width;
-  final bool selected;
+  final bool isSelected;
   final bool english;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final bool originalCard = expression.isCard;
-    final String identity = originalCard
-        ? Target24Puzzle.cardLetters[expression.cardId!]
-        : (english ? 'COMBINED' : 'BİRLEŞİK');
-    return Semantics(
-      button: true,
-      selected: selected,
-      label:
-          '$identity, ${expression.value}${originalCard ? (english ? ' original card' : ' ilk kart') : ', ${expression.expressionText(english: english)}'}',
-      child: Material(
-        color: selected
-            ? const Color(0xFFE8F2EE)
-            : _Target24PlayPageState._surface,
-        borderRadius: BorderRadius.circular(17),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(17),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: width,
-            height: 84,
-            padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(17),
-              border: Border.all(
-                color: selected
-                    ? _Target24PlayPageState._accent
-                    : const Color(0xFFE2E7E4),
-                width: selected ? 1.8 : .9,
-              ),
-              boxShadow: const <BoxShadow>[
-                BoxShadow(
-                  color: Color(0x07283640),
-                  blurRadius: 12,
-                  offset: Offset(0, 4),
-                ),
-              ],
+    final bool isComposite = !expression.isCard;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? const Color(0xFFE6F3EE)
+                : _Target24PlayPageState._surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected
+                  ? _Target24PlayPageState._accent
+                  : const Color(0xFFD6DDD9),
+              width: isSelected ? 3 : 1.5,
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Container(
-                      width: 21,
-                      height: 21,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: originalCard
-                            ? const Color(0xFFF0F4F2)
-                            : const Color(0xFFF4EEE4),
-                        borderRadius: BorderRadius.circular(7),
-                      ),
-                      child: Text(
-                        identity == 'COMBINED' || identity == 'BİRLEŞİK'
-                            ? '∑'
-                            : identity,
-                        style: TextStyle(
-                          fontFamily: 'Roboto',
-                          color: originalCard
-                              ? _Target24PlayPageState._accent
-                              : _Target24PlayPageState._brass,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      selected
-                          ? Icons.radio_button_checked_rounded
-                          : Icons.radio_button_unchecked_rounded,
-                      size: 15,
-                      color: selected
-                          ? _Target24PlayPageState._accent
-                          : const Color(0xFFC7D0CC),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: isSelected
+                    ? const Color(0x24247568)
+                    : const Color(0x0C202824),
+                blurRadius: isSelected ? 12 : 6,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              if (isComposite)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
-                    expression.value.toString(),
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      color: _Target24PlayPageState._ink,
-                      fontSize: 25,
-                      height: 1,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -.5,
-                    ),
-                  ),
-                ),
-                if (!originalCard) ...<Widget>[
-                  const SizedBox(height: 4),
-                  Text(
                     expression.expressionText(english: english),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontFamily: 'Roboto',
-                      color: _Target24PlayPageState._muted,
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700,
+                      color: _Target24PlayPageState._muted,
                     ),
                   ),
-                ] else
-                  const Spacer(),
-              ],
-            ),
+                ),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  expression.value.toString(),
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    fontSize: isComposite ? 34 : 38,
+                    fontWeight: FontWeight.w900,
+                    color: isSelected
+                        ? _Target24PlayPageState._accent
+                        : _Target24PlayPageState._ink,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-}
-
-class _CombinationProgress extends StatelessWidget {
-  const _CombinationProgress({required this.completed, required this.english});
-
-  final int completed;
-  final bool english;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-    decoration: BoxDecoration(
-      color: const Color(0xFFEDF2EF),
-      borderRadius: BorderRadius.circular(13),
-    ),
-    child: Row(
-      children: <Widget>[
-        Text(
-          english ? 'COMBINATIONS' : 'BİRLEŞİMLER',
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            color: _Target24PlayPageState._muted,
-            fontSize: 10,
-            fontWeight: FontWeight.w900,
-            letterSpacing: .65,
-          ),
-        ),
-        const Spacer(),
-        for (int index = 0; index < 3; index++) ...<Widget>[
-          if (index > 0) const SizedBox(width: 5),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: 24,
-            height: 6,
-            decoration: BoxDecoration(
-              color: index < completed
-                  ? _Target24PlayPageState._success
-                  : const Color(0xFFD5DEDA),
-              borderRadius: BorderRadius.circular(5),
-            ),
-          ),
-        ],
-      ],
-    ),
-  );
-}
-
-class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({required this.title, required this.detail});
-
-  final String title;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      Text(
-        title,
-        style: const TextStyle(
-          fontFamily: 'Roboto',
-          color: _Target24PlayPageState._ink,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-          letterSpacing: .7,
-        ),
-      ),
-      const SizedBox(height: 2),
-      Text(
-        detail,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontFamily: 'Roboto',
-          color: _Target24PlayPageState._muted,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          height: 1.3,
-        ),
-      ),
-    ],
-  );
-}
-
-class _MetricPill extends StatelessWidget {
-  const _MetricPill({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF0F4F2),
-      borderRadius: BorderRadius.circular(9),
-    ),
-    child: Text(
-      text,
-      style: const TextStyle(
-        fontFamily: 'Roboto',
-        color: _Target24PlayPageState._muted,
-        fontSize: 10,
-        fontWeight: FontWeight.w900,
-        letterSpacing: .35,
-      ),
-    ),
-  );
 }
 
 class _SmallAction extends StatelessWidget {
@@ -1295,23 +1149,35 @@ class _SmallAction extends StatelessWidget {
   final VoidCallback? onPressed;
 
   @override
-  Widget build(BuildContext context) => TextButton.icon(
-    onPressed: onPressed,
-    icon: Icon(icon, size: 17),
-    label: Text(
-      label,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
-        fontFamily: 'Roboto',
-        fontSize: 11,
-        fontWeight: FontWeight.w900,
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _Target24PlayPageState._ink,
+        disabledForegroundColor: const Color(0xFFACB7B2),
+        minimumSize: const Size(44, 44),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        side: const BorderSide(color: Color(0xFFD6DDD9)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
       ),
-    ),
-    style: TextButton.styleFrom(
-      foregroundColor: _Target24PlayPageState._accent,
-      minimumSize: const Size(78, GameInputPolicy.minimumTargetSize),
-      padding: const EdgeInsets.symmetric(horizontal: 5),
-    ),
-  );
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 16),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: .2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

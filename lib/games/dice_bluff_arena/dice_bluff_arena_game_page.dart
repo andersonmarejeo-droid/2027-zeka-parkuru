@@ -1023,14 +1023,16 @@ class _DiceBluffPlayPageState extends State<DiceBluffPlayPage> {
     child: FilledButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 16),
-      label: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontSize: 9,
-          letterSpacing: .25,
-          fontWeight: FontWeight.w900,
+      label: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          label,
+          maxLines: 1,
+          style: const TextStyle(
+            fontSize: 9,
+            letterSpacing: .25,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ),
       style: FilledButton.styleFrom(

@@ -567,9 +567,7 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
           _hints * 150,
     );
     unawaited(_audio.play(GameSound.success, gain: .38));
-    unawaited(
-      _audio.playLevelComplete(levelNumber: widget.level.number),
-    );
+    unawaited(_audio.playLevelComplete(levelNumber: widget.level.number));
     _sessionBestScore = max(_sessionBestScore, score);
     _sessionBestStars = max(_sessionBestStars, stars);
     if (!mounted) return;
@@ -622,6 +620,84 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
     );
   }
 
+  void _showHowToPlay() {
+    final bool english = context.l10n.isEnglish;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(
+                    Icons.help_outline_rounded,
+                    color: _accent,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        english ? 'HOW TO PLAY?' : 'NASIL OYNANIR?',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: StudioVisuals.ink,
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                english
+                    ? '• Slide neighboring tiles into the empty space to arrange numbers in order.\n• 3×3 levels have numbers 1 to 8; 4×4 levels have 1 to 15.\n• Tiles in their correct target position will glow warmly.\n• Plan your moves carefully to earn 3 stars!'
+                    : '• Boşluğa komşu taşlara dokunarak boşluğa kaydırın ve sayıları sıraya dizin.\n• 3×3 seviyelerde 1-8 arası; 4×4 seviyelerde 1-15 arası sayılar sıralanır.\n• Doğru hedefindeki taşlar sıcak bir tonla parlar.\n• En az hamlede tamamlayarak 3 yıldız kazanın!',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 14,
+                  height: 1.5,
+                  color: StudioVisuals.ink,
+                ),
+              ),
+              if (_usesAlternativeTarget) ...<Widget>[
+                const SizedBox(height: 12),
+                Text(
+                  english
+                      ? 'Target sequence: ${_targetTiles.map((int v) => v == 0 ? "□" : v).join(" ")}'
+                      : 'Hedef dizilimi: ${_targetTiles.map((int v) => v == 0 ? "□" : v).join(" ")}',
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: _accent,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool english = context.l10n.isEnglish;
@@ -637,167 +713,204 @@ class _NumberSortPlayPageState extends State<NumberSortPlayPage> {
         backgroundColor: StudioVisuals.canvas,
         foregroundColor: StudioVisuals.ink,
         surfaceTintColor: Colors.transparent,
-        title: Text(
-          '${context.l10n.gameUi(english ? widget.level.titleEn : widget.level.titleTr)}  •  ${widget.level.number}/${GameContentPolicy.campaignLevels}',
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            fontWeight: FontWeight.w900,
-            fontSize: 16,
-          ),
+        titleSpacing: 10,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              context.l10n.gameUi(
+                english ? widget.level.titleEn : widget.level.titleTr,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w900,
+                fontSize: 15,
+              ),
+            ),
+            Text(
+              '${english ? 'LEVEL' : 'BÖLÜM'} ${widget.level.number}/${GameContentPolicy.campaignLevels} · $_dimension×$_dimension',
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
+        actions: <Widget>[
+          IconButton(
+            onPressed: _showHowToPlay,
+            tooltip: english ? 'How to play' : 'Nasıl oynanır',
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
+          IconButton(
+            onPressed: _restart,
+            tooltip: english ? 'Restart' : 'Baştan başla',
+            icon: const Icon(Icons.restart_alt_rounded),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints limits) {
-            final double boardSize = min(limits.maxWidth - 28, 430);
-            final bool compact = limits.maxHeight < 650;
-            final bool narrow = limits.maxWidth < 380;
-            final ButtonStyle compactOutlineStyle = OutlinedButton.styleFrom(
-              padding: EdgeInsets.symmetric(horizontal: narrow ? 5 : 12),
-              textStyle: TextStyle(
-                fontFamily: 'Roboto',
-                fontSize: narrow ? 11 : 13,
+            final double availableHeight = limits.maxHeight;
+            final double availableWidth = limits.maxWidth;
+            final double boardSize = min(
+              availableWidth - 28,
+              availableHeight - 130,
+            ).clamp(240.0, 420.0);
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
+              child: Column(
+                children: <Widget>[
+                  _NumberSortHeader(
+                    moves: _moves,
+                    elapsed: _elapsed,
+                    hints: 3 - _hints,
+                    english: english,
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: SizedBox(
+                        width: boardSize,
+                        height: boardSize,
+                        child: Container(
+                          padding: EdgeInsets.all(_dimension == 3 ? 16 : 12),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: <Color>[
+                                Color(0xFFFFF8E9),
+                                Color(0xFFF0E0C4),
+                                Color(0xFFE3CAA6),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(
+                              color: const Color(0xFFC4A277),
+                              width: 1.6,
+                            ),
+                            boxShadow: <BoxShadow>[
+                              BoxShadow(
+                                color: const Color(0xFF765839)
+                                    .withValues(alpha: 0.13),
+                                blurRadius: 21,
+                                spreadRadius: -6,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: GridView.builder(
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _tiles.length,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: _dimension,
+                                  crossAxisSpacing: _dimension == 3 ? 7 : 5,
+                                  mainAxisSpacing: _dimension == 3 ? 7 : 5,
+                                ),
+                            itemBuilder: (BuildContext context, int index) {
+                              final int value = _tiles[index];
+                              return value == 0
+                                  ? const _EmptyHex()
+                                  : _NumberHex(
+                                      value: value,
+                                      correct: value == _targetTiles[index],
+                                      hinted: _hintTileIndex == index,
+                                      compact: _dimension == 4,
+                                      onTap: () => _tapTile(index),
+                                    );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _history.isEmpty ? null : _undo,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(44),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          icon: const Icon(Icons.undo_rounded, size: 18),
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              context.l10n.gameUi(english ? 'UNDO' : 'GERİ AL'),
+                              maxLines: 1,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _restart,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(44),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              context.l10n.gameUi(english ? 'RESET' : 'BAŞTAN'),
+                              maxLines: 1,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _hints >= 3 ? null : _hint,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _accent,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(44),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          icon: const Icon(Icons.lightbulb_rounded, size: 18),
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '${context.l10n.gameUi(english ? 'HINT' : 'İPUCU')} ${3 - _hints}',
+                              maxLines: 1,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            );
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
-              children: <Widget>[
-                _NumberSortHeader(
-                  moves: _moves,
-                  elapsed: _elapsed,
-                  hints: 3 - _hints,
-                  english: english,
-                ),
-                SizedBox(height: compact ? 10 : 17),
-                Center(
-                  child: SizedBox(
-                    width: boardSize,
-                    height: boardSize,
-                    child: Container(
-                      padding: EdgeInsets.all(_dimension == 3 ? 20 : 15),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: <Color>[
-                            Color(0xFFFFF8E9),
-                            Color(0xFFF0E0C4),
-                            Color(0xFFE3CAA6),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: const Color(0xFFC4A277),
-                          width: 1.6,
-                        ),
-                        boxShadow: <BoxShadow>[
-                          BoxShadow(
-                            color: const Color(0xFF765839)
-                                .withValues(alpha: 0.13),
-                            blurRadius: 21,
-                            spreadRadius: -6,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: GridView.builder(
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _tiles.length,
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: _dimension,
-                          crossAxisSpacing: _dimension == 3 ? 7 : 5,
-                          mainAxisSpacing: _dimension == 3 ? 7 : 5,
-                        ),
-                        itemBuilder: (BuildContext context, int index) {
-                          final int value = _tiles[index];
-                          return value == 0
-                              ? const _EmptyHex()
-                              : _NumberHex(
-                                  value: value,
-                                  correct: value == _targetTiles[index],
-                                  hinted: _hintTileIndex == index,
-                                  compact: _dimension == 4,
-                                  onTap: () => _tapTile(index),
-                                );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: compact ? 10 : 16),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _history.isEmpty ? null : _undo,
-                        style: compactOutlineStyle,
-                        icon: const Icon(Icons.undo_rounded),
-                        label: Text(
-                          context.l10n.gameUi(english ? 'UNDO' : 'GERİ AL'),
-                          maxLines: 1,
-                          softWrap: false,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _restart,
-                        style: compactOutlineStyle,
-                        icon: const Icon(Icons.refresh_rounded),
-                        label: Text(
-                          context.l10n.gameUi(english ? 'RESET' : 'BAŞTAN'),
-                          maxLines: 1,
-                          softWrap: false,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _hints >= 3 ? null : _hint,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _accent,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: narrow ? 5 : 12,
-                          ),
-                          textStyle: TextStyle(
-                            fontFamily: 'Roboto',
-                            fontSize: narrow ? 11 : 13,
-                          ),
-                        ),
-                        icon: const Icon(Icons.lightbulb_rounded),
-                        label: Text(
-                          '${context.l10n.gameUi(english ? 'HINT' : 'İPUCU')} ${3 - _hints}',
-                          maxLines: 1,
-                          softWrap: false,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  english
-                      ? _usesAlternativeTarget
-                            ? 'Snake target: ${_targetTiles.map((int value) => value == 0 ? '□' : value).join(' ')}'
-                            : 'Tap a tile next to the gap. Muted tiles are already in their target position.'
-                      : _usesAlternativeTarget
-                      ? 'Yılan hedefi: ${_targetTiles.map((int value) => value == 0 ? '□' : value).join(' ')}'
-                      : 'Boşluğa komşu taşı kaydır. Soluk taşlar hedefindeki doğru yerinde.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: 'Roboto',
-                    color: Color(0xFF71837C),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
             );
           },
         ),

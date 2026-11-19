@@ -497,6 +497,123 @@ class _StoryOrderPlayPageState extends State<StoryOrderPlayPage> {
     );
   }
 
+  void _showHowToPlay(BuildContext context, StudioGameSkin skin) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: StudioVisuals.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: skin.accent.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.menu_book_rounded, color: skin.accent, size: 22),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            _scenario.title,
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                          Text(
+                            _english ? 'Case Overview & Rules' : 'Dosya Detayı ve Kurallar',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 12,
+                              color: StudioVisuals.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surfaceSoft,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: skin.accent.withValues(alpha: 0.18)),
+                  ),
+                  child: Text(
+                    _scenario.setup,
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 13,
+                      height: 1.35,
+                      color: StudioVisuals.ink,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: <Widget>[
+                    const Icon(Icons.lightbulb_outline_rounded, size: 16, color: StudioVisuals.amber),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _english
+                            ? 'Tap events in causal sequence. Beware of decoy notes!'
+                            : 'Olayları kronolojik sıraya göre diz. Varsa tuzak karta dikkat et!',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 12,
+                          color: StudioVisuals.muted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: skin.accent,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    _english ? 'UNDERSTOOD' : 'ANLADIM, DEVAM ET',
+                    style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final StudioGameSkin skin = StudioGameSkin.forId('story_order');
@@ -531,155 +648,130 @@ class _StoryOrderPlayPageState extends State<StoryOrderPlayPage> {
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 color: StudioVisuals.muted,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
-                letterSpacing: .5,
+                letterSpacing: .4,
               ),
             ),
           ],
         ),
+        actions: <Widget>[
+          IconButton(
+            tooltip: _english ? 'Story Details & Rules' : 'Dosya Bilgisi & Kurallar',
+            icon: const Icon(Icons.help_outline_rounded, size: 22),
+            onPressed: () => _showHowToPlay(context, skin),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
         child: ResponsiveGameFrame(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        _english
-                            ? 'BUILD THE TIMELINE'
-                            : 'ZAMAN ÇİZELGESİNİ KUR',
+                // Kompakt Tek Satır Durum Çubuğu
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          _scenario.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: StudioVisuals.ink,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      if (_scenario.hasDecoy) ...<Widget>[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: StudioVisuals.amberSoft,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            _english ? '1 DECOY' : '1 TUZAK',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              color: StudioVisuals.amber,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(Icons.favorite_rounded, size: 14, color: _errorsLeft <= 1 ? StudioVisuals.danger : skin.accent),
+                          const SizedBox(width: 3),
+                          Text(
+                            '$_errorsLeft/$_mistakeLimit',
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: _errorsLeft <= 1 ? StudioVisuals.danger : skin.accent,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Icon(Icons.star_rounded, size: 14, color: StudioVisuals.amber),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${_session.score}',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_picked.length}/${_scenario.requiredEvents}',
                         style: TextStyle(
                           fontFamily: 'Roboto',
                           color: skin.accent,
                           fontSize: 12,
-                          letterSpacing: 1.1,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                    ),
-                    _StoryStat(
-                      icon: Icons.favorite_outline_rounded,
-                      label: '$_errorsLeft/$_mistakeLimit',
-                      accent: _errorsLeft <= 1
-                          ? StudioVisuals.danger
-                          : skin.accent,
-                    ),
-                    const SizedBox(width: 6),
-                    _StoryStat(
-                      icon: Icons.stars_rounded,
-                      label: '${_session.score}',
-                      accent: StudioVisuals.amber,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
+                // Kompakt Kartlar Listesi (Taşma Korumalı & Kaydırılabilir)
                 Expanded(
                   child: SingleChildScrollView(
                     key: const ValueKey<String>('story_order_scroll'),
-                    padding: const EdgeInsets.only(bottom: 8),
+                    physics: const BouncingScrollPhysics(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        Container(
-                          padding: const EdgeInsets.all(13),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: <Color>[
-                                skin.accentSoft,
-                                StudioVisuals.surface,
-                              ],
-                            ),
-                            borderRadius: StudioVisuals.cardRadius,
-                            border: Border.all(
-                              color: skin.accent.withValues(alpha: .18),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Row(
-                                children: <Widget>[
-                                  Icon(
-                                    Icons.folder_copy_outlined,
-                                    color: skin.accent,
-                                    size: 19,
-                                  ),
-                                  const SizedBox(width: 7),
-                                  Expanded(
-                                    child: Text(
-                                      _scenario.title,
-                                      style: const TextStyle(
-                                        fontFamily: 'Roboto',
-                                        color: StudioVisuals.ink,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                  ),
-                                  if (_scenario.hasDecoy)
-                                    _TagPill(
-                                      label: _english ? '1 DECOY' : '1 TUZAK',
-                                      color: StudioVisuals.amber,
-                                      soft: StudioVisuals.amberSoft,
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 7),
-                              Text(
-                                _scenario.setup,
-                                style: const TextStyle(
-                                  fontFamily: 'Roboto',
-                                  color: StudioVisuals.ink,
-                                  fontSize: 12.5,
-                                  height: 1.3,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: Text(
-                                _solved
-                                    ? (_english
-                                          ? 'EVIDENCE-BASED ORDER'
-                                          : 'KANITA DAYALI SIRA')
-                                    : _english
-                                    ? 'TAP EVENTS IN CAUSAL ORDER'
-                                    : 'OLAYLARA NEDEN-SONUÇ SIRASIYLA DOKUN',
-                                style: const TextStyle(
-                                  fontFamily: 'Roboto',
-                                  color: StudioVisuals.muted,
-                                  fontSize: 11.5,
-                                  letterSpacing: .55,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              '${_picked.length}/${_scenario.requiredEvents}',
-                              style: TextStyle(
-                                fontFamily: 'Roboto',
-                                color: skin.accent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 7),
                         for (final StorySequenceCard card in _scenario.cards)
                           _buildCard(card, skin),
                         if (_feedback != null) ...<Widget>[
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 4),
                           _FeedbackNote(text: _feedback!, positive: false),
                         ],
                         if (_solved) ...<Widget>[
@@ -687,21 +779,7 @@ class _StoryOrderPlayPageState extends State<StoryOrderPlayPage> {
                           _FeedbackNote(
                             text: _scenario.explanation,
                             positive: true,
-                            key: const ValueKey<String>(
-                              'story_order_explanation',
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _english
-                                ? 'Every step is placed from trigger to verified outcome.'
-                                : 'Her adım, başlangıç nedeninden doğrulanmış sonuca yerleştirildi.',
-                            style: const TextStyle(
-                              fontFamily: 'Roboto',
-                              color: StudioVisuals.muted,
-                              fontSize: 11,
-                              height: 1.3,
-                            ),
+                            key: const ValueKey<String>('story_order_explanation'),
                           ),
                         ],
                       ],
@@ -709,53 +787,89 @@ class _StoryOrderPlayPageState extends State<StoryOrderPlayPage> {
                   ),
                 ),
                 const SizedBox(height: 6),
+                // Alt Kontrol Butonları
                 if (!_solved)
                   Row(
                     children: <Widget>[
                       Expanded(
+                        flex: 10,
                         child: OutlinedButton.icon(
-                          onPressed: _picked.length >= _scenario.requiredEvents
-                              ? null
-                              : _useHint,
-                          icon: const Icon(
-                            Icons.lightbulb_outline_rounded,
-                            size: 18,
-                          ),
-                          label: Text(
-                            _english ? 'HINT  −80' : 'İPUCU  −80',
-                            maxLines: 1,
-                            softWrap: false,
-                            overflow: TextOverflow.ellipsis,
+                          onPressed: _picked.length >= _scenario.requiredEvents ? null : _useHint,
+                          icon: const Icon(Icons.lightbulb_outline_rounded, size: 15),
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              _english ? 'HINT' : 'İPUCU',
+                              maxLines: 1,
+                              style: const TextStyle(
+                                fontFamily: 'Roboto',
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
                           style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(48, 48),
+                            minimumSize: const Size(0, 42),
                             foregroundColor: StudioVisuals.ink,
-                            padding: const EdgeInsets.symmetric(horizontal: 3),
-                            textStyle: const TextStyle(fontSize: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 5),
                             side: const BorderSide(color: StudioVisuals.line),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Expanded(
-                        flex: 2,
+                        flex: 10,
+                        child: OutlinedButton.icon(
+                          onPressed: _picked.isEmpty ? null : () {
+                            setState(() {
+                              _picked.clear();
+                              _feedback = null;
+                            });
+                          },
+                          icon: const Icon(Icons.refresh_rounded, size: 15),
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              _english ? 'RESET' : 'SIFIRLA',
+                              maxLines: 1,
+                              style: const TextStyle(
+                                fontFamily: 'Roboto',
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 42),
+                            foregroundColor: StudioVisuals.ink,
+                            padding: const EdgeInsets.symmetric(horizontal: 5),
+                            side: const BorderSide(color: StudioVisuals.line),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        flex: 13,
                         child: FilledButton.icon(
                           key: const ValueKey<String>('story_order_submit'),
-                          onPressed: _picked.length == _scenario.requiredEvents
-                              ? _checkAnswer
-                              : null,
-                          icon: const Icon(Icons.fact_check_rounded),
-                          label: Text(
-                            _english ? 'CHECK ORDER' : 'SIRAYI KONTROL ET',
-                            maxLines: 1,
-                            softWrap: false,
-                            overflow: TextOverflow.ellipsis,
+                          onPressed: _picked.length == _scenario.requiredEvents ? _checkAnswer : null,
+                          icon: const Icon(Icons.fact_check_rounded, size: 16),
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              _english ? 'CHECK ORDER' : 'KONTROL ET',
+                              maxLines: 1,
+                              style: const TextStyle(
+                                fontFamily: 'Roboto',
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
                           ),
                           style: FilledButton.styleFrom(
-                            minimumSize: const Size(48, 48),
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: const Size(0, 42),
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
                             backgroundColor: skin.accent,
-                            disabledBackgroundColor: StudioVisuals.line,
                             foregroundColor: Colors.white,
                           ),
                         ),
@@ -768,12 +882,10 @@ class _StoryOrderPlayPageState extends State<StoryOrderPlayPage> {
                     child: FilledButton.icon(
                       key: const ValueKey<String>('story_order_continue'),
                       onPressed: _finish,
-                      icon: const Icon(Icons.celebration_rounded),
-                      label: Text(
-                        _english ? 'COMPLETE FILE' : 'DOSYAYI TAMAMLA',
-                      ),
+                      icon: const Icon(Icons.celebration_rounded, size: 18),
+                      label: Text(_english ? 'COMPLETE FILE' : 'DOSYAYI TAMAMLA'),
                       style: FilledButton.styleFrom(
-                        minimumSize: const Size(48, 50),
+                        minimumSize: const Size(0, 44),
                         backgroundColor: skin.accent,
                         foregroundColor: Colors.white,
                       ),
@@ -786,74 +898,6 @@ class _StoryOrderPlayPageState extends State<StoryOrderPlayPage> {
       ),
     );
   }
-}
-
-class _StoryStat extends StatelessWidget {
-  const _StoryStat({
-    required this.icon,
-    required this.label,
-    required this.accent,
-  });
-  final IconData icon;
-  final String label;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(minWidth: 61, minHeight: 30),
-    padding: const EdgeInsets.symmetric(horizontal: 8),
-    decoration: BoxDecoration(
-      color: StudioVisuals.surface,
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: StudioVisuals.line),
-    ),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        Icon(icon, size: 15, color: accent),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            color: StudioVisuals.ink,
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _TagPill extends StatelessWidget {
-  const _TagPill({
-    required this.label,
-    required this.color,
-    required this.soft,
-  });
-  final String label;
-  final Color color;
-  final Color soft;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-    decoration: BoxDecoration(
-      color: soft,
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(
-        fontFamily: 'Roboto',
-        color: color,
-        fontSize: 10,
-        letterSpacing: .4,
-        fontWeight: FontWeight.w900,
-      ),
-    ),
-  );
 }
 
 class _FeedbackNote extends StatelessWidget {

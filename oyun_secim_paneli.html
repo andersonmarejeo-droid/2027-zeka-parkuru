@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zeka Parkuru - Oyun Eleme ve Seçim Paneli</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background: #0B132B; color: #F8FAFC; padding: 20px 16px 140px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    
+    .header { text-align: center; margin-bottom: 20px; }
+    .header h1 { font-size: 26px; font-weight: 900; color: #2DD4BF; margin-bottom: 6px; }
+    .header p { color: #94A3B8; font-size: 14px; max-width: 650px; margin: 0 auto; line-height: 1.5; }
+
+    /* STICKY BAR */
+    .sticky-bar {
+      position: sticky; top: 10px; z-index: 100;
+      background: rgba(28, 37, 65, 0.95); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 16px;
+      padding: 12px 20px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); margin-bottom: 20px; gap: 12px;
+    }
+    .counts { display: flex; gap: 16px; font-size: 14px; font-weight: 800; }
+    .badge-keep { color: #34D399; background: #064E3B; padding: 6px 14px; border-radius: 99px; }
+    .badge-remove { color: #F87171; background: #450A0A; padding: 6px 14px; border-radius: 99px; }
+    
+    .actions { display: flex; gap: 8px; }
+    .btn-act { background: #3A4A7A; color: white; border: none; padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 12px; cursor: pointer; transition: 0.2s; }
+    .btn-act:hover { background: #4B5E99; }
+    .btn-act.highlight { background: #0D9488; color: #CCFBF1; }
+
+    /* CATEGORY TABS */
+    .filter-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+    .tab {
+      background: #1C2541; border: 1px solid #3A4A7A; color: #94A3B8;
+      padding: 6px 14px; border-radius: 99px; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .tab.active { background: #0D9488; color: white; border-color: #2DD4BF; }
+
+    /* GRID */
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    /* CARD */
+    .card {
+      background: #1C2541; border: 2.5px solid #2A385E; border-radius: 18px;
+      padding: 14px; display: flex; flex-direction: column; justify-content: space-between;
+      transition: all 0.2s ease; position: relative; overflow: hidden;
+    }
+    .card.status-keep {
+      border-color: #10B981;
+      background: linear-gradient(180deg, #1C2541 0%, rgba(6, 78, 59, 0.4) 100%);
+    }
+    .card.status-remove {
+      border-color: #EF4444;
+      background: linear-gradient(180deg, #1C2541 0%, rgba(69, 10, 10, 0.6) 100%);
+      box-shadow: 0 4px 20px rgba(239, 68, 68, 0.25);
+    }
+    .card.recommended::before {
+      content: 'ÖNERİLEN ELEME';
+      position: absolute; top: 10px; right: 10px; z-index: 10;
+      background: #DC2626; color: white; font-size: 9px; font-weight: 900;
+      padding: 3px 8px; border-radius: 99px; letter-spacing: 0.5px;
+    }
+
+    /* ARTWORK CONTAINER */
+    .art-container {
+      width: 100%; height: 130px; border-radius: 12px;
+      background-color: #0B132B; background-repeat: no-repeat;
+      margin-bottom: 12px; position: relative; overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .art-container img {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    .art-fallback {
+      font-size: 42px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+
+    /* SPRITE STYLES */
+    .sprite-sheet {
+      background-size: 200% 400%;
+      background-position: var(--pos, 0% 0%);
+    }
+    .sprite-3x3 {
+      background-size: 300% 300%;
+      background-position: var(--pos, 0% 0%);
+    }
+
+    .meta { margin-bottom: 14px; }
+    .cat-tag { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 2px; }
+    .title { font-size: 17px; font-weight: 900; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sub { font-size: 11px; color: #94A3B8; margin-top: 1px; }
+    .reason { font-size: 11.5px; color: #CBD5E1; margin-top: 6px; line-height: 1.35; min-height: 32px; }
+
+    /* BUTTONS */
+    .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .btn-opt {
+      border: none; padding: 10px; border-radius: 10px; font-size: 12px; font-weight: 900;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;
+      transition: all 0.15s; background: #2A385E; color: #94A3B8;
+    }
+    
+    .card.status-keep .btn-opt.opt-keep {
+      background: #10B981; color: white; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.5);
+    }
+    .card.status-remove .btn-opt.opt-remove {
+      background: #EF4444; color: white; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.6);
+    }
+
+    /* BOTTOM BAR */
+    .bottom-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(11, 19, 43, 0.98); backdrop-filter: blur(16px);
+      border-top: 1px solid #3A4A7A; padding: 14px 24px;
+      display: flex; justify-content: space-between; align-items: center; z-index: 200; gap: 16px;
+    }
+    .summary-msg { font-size: 14px; color: #E2E8F0; }
+    .btn-finish {
+      background: linear-gradient(135deg, #10B981, #059669); color: white; border: none;
+      padding: 12px 26px; border-radius: 12px; font-size: 14px; font-weight: 900; cursor: pointer;
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    }
+    .btn-finish:hover { transform: scale(1.02); }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>🎮 Zeka Parkuru Oyun Eleme Paneli</h1>
+    <p>Aşağıdaki tüm oyunların görsellerini inceleyerek kalmasını veya sistemden çıkartılmasını istediğiniz oyunları belirleyebilirsiniz.</p>
+  </div>
+
+  <div class="sticky-bar">
+    <div class="counts">
+      <span class="badge-keep">✅ Kalan: <span id="keepCount">31</span></span>
+      <span class="badge-remove">❌ Çıkarılacak: <span id="removeCount">13</span></span>
+    </div>
+    <div class="actions">
+      <button class="btn-act" onclick="setAll('keep')">Tümünü Kalsın Yap</button>
+      <button class="btn-act highlight" onclick="setRecommended()">Varsayılan Eleme Adayları (13)</button>
+    </div>
+  </div>
+
+  <div class="filter-tabs" id="tabsContainer">
+    <button class="tab active" onclick="applyFilter('all', this)">Tümü (44)</button>
+    <button class="tab" onclick="applyFilter('rec', this)">⚠️ Eleme Adayları (13)</button>
+    <button class="tab" onclick="applyFilter('logic', this)">Mantık</button>
+    <button class="tab" onclick="applyFilter('numbers', this)">Sayılar</button>
+    <button class="tab" onclick="applyFilter('visual', this)">Görsel</button>
+    <button class="tab" onclick="applyFilter('memory', this)">Hafıza</button>
+    <button class="tab" onclick="applyFilter('strategy', this)">Strateji</button>
+    <button class="tab" onclick="applyFilter('language', this)">Dil</button>
+    <button class="tab" onclick="applyFilter('speed', this)">Hız</button>
+  </div>
+
+  <div class="games-grid" id="grid"></div>
+</div>
+
+<div class="bottom-bar">
+  <div class="summary-msg" id="summary">
+    Toplam <strong>13 oyun</strong> çıkarılmak üzere işaretlendi.
+  </div>
+  <button class="btn-finish" onclick="copyResult()">📋 Seçimleri Kopyala & Onayla</button>
+</div>
+
+<script>
+// 44 OYUNUN GERÇEK GÖRSEL VE BİLGİ VERİTABANI
+const games = [
+  // 13 ÇIKARILMASI ÖNERİLEN OYUN
+  { id: 'proverb_finish', title: 'Atasözü Tamamla', sub: 'Finish the Proverb', cat: 'language', catName: 'Dil', color: '#3D7183', sheet: 'assets/branding/game_catalog/language_sheet_v2.webp', pos: '0% 33.33%', rec: true, desc: 'Türk atasözlerine %100 bağımlı; globalde karşılığı yok.' },
+  { id: 'city_atlas', title: 'Şehir Atlası', sub: 'Turkey Atlas', cat: 'visual', catName: 'Görsel', color: '#9C5471', img: 'assets/branding/studio_category_atlas_primary.png', rec: true, desc: 'Sadece Türkiye illeri. Dünya Atlası (world_atlas) varken yerel kalıyor.' },
+  { id: 'arrow_route', title: 'Ok Rotası', sub: 'Arrow Route', cat: 'visual', catName: 'Görsel', color: '#9C5471', img: 'assets/branding/studio_parkur_mind_gym.png', rec: true, desc: '2D ok yönlendirme mekaniği.' },
+  { id: 'arrow_maze', title: 'Ok Labirenti', sub: 'Arrow Maze', cat: 'logic', catName: 'Mantık', color: '#665AA2', sheet: 'assets/branding/game_catalog/logic_sheet_v2.webp', pos: '0% 0%', rec: true, desc: 'Ok Rotası ile aynı mantıkta ikiz/çakışan oyun.' },
+  { id: 'picture_iq', title: 'Görsel IQ', sub: 'Visual IQ', cat: 'visual', catName: 'Görsel', color: '#9C5471', sheet: 'assets/branding/game_catalog/visual_sheet_v2.webp', pos: '100% 0%', rec: true, desc: 'Şekil matrisi akıl yürütme bulmacası.' },
+  { id: 'hanoi', title: 'Hanoi Kulesi', sub: 'Tower of Hanoi', cat: 'strategy', catName: 'Strateji', color: '#A2643E', sheet: 'assets/branding/game_catalog/strategy_sheet.webp', pos: '0% 0%', rec: true, desc: 'Ezber formül, bir kez çözülünce tekrar değeri sıfır.' },
+  { id: 'single_stroke', title: 'Tek Çizgi Ustası', sub: 'One-Stroke Master', cat: 'logic', catName: 'Mantık', color: '#665AA2', sheet: 'assets/branding/game_catalog/logic_sheet_v2.webp', pos: '100% 0%', rec: true, desc: 'Parmağı kaldırmadan çizgi tamamlama; görsel derinliği zayıf.' },
+  { id: 'story_order', title: 'Hikâye Sırası', sub: 'Story Order', cat: 'language', catName: 'Dil', color: '#3D7183', sheet: 'assets/branding/game_catalog/language_sheet_v2.webp', pos: '100% 100%', rec: true, desc: 'Metinleri sıraya sokma; dinamizmi ve görseli düşük.' },
+  { id: 'slide_sweets', title: 'Şeker Konveyörü', sub: 'Sweet Conveyor', cat: 'speed', catName: 'Hız', color: '#A84640', sheet: 'assets/branding/game_catalog/speed_sheet_v2.webp', pos: '100% 100%', rec: true, desc: 'Candy Sort varken ilkel kalan 2D konveyör bandı.' },
+  { id: 'letter_maze', title: 'Harf Labirenti', cat: 'language', catName: 'Dil', color: '#3D7183', sheet: 'assets/branding/game_catalog/language_sheet_v2.webp', pos: '0% 100%', rec: true, desc: 'Basit harf ızgarası; Kelime Avı varken sönük.' },
+  { id: 'hidden_masses', title: 'Gizli Kütleler', cat: 'logic', catName: 'Mantık', color: '#665AA2', sheet: 'assets/game_visuals/weight_objects_sheet.webp', is3x3: true, pos: '50% 100%', rec: true, desc: 'Ağırlık Dengesi (balance_scale) ile aynı mekanik kopya.' },
+  { id: 'near_meaning', title: 'Yakın Anlam', cat: 'language', catName: 'Dil', color: '#3D7183', sheet: 'assets/branding/game_catalog/language_sheet_v2.webp', pos: '100% 66.66%', rec: true, desc: 'Kelime eşleştirme testi; okul formatında.' },
+  { id: 'language_detective', title: 'Dil Dedektifi', cat: 'language', catName: 'Dil', color: '#3D7183', img: 'assets/branding/game_catalog/language_detective_icon_v2.webp', rec: true, desc: 'Dilbilgisi testleri; oyun havasından uzak.' },
+
+  // GÜÇLÜ OYUNLAR (VARSAYILAN KALSIN)
+  { id: 'mini_chess_tactics', title: 'Satranç Matı', sub: 'Chess Mate', cat: 'strategy', catName: 'Strateji', color: '#A2643E', sheet: 'assets/branding/game_catalog/strategy_sheet_v2.webp', pos: '0% 100%', rec: false, desc: 'Evrensel strateji ve taktik mat bulmacaları.' },
+  { id: 'reversi_arena', title: 'Reversi Arenası', sub: 'Reversi Arena', cat: 'strategy', catName: 'Strateji', color: '#A2643E', sheet: 'assets/branding/game_catalog/strategy_sheet_v2.webp', pos: '100% 100%', rec: false, desc: 'Othello / Reversi canlı düello masa oyunu.' },
+  { id: 'candy_sort', title: 'Şeker Sıralama', sub: 'Candy Sort', cat: 'strategy', catName: 'Strateji', color: '#A2643E', img: 'assets/branding/game_catalog/candy_sort_icon.webp', rec: false, desc: 'Tüplerde renkleri ayrıştırma; dünya çapında en yüksek retention.' },
+  { id: 'katamino_workshop', title: 'Katamino Atölyesi', sub: 'Katamino Workshop', cat: 'visual', catName: 'Görsel', color: '#9C5471', sheet: 'assets/branding/game_catalog/visual_sheet_v2.webp', pos: '0% 66.66%', rec: false, desc: 'Ahşap dokulu uzamsal pentomino klasiği.' },
+  { id: 'mini_sudoku', title: 'Su Doku', sub: 'Sudoku', cat: 'numbers', catName: 'Sayılar', color: '#176D62', sheet: 'assets/branding/game_catalog/numbers_sheet_v2.webp', pos: '100% 33.33%', rec: false, desc: 'Dünyanın 1 numaralı sayı bulmacası.' },
+  { id: 'kenken_cube', title: 'KenKen Küpü', sub: 'KenKen Cube', cat: 'numbers', catName: 'Sayılar', color: '#176D62', sheet: 'assets/branding/game_catalog/numbers_sheet_v2.webp', pos: '0% 66.66%', rec: false, desc: 'Dört işlem ve mantık ızgarası.' },
+  { id: 'kakuro', title: 'Kakuro Izgarası', sub: 'Kakuro Grid', cat: 'numbers', catName: 'Sayılar', color: '#176D62', sheet: 'assets/branding/game_catalog/numbers_sheet_v2.webp', pos: '100% 66.66%', rec: false, desc: 'Japon zeka olimpiyatı sayısal bulmacası.' },
+  { id: 'target_24', title: 'Hedef 24', sub: 'Target 24', cat: 'numbers', catName: 'Sayılar', color: '#176D62', sheet: 'assets/branding/game_catalog/numbers_sheet_v2.webp', pos: '0% 33.33%', rec: false, desc: '4 sayı ile 24 elde etme hızlı kafa hesabı.' },
+  { id: 'number_sort', title: '15 Taş Ustası', sub: '15-Tile Master', cat: 'numbers', catName: 'Sayılar', color: '#176D62', sheet: 'assets/branding/game_catalog/numbers_sheet_v2.webp', pos: '100% 0%', rec: false, desc: 'Kaydırmalı retro 15 taş bulmacası.' },
+  { id: 'numbers', title: 'Sayı Ustası', sub: 'Number Master', cat: 'numbers', catName: 'Sayılar', color: '#176D62', sheet: 'assets/branding/game_catalog/numbers_sheet_v2.webp', pos: '0% 0%', rec: false, desc: 'Zihinden işlem ve hızlı sayı kombinasyonları.' },
+  { id: 'futoshiki', title: 'Futoshiki', sub: 'Futoshiki', cat: 'numbers', catName: 'Sayılar', color: '#176D62', sheet: 'assets/branding/game_catalog/numbers_sheet_v2.webp', pos: '0% 100%', rec: false, desc: 'Eşitsizlik işaretleriyle sayı yerleştirme.' },
+  { id: 'picross_master', title: 'Picross Ustası', sub: 'Picross Master', cat: 'visual', catName: 'Görsel', color: '#9C5471', sheet: 'assets/branding/game_catalog/visual_sheet_v2.webp', pos: '100% 100%', rec: false, desc: 'Nonogram piksel sanatı bulmacası.' },
+  { id: 'world_atlas', title: 'Dünya Atlası', sub: 'World Atlas', cat: 'visual', catName: 'Görsel', color: '#9C5471', img: 'assets/branding/studio_category_atlas_primary.png', rec: false, desc: 'Dünya ülkeleri, başkentleri ve genel kültür arenası.' },
+  { id: 'blocks', title: 'Blok Atölyesi', sub: 'Block Workshop', cat: 'visual', catName: 'Görsel', color: '#9C5471', sheet: 'assets/branding/game_catalog/visual_sheet.webp', pos: '0% 0%', rec: false, desc: 'İzometrik 3D blok yerleştirme.' },
+  { id: 'shape_puzzle', title: 'Şekil Birleştir', sub: 'Shape Puzzle', cat: 'visual', catName: 'Görsel', color: '#9C5471', sheet: 'assets/branding/game_catalog/visual_sheet_v2.webp', pos: '0% 33.33%', rec: false, desc: 'Geometrik tangram birleştirme.' },
+  { id: 'card_pairs', title: 'Kart Çifti', sub: 'Card Pairs', cat: 'memory', catName: 'Hafıza', color: '#8B622C', sheet: 'assets/branding/game_catalog/memory_sheet_v2.webp', pos: '0% 33.33%', rec: false, desc: 'Nörolojik kart eşleme hafıza klasiği.' },
+  { id: 'memory', title: 'Hafıza Labirenti', sub: 'Memory Maze', cat: 'memory', catName: 'Hafıza', color: '#8B622C', sheet: 'assets/branding/game_catalog/memory_sheet_v2.webp', pos: '0% 0%', rec: false, desc: 'Işıklı basamakları ve yolları ezberleme.' },
+  { id: 'focus_filter', title: 'Odak Filtresi', sub: 'Focus Filter', cat: 'speed', catName: 'Hız / Dikkat', color: '#A84640', sheet: 'assets/branding/game_catalog/speed_sheet_v2.webp', pos: '0% 66.66%', rec: false, desc: 'Stroop testi: renk ve yazı çatışmasında hızlı karar.' },
+  { id: 'reflex', title: 'Refleks Avı', sub: 'Reflex Hunt', cat: 'speed', catName: 'Hız', color: '#A84640', sheet: 'assets/branding/game_catalog/speed_sheet_v2.webp', pos: '0% 0%', rec: false, desc: 'Milisaniye seviyesinde reaksiyon ve refleks testi.' },
+  { id: 'rhythm_memory', title: 'Ritim Hafızası', sub: 'Rhythm Memory', cat: 'memory', catName: 'Hafıza', color: '#8B622C', sheet: 'assets/branding/game_catalog/memory_sheet_v2.webp', pos: '0% 66.66%', rec: false, desc: 'Ses dizilimi ve ritim takip hafızası.' },
+  { id: 'attention_tunnel', title: 'Dikkat Tüneli', sub: 'Attention Tunnel', cat: 'memory', catName: 'Hafıza', color: '#8B622C', sheet: 'assets/branding/game_catalog/memory_sheet_v2.webp', pos: '100% 100%', rec: false, desc: 'Çevresel görüş ve odaklanma testi.' },
+  { id: 'balance_scale', title: 'Ağırlık Dengesi', sub: 'Balance Scale', cat: 'logic', catName: 'Mantık', color: '#665AA2', sheet: 'assets/game_visuals/weight_objects_sheet.webp', is3x3: true, pos: '0% 0%', rec: false, desc: 'Kollu terazide dengeli ağırlıkları kurma.' },
+  { id: 'detective_notes', title: 'Dedektif Notları', sub: 'Detective Notes', cat: 'logic', catName: 'Mantık', color: '#665AA2', sheet: 'assets/branding/game_catalog/logic_sheet_v2.webp', pos: '0% 0%', rec: false, desc: 'İpuçlarından mantık tablosunu çözme.' },
+  { id: 'island_sea', title: 'Ada ve Deniz', sub: 'Island & Sea', cat: 'logic', catName: 'Mantık', color: '#665AA2', sheet: 'assets/branding/game_catalog/logic_sheet_v2.webp', pos: '100% 33.33%', rec: false, desc: 'Nurikabe ada ve deniz sınırları çizme.' },
+  { id: 'skyscrapers', title: 'Gökdelenler', sub: 'Skyscrapers', cat: 'logic', catName: 'Mantık', color: '#665AA2', sheet: 'assets/branding/game_catalog/logic_sheet_v2.webp', pos: '0% 66.66%', rec: false, desc: 'Yüksekliklere göre sokaktan gökdelen sayma.' },
+  { id: 'hitori', title: 'Hitori', sub: 'Hitori', cat: 'logic', catName: 'Mantık', color: '#665AA2', sheet: 'assets/branding/game_catalog/logic_sheet_v2.webp', pos: '100% 66.66%', rec: false, desc: 'Aynı sayıları karalama mantık bulmacası.' },
+  { id: 'parking_puzzle', title: 'Park Yeri', sub: 'Parking Puzzle', cat: 'strategy', catName: 'Strateji', color: '#A2643E', sheet: 'assets/branding/game_catalog/strategy_sheet_v2.webp', pos: '0% 33.33%', rec: false, desc: 'Araçları kaydırarak ana aracı çıkarma.' },
+  { id: 'word_hunt', title: 'Kelime Avı', sub: 'Word Hunt', cat: 'language', catName: 'Dil', color: '#3D7183', sheet: 'assets/branding/game_catalog/language_sheet_v2.webp', pos: '0% 0%', rec: false, desc: 'Harf ızgarasında kelimeleri bulma klasiği.' },
+  { id: 'word_wheel', title: 'Kelime Çarkı', sub: 'Word Wheel', cat: 'language', catName: 'Dil', color: '#3D7183', sheet: 'assets/branding/game_catalog/language_sheet_v2.webp', pos: '100% 33.33%', rec: false, desc: 'Daire harflerden kelimeler türetme.' },
+  { id: 'sentence_builder', title: 'Cümle Kur', sub: 'Sentence Builder', cat: 'language', catName: 'Dil', color: '#3D7183', sheet: 'assets/branding/game_catalog/language_sheet_v2.webp', pos: '0% 66.66%', rec: false, desc: 'Kelimelerden anlamlı cümle oluşturma.' },
+  { id: 'meaning_match', title: 'Anlam Eşleştir', sub: 'Meaning Match', cat: 'language', catName: 'Dil', color: '#3D7183', sheet: 'assets/branding/game_catalog/language_sheet_v2.webp', pos: '100% 0%', rec: false, desc: 'Kavram ve anlam kartlarını eşleştirme.' }
+];
+
+const state = {};
+games.forEach(g => {
+  state[g.id] = g.rec ? 'remove' : 'keep';
+});
+
+let currentFilter = 'all';
+
+function render() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  const filtered = games.filter(g => {
+    if (currentFilter === 'all') return true;
+    if (currentFilter === 'rec') return g.rec;
+    return g.cat === currentFilter;
+  });
+
+  filtered.forEach(g => {
+    const isRem = state[g.id] === 'remove';
+    const card = document.createElement('div');
+    card.className = `card ${isRem ? 'status-remove' : 'status-keep'} ${g.rec ? 'recommended' : ''}`;
+    card.id = `c_${g.id}`;
+
+    let artHtml = '';
+    if (g.img) {
+      artHtml = `<div class="art-container"><img src="${g.img}" alt="${g.title}" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\\'art-fallback\\'>🎮</div>';"></div>`;
+    } else if (g.sheet) {
+      const cls = g.is3x3 ? 'sprite-3x3' : 'sprite-sheet';
+      artHtml = `<div class="art-container ${cls}" style="background-image: url('${g.sheet}'); --pos: ${g.pos};"></div>`;
+    } else {
+      artHtml = `<div class="art-container"><div class="art-fallback">🎮</div></div>`;
+    }
+
+    card.innerHTML = `
+      <div>
+        ${artHtml}
+        <div class="meta">
+          <div class="cat-tag" style="color: ${g.color};">${g.catName}</div>
+          <div class="title" title="${g.title}">${g.title}</div>
+          <div class="sub">${g.sub || g.id}</div>
+          <div class="reason">${g.desc}</div>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn-opt opt-keep" onclick="selectGame('${g.id}', 'keep')">✅ KALSIN</button>
+        <button class="btn-opt opt-remove" onclick="selectGame('${g.id}', 'remove')">❌ ÇIKAR</button>
+      </div>
+    `;
+
+    grid.appendChild(card);
+  });
+
+  updateCounts();
+}
+
+function selectGame(id, val) {
+  state[id] = val;
+  const card = document.getElementById(`c_${id}`);
+  if (card) {
+    card.classList.remove('status-keep', 'status-remove');
+    card.classList.add(val === 'remove' ? 'status-remove' : 'status-keep');
+  }
+  updateCounts();
+}
+
+function setAll(val) {
+  games.forEach(g => state[g.id] = val);
+  render();
+}
+
+function setRecommended() {
+  games.forEach(g => state[g.id] = g.rec ? 'remove' : 'keep');
+  render();
+}
+
+function applyFilter(cat, btn) {
+  currentFilter = cat;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function updateCounts() {
+  let k = 0, r = 0;
+  const remList = [];
+  games.forEach(g => {
+    if (state[g.id] === 'remove') {
+      r++;
+      remList.push(g.title);
+    } else {
+      k++;
+    }
+  });
+
+  document.getElementById('keepCount').innerText = k;
+  document.getElementById('removeCount').innerText = r;
+  document.getElementById('summary').innerHTML = `Toplam <strong>${r} oyun çıkarılmak</strong>, <strong>${k} oyun tutulmak</strong> üzere seçildi.`;
+}
+
+function copyResult() {
+  const remGames = games.filter(g => state[g.id] === 'remove');
+  const keepGames = games.filter(g => state[g.id] === 'keep');
+
+  const text = `Oyun seçimlerimi tamamladım:\n\n` +
+    `❌ ÇIKARILACAK OYUNLAR (${remGames.length} adet):\n` +
+    remGames.map((g, i) => `${i + 1}. ${g.title} (${g.id})`).join('\n') +
+    `\n\n✅ SİSTEMDE KALACAK OYUNLAR (${keepGames.length} adet):\n` +
+    keepGames.map((g, i) => `${i + 1}. ${g.title}`).join(', ') +
+    `\n\nBu seçime göre sistemi güncelle lütfen.`;
+
+  navigator.clipboard.writeText(text).then(() => {
+    alert(`🎉 Seçimleriniz panoya kopyalandı! (${remGames.length} oyun çıkarılacak)\nŞimdi sohbete yapıştırabilirsiniz.`);
+  }).catch(() => {
+    prompt("Seçimleriniz kopyalamaya hazır:", text);
+  });
+}
+
+// Başlat
+render();
+</script>
+
+</body>
+</html>

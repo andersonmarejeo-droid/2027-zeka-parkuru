@@ -2,9 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zeka_parkuru/games/target_24/target_24_puzzle.dart';
 
 void main() {
-  group('Target 24 content quality', () {
+  group('Target 24 / Bir Islem content quality', () {
     test(
-      '300 deals are deterministic, unique and have one exact expression',
+      '300 deals are deterministic, unique and have guaranteed whole-number solutions',
       () {
         final Set<String> signatures = <String>{};
         for (
@@ -23,9 +23,9 @@ void main() {
             hasLength(4),
           );
           expect(
-            puzzle.solve(),
-            hasLength(1),
-            reason: 'level $level must have one expression',
+            puzzle.solve().isNotEmpty,
+            isTrue,
+            reason: 'level $level must have at least one solution',
           );
           expect(
             puzzle.isSolved(puzzle.solution),
@@ -33,6 +33,9 @@ void main() {
             reason: 'level $level expression must use every card once',
           );
           expect(puzzle.solutionSteps, hasLength(3));
+          for (final Target24Step step in puzzle.solutionSteps) {
+            expect(step.result.isInteger, isTrue);
+          }
           expect(
             Target24Puzzle.forLevel(level).boardSignature,
             puzzle.boardSignature,
@@ -59,20 +62,51 @@ void main() {
     );
 
     test(
-      'rational arithmetic reduces fractions and rejects division by zero',
+      'integer arithmetic rejects division by zero, non-exact division, and negative results',
       () {
-        expect(Target24Rational(12, 8), Target24Rational(3, 2));
         expect(
-          Target24Rational(
-            3,
-            2,
-          ).apply(Target24Operator.multiply, Target24Rational(4)),
-          Target24Rational(6),
+          Target24Rational(12).apply(
+            Target24Operator.divide,
+            Target24Rational(3),
+          ),
+          Target24Rational(4),
         );
         expect(
-          () =>
-              Target24Rational(2)
-                  .apply(Target24Operator.divide, Target24Rational.zero),
+          Target24Rational(6).apply(
+            Target24Operator.multiply,
+            Target24Rational(4),
+          ),
+          Target24Rational(24),
+        );
+        expect(
+          Target24Rational(15).apply(
+            Target24Operator.subtract,
+            Target24Rational(8),
+          ),
+          Target24Rational(7),
+        );
+        // Non-exact division must throw
+        expect(
+          () => Target24Rational(10).apply(
+            Target24Operator.divide,
+            Target24Rational(3),
+          ),
+          throwsArgumentError,
+        );
+        // Division by zero must throw
+        expect(
+          () => Target24Rational(2).apply(
+            Target24Operator.divide,
+            Target24Rational.zero,
+          ),
+          throwsArgumentError,
+        );
+        // Subtraction smaller - larger must throw
+        expect(
+          () => Target24Rational(4).apply(
+            Target24Operator.subtract,
+            Target24Rational(7),
+          ),
           throwsArgumentError,
         );
       },

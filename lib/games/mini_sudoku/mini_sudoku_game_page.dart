@@ -30,29 +30,45 @@ class MiniSudokuGamePage extends StatelessWidget {
   static const int totalCases = GameContentPolicy.campaignLevels;
   static const int totalStars = totalCases * 3;
 
+  static ParkurLevelSpec levelSpec(int index) {
+    final int safeLevel = GameContentPolicy.endlessHighChapter(index + 1);
+    final int stage = ((safeLevel - 1) % 30) + 1;
+    final String subtitleTr = stage <= 6
+        ? '4×4 · 2×2 bölgeler · Kolay Isınma'
+        : stage <= 19
+        ? '6×6 · 2×3 bölgeler · Hız & Mantık'
+        : '9×9 · 3×3 bölgeler · Klasik Sudoku';
+    final String subtitleEn = stage <= 6
+        ? '4×4 · 2×2 regions · Easy Warm-up'
+        : stage <= 19
+        ? '6×6 · 2×3 regions · Speed & Logic'
+        : '9×9 · 3×3 regions · Classic Sudoku';
+
+    return ParkurLevelSpec(
+      number: index + 1,
+      titleTr: '${stage <= 6 ? 'Mini Sudoku' : 'Sudoku'} ${'${index + 1}'.padLeft(2, '0')}',
+      titleEn: '${stage <= 6 ? 'Mini Sudoku' : 'Sudoku'} ${'${index + 1}'.padLeft(2, '0')}',
+      subtitleTr: subtitleTr,
+      subtitleEn: subtitleEn,
+      difficulty: _stageName(stage, english: false),
+      icon: Icons.grid_on_rounded,
+    );
+  }
+
   static final List<ParkurLevelSpec> _levels = List<ParkurLevelSpec>.generate(
-    GameContentPolicy.nativeStages('mini_sudoku'),
-    (int index) {
-      final int stage = (index % 10) + 1;
-      return ParkurLevelSpec(
-        number: index + 1,
-        titleTr: 'Sudoku ${'${index + 1}'.padLeft(3, '0')}',
-        titleEn: 'Sudoku ${'${index + 1}'.padLeft(3, '0')}',
-        subtitleTr: '6×6 · 2×3 bölgeler · Her sayı bir kez',
-        subtitleEn: '6×6 · 2×3 regions · Every digit once',
-        difficulty: _stageName(stage, english: false),
-        icon: Icons.grid_on_rounded,
-      );
-    },
+    totalCases,
+    levelSpec,
   );
 
-  static String _stageName(int stage, {required bool english}) => stage <= 2
-      ? (english ? 'FOUNDATION' : 'BAŞLANGIÇ')
-      : stage <= 6
-      ? (english ? 'MASTERY' : 'USTALAŞMA')
-      : stage <= 8
-      ? (english ? 'ADVANCED' : 'İLERİ')
-      : (english ? 'EXPERT' : 'UZMAN');
+  static String _stageName(int stage, {required bool english}) =>
+      switch (stage) {
+        <= 6 => english ? 'FOUNDATION 4×4' : 'BAŞLANGIÇ 4×4',
+        <= 12 => english ? 'EASY 6×6' : 'KOLAY 6×6',
+        <= 19 => english ? 'MEDIUM 6×6' : 'GELİŞİM 6×6',
+        <= 24 => english ? 'CLASSIC 9×9' : 'KLASİK 9×9',
+        <= 28 => english ? 'EXPERT 9×9' : 'UZMAN 9×9',
+        _ => english ? 'MASTER 9×9' : 'USTA 9×9',
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -60,10 +76,10 @@ class MiniSudokuGamePage extends StatelessWidget {
     return ParkurLevelHub(
       gameId: 'mini_sudoku',
       progressPrefix: 'mini_sudoku',
-      titleTr: 'Mini Sudoku 6×6',
+      titleTr: 'Mini Su Doku',
       titleEn: 'Mini Sudoku 6×6',
-      taglineTr: 'Satır • sütun • 2×3 bölge — her biri 1–6',
-      taglineEn: 'Row • column • 2×3 region — each uses 1–6',
+      taglineTr: '1–6: 4×4 başlangıç, 7–19: 6×6 gelişim, 20+: klasik 9×9.',
+      taglineEn: '1–6: 4×4 start, 7–19: 6×6 medium, 20+: classic 9×9.',
       accent: skin.accent,
       icon: Icons.grid_on_rounded,
       levels: _levels,
@@ -118,6 +134,7 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
   late final StudioGameSession _session;
   late List<int> _values;
   late List<Set<int>> _notes;
+  late Set<int> _cachedConflicts;
   int? _selectedIndex;
   bool _english = false;
   bool _noteMode = false;
@@ -131,11 +148,9 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
     _puzzle = MiniSudokuPuzzle.forLevel(widget.level.contentIndex);
     _initialGivens = List<int>.unmodifiable(_puzzle.givens);
     _values = List<int>.from(_initialGivens);
-    _notes = List<Set<int>>.generate(
-      MiniSudokuPuzzle.cellCount,
-      (_) => <int>{},
-    );
+    _notes = List<Set<int>>.generate(_puzzle.cellCount, (_) => <int>{});
     _selectedIndex = _initialGivens.indexWhere((int value) => value == 0);
+    _recalculateConflicts();
     _session = StudioGameSession(
       level: widget.level.number,
       seed: widget.level.number,
@@ -143,22 +158,23 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
     unawaited(_audioProfile.preload(_audio));
   }
 
-  int get _filledCount => _values.where((int value) => value != 0).length;
-  int get _conflictCount => _conflictedIndices.length;
-  bool get _isComplete => _filledCount == MiniSudokuPuzzle.cellCount;
-
-  Set<int> get _conflictedIndices {
+  void _recalculateConflicts() {
     final Set<int> conflicts = <int>{};
     for (int index = 0; index < _values.length; index++) {
       final int value = _values[index];
       if (value == 0 || _initialGivens[index] != 0) continue;
       if (_puzzle.hasConflict(_values, index, value)) conflicts.add(index);
     }
-    return conflicts;
+    _cachedConflicts = conflicts;
   }
+
+  int get _filledCount => _values.where((int value) => value != 0).length;
+  int get _conflictCount => _cachedConflicts.length;
+  bool get _isComplete => _filledCount == _puzzle.cellCount;
 
   void _selectCell(int index) {
     if (_finished || index < 0 || index >= _values.length) return;
+    if (_selectedIndex == index) return;
     setState(() => _selectedIndex = index);
     _audio.hapticSelection();
     unawaited(
@@ -212,14 +228,16 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
       return;
     }
 
+    final bool hadConflictBefore = _cachedConflicts.contains(index);
     setState(() {
       _values[index] = digit;
       _notes[index].clear();
       _moves++;
       _selectedIndex = _nextEmptyAfter(index);
+      _recalculateConflicts();
     });
     _session.recordAccepted();
-    if (_puzzle.hasConflict(_values, index, digit)) {
+    if (_cachedConflicts.contains(index) && !hadConflictBefore) {
       _session.recordMistake();
       unawaited(_audioProfile.play(_audio, GameAudioEvent.rejected, gain: .3));
     } else {
@@ -243,95 +261,94 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
     final int? index = _selectedIndex;
     if (_finished || index == null || _initialGivens[index] != 0) return;
     if (_values[index] == 0 && _notes[index].isEmpty) return;
+
     _saveUndo();
     setState(() {
       _values[index] = 0;
       _notes[index].clear();
       _moves++;
+      _recalculateConflicts();
     });
-    unawaited(_audio.play(GameSound.uiBack, gain: .25));
-  }
-
-  void _undoMove() {
-    if (_finished || _undo.isEmpty) return;
-    final _SudokuSnapshot snapshot = _undo.removeLast();
-    setState(() {
-      _values = List<int>.from(snapshot.values);
-      _notes = <Set<int>>[
-        for (final Set<int> cellNotes in snapshot.notes)
-          Set<int>.from(cellNotes),
-      ];
-      _selectedIndex = snapshot.selectedIndex;
-      _moves++;
-    });
-    unawaited(_audio.play(GameSound.uiBack, gain: .25));
+    unawaited(_audio.play(GameSound.uiBack, gain: .24));
   }
 
   void _toggleNotes() {
     if (_finished) return;
     setState(() => _noteMode = !_noteMode);
+    _audio.hapticSelection();
     unawaited(
-      _audioProfile.play(_audio, GameAudioEvent.primaryAction, gain: .2),
+      _audioProfile.play(_audio, GameAudioEvent.primaryAction, gain: .22),
     );
   }
 
-  void _hint() {
-    if (_finished || !_session.canUseHint) return;
-    final int? selected = _selectedIndex;
-    final int index = selected != null && _values[selected] == 0
-        ? selected
-        : _values.indexWhere((int value) => value == 0);
-    if (index < 0) return;
-    _saveUndo();
+  void _undoMove() {
+    if (_finished || _undo.isEmpty) return;
+    final _SudokuSnapshot last = _undo.removeLast();
     setState(() {
-      _values[index] = _puzzle.solution[index];
-      _notes[index].clear();
-      _selectedIndex = _nextEmptyAfter(index);
+      _values = List<int>.from(last.values);
+      _notes = <Set<int>>[
+        for (final Set<int> cellNotes in last.notes) Set<int>.from(cellNotes),
+      ];
+      _selectedIndex = last.selectedIndex;
       _moves++;
-      _hints++;
+      _recalculateConflicts();
     });
-    _session.useHint(pointCost: 140);
-    unawaited(_audioProfile.play(_audio, GameAudioEvent.hint, gain: .32));
+    unawaited(_audio.play(GameSound.uiBack, gain: .3));
+  }
+
+  void _hint() {
+    if (_finished || !_session.canUseHint || _hints >= 3) return;
+
+    int? candidateIndex;
+    final int? current = _selectedIndex;
+    if (current != null &&
+        _initialGivens[current] == 0 &&
+        _values[current] != _puzzle.solution[current]) {
+      candidateIndex = current;
+    } else {
+      for (int index = 0; index < _puzzle.cellCount; index++) {
+        if (_initialGivens[index] == 0 &&
+            _values[index] != _puzzle.solution[index]) {
+          candidateIndex = index;
+          break;
+        }
+      }
+    }
+
+    if (candidateIndex == null) return;
+    _saveUndo();
+    final int target = _puzzle.solution[candidateIndex];
+    setState(() {
+      _values[candidateIndex!] = target;
+      _notes[candidateIndex].clear();
+      _selectedIndex = candidateIndex;
+      _hints++;
+      _moves++;
+      _recalculateConflicts();
+    });
+    _session.useHint(pointCost: 160);
+    _audio.hapticSelection();
+    unawaited(_audioProfile.play(_audio, GameAudioEvent.hint, gain: .38));
+    _showMessage(
+      _english
+          ? 'Hint placed: $target in cell ${candidateIndex + 1}.'
+          : 'İpucu eklendi: ${candidateIndex + 1}. hücreye $target yerleştirildi.',
+    );
   }
 
   void _resetBoard() {
     if (_finished) return;
     setState(() {
       _values = List<int>.from(_initialGivens);
-      _notes = List<Set<int>>.generate(
-        MiniSudokuPuzzle.cellCount,
-        (_) => <int>{},
-      );
+      _notes = List<Set<int>>.generate(_puzzle.cellCount, (_) => <int>{});
       _selectedIndex = _initialGivens.indexWhere((int value) => value == 0);
-      _noteMode = false;
       _undo.clear();
+      _noteMode = false;
       _moves = 0;
       _hints = 0;
+      _recalculateConflicts();
     });
-    unawaited(_audio.play(GameSound.uiBack, gain: .25));
-  }
-
-  Future<void> _checkBoard() async {
-    if (_finished) return;
-    if (!_isComplete) {
-      _showMessage(
-        _english
-            ? '${MiniSudokuPuzzle.cellCount - _filledCount} cells still need a value.'
-            : '${MiniSudokuPuzzle.cellCount - _filledCount} hücre daha doldurulmalı.',
-      );
-      return;
-    }
-    if (_conflictCount > 0 || !_puzzle.isSolved(_values)) {
-      _session.recordMistake();
-      unawaited(_audioProfile.play(_audio, GameAudioEvent.rejected, gain: .34));
-      _showMessage(
-        _english
-            ? 'Check the highlighted row, column and 2×3 region.'
-            : 'Vurgulanan satır, sütun ve 2×3 bölgeyi kontrol et.',
-      );
-      return;
-    }
-    await _complete();
+    unawaited(_audio.play(GameSound.uiBack, gain: .3));
   }
 
   void _showMessage(String message) {
@@ -346,20 +363,78 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
       );
   }
 
+  Future<void> _checkBoard() async {
+    if (_finished) return;
+
+    // Eğer boş hücrelerde tek bir taslak not varsa, kontrol anında
+    // kullanıcıyı mağdur etmemek için otomatik olarak asıl sayıya dönüştür.
+    bool promoted = false;
+    for (int i = 0; i < _values.length; i++) {
+      if (_values[i] == 0 && _notes[i].length == 1) {
+        _values[i] = _notes[i].first;
+        _notes[i].clear();
+        promoted = true;
+      }
+    }
+    if (promoted) {
+      _recalculateConflicts();
+      if (_isComplete) {
+        _noteMode = false;
+      }
+      setState(() {});
+    }
+
+    if (!_isComplete) {
+      final bool hasAnyNotes = _notes.any((Set<int> n) => n.isNotEmpty);
+      _showMessage(
+        hasAnyNotes
+            ? (_english
+                ? 'Some cells only have pencil notes. Turn off NOT mode to enter final numbers.'
+                : 'Bazı hücrelerde sadece taslak notlar var. "NOT" modunu kapatıp sayıları kesinleştirin.')
+            : (_english
+                ? 'Fill all cells before checking the board.'
+                : 'Kontrol etmeden önce tüm boşlukları doldur.'),
+      );
+      return;
+    }
+    if (_conflictCount > 0) {
+      _session.recordMistake();
+      unawaited(_audioProfile.play(_audio, GameAudioEvent.rejected, gain: .38));
+      _showMessage(
+        _english
+            ? 'There are conflicting numbers highlighted in red.'
+            : 'Kırmızıyla işaretlenen çakışan sayılar var.',
+      );
+      return;
+    }
+    if (_puzzle.isSolved(_values)) {
+      await _complete();
+    } else {
+      _session.recordMistake();
+      unawaited(_audioProfile.play(_audio, GameAudioEvent.rejected, gain: .38));
+      _showMessage(
+        _english
+            ? 'Some numbers do not match the unique solution.'
+            : 'Bazı sayılar benzersiz çözümle uyuşmuyor.',
+      );
+    }
+  }
+
   Future<void> _complete() async {
     if (_finished) return;
     _finished = true;
-    final int stars = _hints == 0 && _session.mistakes == 0
+    final int mistakes = _session.mistakes;
+    final int stars = _hints == 0 && mistakes == 0
         ? 3
-        : _hints <= 2 && _session.mistakes <= 2
+        : _hints <= 1 && mistakes <= 2
         ? 2
         : 1;
     final int score = math.max(
       220,
       2100 -
-          math.max(0, _moves - _puzzle.blankCount) * 7 -
-          _hints * 180 -
-          _session.mistakes * 95,
+          math.max(0, _moves - _puzzle.blankCount) * 14 -
+          mistakes * 65 -
+          _hints * 190,
     );
     _session.recordAccepted(points: score);
     final StudioGameResult result = _session.complete(
@@ -369,15 +444,12 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
           : StudioResultAction.map,
     );
     _audio.hapticMedium();
-    unawaited(
-      _audioProfile.play(_audio, GameAudioEvent.accepted, gain: .38),
-    );
     unawaited(_audioProfile.play(
       _audio,
       GameAudioEvent.levelComplete,
       levelNumber: widget.level.number,
     ));
-    await Future<void>.delayed(const Duration(milliseconds: 170));
+    await Future<void>.delayed(const Duration(milliseconds: 180));
     if (!mounted) return;
     await showDialog<void>(
       context: context,
@@ -386,7 +458,9 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
         backgroundColor: _ink,
         icon: const Icon(Icons.grid_on_rounded, color: Color(0xFFE8C99B)),
         title: Text(
-          _english ? 'GRID SOLVED' : 'SUDOKU TAMAMLANDI',
+          context.l10n.gameUi(
+            _english ? 'SUDOKU COMPLETED' : 'SUDOKU TAMAMLANDI',
+          ),
           style: const TextStyle(
             fontFamily: 'Roboto',
             color: Colors.white,
@@ -394,9 +468,11 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
           ),
         ),
         content: Text(
-          _english
-              ? '$stars stars  •  $score points\nEvery row, column and region is complete.'
-              : '$stars yıldız  •  $score puan\nSatır, sütun ve bölgeler tamamlandı.',
+          context.l10n.gameUi(
+            _english
+                ? '$stars stars  •  $score points\nEvery row, column, and box is uniquely solved.'
+                : '$stars yıldız  •  $score puan\nTüm satırlar, sütunlar ve bölgeler benzersiz tamamlandı.',
+          ),
           style: const TextStyle(fontFamily: 'Roboto', color: Colors.white70),
         ),
         actions: <Widget>[
@@ -411,7 +487,7 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
                 ).toParkurResult(),
               );
             },
-            child: Text(_english ? 'LEVEL BOARD' : 'BÖLÜM PANOSU'),
+            child: Text(context.l10n.gameUi(_english ? 'MAP' : 'PARKUR')),
           ),
           FilledButton(
             onPressed: () {
@@ -419,12 +495,85 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
               Navigator.of(context).pop(result.toParkurResult());
             },
             child: Text(
-              widget.level.number < MiniSudokuGamePage.totalCases
-                  ? (_english ? 'NEXT SUDOKU' : 'SONRAKİ SUDOKU')
-                  : (_english ? 'LEVEL BOARD' : 'BÖLÜM PANOSU'),
+              context.l10n.gameUi(
+                widget.level.number < MiniSudokuGamePage.totalCases
+                    ? (_english ? 'NEXT PUZZLE' : 'SONRAKİ BULMACA')
+                    : (_english ? 'LEVEL BOARD' : 'BÖLÜM PANOSU'),
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.help_outline_rounded, color: _accent, size: 24),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _english ? 'HOW TO PLAY SUDOKU?' : 'SUDOKU NASIL OYNANIR?',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: _ink,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _english
+                    ? '• 4×4 Boards (Levels 1–6): Fill digits 1–4 so each row, column, and 2×2 box contains no repeats.\n• 6×6 Boards (Levels 7–19): Fill digits 1–6 in 2×3 regions.\n• 9×9 Boards (Levels 20+): Classic Sudoku with digits 1–9 and 3×3 regions.\n• Tap any cell to select it instantly, then tap a number below.\n• Use "NOTE" mode to write small candidate numbers.'
+                    : '• 4×4 Izgara (1–6. Seviyeler): 1–4 arası rakamları her satır, sütun ve 2×2 bölgede bir kez kullanın.\n• 6×6 Izgara (7–19. Seviyeler): 1–6 arası rakamları 2×3 bölgelerde kullanın.\n• 9×9 Izgara (20+. Seviyeler): 1–9 arası rakamlarla klasik 3×3 Sudoku.\n• Hücreye dokununca gecikmesiz seçilir; alttaki klavyeden sayıyı girin.\n• İhtimalleri yazmak için "NOT" modunu kullanabilirsiniz.',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 14,
+                  height: 1.5,
+                  color: _ink,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _english
+                    ? 'Current Grid: ${_puzzle.size}×${_puzzle.size}  •  ${_puzzle.difficultyTier}'
+                    : 'Mevcut Izgara: ${_puzzle.size}×${_puzzle.size}  •  ${_puzzle.difficultyTier}',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: _muted,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -433,9 +582,6 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
   Widget build(BuildContext context) {
     _english = context.l10n.isEnglish;
     final int stage = _puzzle.localStage;
-    final List<int> conflicts = _conflictedIndices.toList(growable: false);
-    final double width = MediaQuery.sizeOf(context).width;
-    final double boardSize = math.min(width - 24, 440);
 
     return Scaffold(
       backgroundColor: _canvas,
@@ -449,18 +595,22 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              _english ? 'MINI SUDOKU 6×6' : 'MİNİ SUDOKU 6×6',
+              context.l10n.gameUi(
+                _english
+                    ? '${_puzzle.size <= 6 ? 'MINI ' : ''}SUDOKU ${_puzzle.size}×${_puzzle.size}'
+                    : '${_puzzle.size <= 6 ? 'MİNİ ' : ''}SU DOKU ${_puzzle.size}×${_puzzle.size}',
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontFamily: 'Roboto',
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w900,
                 letterSpacing: .65,
               ),
             ),
             Text(
-              '${_english ? 'PUZZLE' : 'BULMACA'} ${widget.level.number.toString().padLeft(3, '0')} · ${MiniSudokuGamePage._stageName(stage, english: _english)}',
+              '${context.l10n.gameUi(_english ? 'PUZZLE' : 'BULMACA')} ${widget.level.number.toString().padLeft(3, '0')} · ${context.l10n.gameUi(_puzzle.difficultyTier)}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -473,6 +623,11 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
           ],
         ),
         actions: <Widget>[
+          IconButton(
+            onPressed: _showHowToPlay,
+            tooltip: _english ? 'How to play' : 'Nasıl oynanır',
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
           IconButton(
             key: const ValueKey<String>('mini_sudoku_undo'),
             onPressed: _undo.isEmpty ? null : _undoMove,
@@ -493,51 +648,57 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
           child: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
               final double availableWidth = math.min(
-                constraints.maxWidth - 24,
-                440,
+                constraints.maxWidth - 20,
+                420,
               );
-              final double compactBoardSize = math.min(
+              final double maxBoardHeight = constraints.maxHeight - 215;
+              final double fittedBoardSize = math.min(
                 availableWidth,
-                math.max(240, constraints.maxHeight - 210),
+                math.max(200, maxBoardHeight),
               );
               return SingleChildScrollView(
                 key: const ValueKey<String>('mini_sudoku_scroll'),
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
                 child: Column(
                   children: <Widget>[
                     _SudokuSummary(
                       filled: _filledCount,
                       fixed: _puzzle.givenCount,
-                      conflicts: conflicts.length,
+                      size: _puzzle.size,
+                      conflicts: _conflictCount,
                       stage: stage,
                       moves: _moves,
                       english: _english,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Center(
                       child: SizedBox.square(
-                        dimension: math.min(compactBoardSize, boardSize),
+                        dimension: fittedBoardSize,
                         child: _MiniSudokuBoard(
                           values: _values,
                           notes: _notes,
                           givens: _initialGivens,
+                          size: _puzzle.size,
+                          boxHeight: _puzzle.boxHeight,
+                          boxWidth: _puzzle.boxWidth,
                           selectedIndex: _selectedIndex,
-                          conflicts: conflicts.toSet(),
+                          conflicts: _cachedConflicts,
                           onSelect: _selectCell,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 5),
                     _BoardStatus(
                       selectedIndex: _selectedIndex,
                       value: _selectedIndex == null
                           ? 0
                           : _values[_selectedIndex!],
+                      maxDigit: _puzzle.size,
                       noteMode: _noteMode,
-                      conflicts: conflicts.length,
+                      conflicts: _conflictCount,
                       english: _english,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 5),
                     _SudokuActionRow(
                       noteMode: _noteMode,
                       onUndo: _undo.isEmpty ? null : _undoMove,
@@ -546,46 +707,37 @@ class _MiniSudokuPlayPageState extends State<MiniSudokuPlayPage> {
                       onHint: _hint,
                       english: _english,
                     ),
-                    const SizedBox(height: 5),
-                    _SudokuNumberPad(noteMode: _noteMode, onDigit: _enterDigit),
+                    const SizedBox(height: 6),
+                    _SudokuNumberPad(
+                      size: _puzzle.size,
+                      noteMode: _noteMode,
+                      onDigit: _enterDigit,
+                    ),
                     const SizedBox(height: 6),
                     FilledButton.icon(
                       key: const ValueKey<String>('mini_sudoku_check'),
                       onPressed: _checkBoard,
-                      icon: const Icon(Icons.fact_check_outlined),
+                      icon: const Icon(Icons.fact_check_outlined, size: 18),
                       label: Text(
-                        _english ? 'CHECK THE GRID' : 'TABLOYU KONTROL ET',
+                        context.l10n.gameUi(
+                          _english ? 'CHECK THE GRID' : 'TABLOYU KONTROL ET',
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(
-                          GameInputPolicy.minimumTargetSize + 4,
-                        ),
+                        minimumSize: const Size.fromHeight(40),
                         backgroundColor: _accent,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         textStyle: const TextStyle(
                           fontFamily: 'Roboto',
                           fontWeight: FontWeight.w900,
+                          fontSize: 13,
                           letterSpacing: .4,
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      _english
-                          ? 'Every digit 1–6 appears once in each row, column and 2×3 region.'
-                          : 'Her satırda, sütunda ve 2×3 bölgede 1–6 sayıları birer kez yer alır.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: 'Roboto',
-                        color: _muted,
-                        fontSize: 11,
-                        height: 1.25,
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -615,6 +767,7 @@ class _SudokuSummary extends StatelessWidget {
   const _SudokuSummary({
     required this.filled,
     required this.fixed,
+    required this.size,
     required this.conflicts,
     required this.stage,
     required this.moves,
@@ -623,6 +776,7 @@ class _SudokuSummary extends StatelessWidget {
 
   final int filled;
   final int fixed;
+  final int size;
   final int conflicts;
   final int stage;
   final int moves;
@@ -630,76 +784,86 @@ class _SudokuSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(12),
       border: Border.all(color: const Color(0xFFE2E8E4)),
     ),
     child: Row(
       children: <Widget>[
         const Icon(
           Icons.grid_on_rounded,
-          size: 18,
+          size: 16,
           color: _MiniSudokuPlayPageState._accent,
         ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            english
-                ? '$filled / 36 filled · $fixed clues'
-                : '$filled / 36 dolu · $fixed ipucu',
+            context.l10n.gameUi(
+              english
+                  ? '$filled / ${size * size} filled · $fixed clues'
+                  : '$filled / ${size * size} dolu · $fixed ipucu',
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontFamily: 'Roboto',
-              color: _MiniSudokuPlayPageState._ink,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w900,
+              color: _MiniSudokuPlayPageState._ink,
             ),
           ),
         ),
-        _StageChip(stage: stage, english: english),
         if (conflicts > 0) ...<Widget>[
           const SizedBox(width: 6),
-          Icon(
-            Icons.error_outline_rounded,
-            size: 15,
-            color: _MiniSudokuPlayPageState._coral,
+          Text(
+            context.l10n.gameUi(
+              english ? '$conflicts conflict' : '$conflicts çakışma',
+            ),
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: _MiniSudokuPlayPageState._coral,
+            ),
           ),
         ],
+        const SizedBox(width: 6),
+        _StageBadge(stage: stage, english: english),
       ],
     ),
   );
 }
 
-class _StageChip extends StatelessWidget {
-  const _StageChip({required this.stage, required this.english});
+class _StageBadge extends StatelessWidget {
+  const _StageBadge({required this.stage, required this.english});
 
   final int stage;
   final bool english;
 
   @override
   Widget build(BuildContext context) {
-    final Color accent = stage >= 9
-        ? _MiniSudokuPlayPageState._coral
-        : stage >= 7
-        ? _MiniSudokuPlayPageState._brass
-        : _MiniSudokuPlayPageState._accent;
+    final Color accent = stage <= 6
+        ? const Color(0xFF2E7D32)
+        : stage <= 19
+        ? _MiniSudokuPlayPageState._accent
+        : _MiniSudokuPlayPageState._coral;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: .10),
+        color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        '${english ? 'STAGE' : 'AŞAMA'} ${stage.toString().padLeft(2, '0')}',
+        context.l10n.gameUi(
+          '${english ? 'STAGE' : 'AŞAMA'} ${stage.toString().padLeft(2, '0')}',
+        ),
         style: TextStyle(
           fontFamily: 'Roboto',
           color: accent,
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w900,
-          letterSpacing: .35,
         ),
       ),
     );
@@ -711,6 +875,9 @@ class _MiniSudokuBoard extends StatelessWidget {
     required this.values,
     required this.notes,
     required this.givens,
+    required this.size,
+    required this.boxHeight,
+    required this.boxWidth,
     required this.selectedIndex,
     required this.conflicts,
     required this.onSelect,
@@ -719,6 +886,9 @@ class _MiniSudokuBoard extends StatelessWidget {
   final List<int> values;
   final List<Set<int>> notes;
   final List<int> givens;
+  final int size;
+  final int boxHeight;
+  final int boxWidth;
   final int? selectedIndex;
   final Set<int> conflicts;
   final ValueChanged<int> onSelect;
@@ -742,24 +912,20 @@ class _MiniSudokuBoard extends StatelessWidget {
           GridView.builder(
             padding: EdgeInsets.zero,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: MiniSudokuPuzzle.cellCount,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: MiniSudokuPuzzle.size,
+            itemCount: values.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: size,
             ),
             itemBuilder: (BuildContext context, int index) {
-              final int row = index ~/ MiniSudokuPuzzle.size;
-              final int column = index % MiniSudokuPuzzle.size;
+              final int row = index ~/ size;
+              final int column = index % size;
               final int? selected = selectedIndex;
               final bool sameUnit =
                   selected != null &&
-                  (row == selected ~/ MiniSudokuPuzzle.size ||
-                      column == selected % MiniSudokuPuzzle.size ||
-                      (row ~/ MiniSudokuPuzzle.boxHeight ==
-                              (selected ~/ MiniSudokuPuzzle.size) ~/
-                                  MiniSudokuPuzzle.boxHeight &&
-                          column ~/ MiniSudokuPuzzle.boxWidth ==
-                              (selected % MiniSudokuPuzzle.size) ~/
-                                  MiniSudokuPuzzle.boxWidth));
+                  (row == selected ~/ size ||
+                      column == selected % size ||
+                      (row ~/ boxHeight == (selected ~/ size) ~/ boxHeight &&
+                          column ~/ boxWidth == (selected % size) ~/ boxWidth));
               final bool sameNumber =
                   selected != null &&
                   values[selected] != 0 &&
@@ -767,6 +933,7 @@ class _MiniSudokuBoard extends StatelessWidget {
               return _SudokuCell(
                 key: ValueKey<String>('mini_sudoku_cell_$index'),
                 index: index,
+                size: size,
                 value: values[index],
                 notes: notes[index],
                 fixed: givens[index] != 0,
@@ -778,9 +945,15 @@ class _MiniSudokuBoard extends StatelessWidget {
               );
             },
           ),
-          const Positioned.fill(
+          Positioned.fill(
             child: IgnorePointer(
-              child: CustomPaint(painter: _SudokuGridPainter()),
+              child: CustomPaint(
+                painter: _SudokuGridPainter(
+                  size: size,
+                  boxHeight: boxHeight,
+                  boxWidth: boxWidth,
+                ),
+              ),
             ),
           ),
         ],
@@ -793,6 +966,7 @@ class _SudokuCell extends StatelessWidget {
   const _SudokuCell({
     super.key,
     required this.index,
+    required this.size,
     required this.value,
     required this.notes,
     required this.fixed,
@@ -804,6 +978,7 @@ class _SudokuCell extends StatelessWidget {
   });
 
   final int index;
+  final int size;
   final int value;
   final Set<int> notes;
   final bool fixed;
@@ -824,20 +999,21 @@ class _SudokuCell extends StatelessWidget {
         : sameUnit
         ? const Color(0xFFF1F5F2)
         : Colors.white;
-    final int row = index ~/ MiniSudokuPuzzle.size;
-    final int column = index % MiniSudokuPuzzle.size;
+    final int row = index ~/ size;
+    final int column = index % size;
     return Semantics(
       button: true,
       selected: selected,
       label:
           'Row ${row + 1}, column ${column + 1}, ${value == 0 ? 'empty' : value}',
-      child: Material(
-        color: background,
-        child: InkWell(
-          onTap: onTap,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => onTap(),
+        child: Container(
+          color: background,
           child: Center(
             child: value == 0
-                ? _CandidateMarks(notes: notes)
+                ? _CandidateMarks(notes: notes, size: size)
                 : FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
@@ -849,7 +1025,7 @@ class _SudokuCell extends StatelessWidget {
                             : fixed
                             ? _MiniSudokuPlayPageState._ink
                             : _MiniSudokuPlayPageState._accent,
-                        fontSize: 22,
+                        fontSize: size == 4 ? 26 : (size == 6 ? 22 : 18),
                         height: 1,
                         fontWeight: fixed ? FontWeight.w900 : FontWeight.w800,
                       ),
@@ -863,74 +1039,91 @@ class _SudokuCell extends StatelessWidget {
 }
 
 class _CandidateMarks extends StatelessWidget {
-  const _CandidateMarks({required this.notes});
+  const _CandidateMarks({required this.notes, required this.size});
 
   final Set<int> notes;
+  final int size;
 
   @override
-  Widget build(BuildContext context) => GridView.count(
-    padding: const EdgeInsets.all(2),
-    crossAxisCount: 3,
-    physics: const NeverScrollableScrollPhysics(),
-    children: <Widget>[
-      for (int value = 1; value <= MiniSudokuPuzzle.size; value++)
-        Center(
-          child: Text(
-            notes.contains(value) ? '$value' : '',
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              color: _MiniSudokuPlayPageState._muted,
-              fontSize: 10,
-              height: 1,
-              fontWeight: FontWeight.w700,
+  Widget build(BuildContext context) {
+    if (notes.isEmpty) return const SizedBox.shrink();
+    final int subSize = size == 4 ? 2 : 3;
+    return Padding(
+      padding: const EdgeInsets.all(2),
+      child: GridView.count(
+        crossAxisCount: subSize,
+        physics: const NeverScrollableScrollPhysics(),
+        children: <Widget>[
+          for (int digit = 1; digit <= size; digit++)
+            Center(
+              child: Text(
+                notes.contains(digit) ? '$digit' : '',
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: size == 4 ? 11 : (size == 6 ? 8.5 : 7.5),
+                  fontWeight: FontWeight.w800,
+                  color: _MiniSudokuPlayPageState._line,
+                  height: 1,
+                ),
+              ),
             ),
-          ),
-        ),
-    ],
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class _SudokuGridPainter extends CustomPainter {
-  const _SudokuGridPainter();
+  const _SudokuGridPainter({
+    required this.size,
+    required this.boxHeight,
+    required this.boxWidth,
+  });
+
+  final int size;
+  final int boxHeight;
+  final int boxWidth;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final double cellWidth = size.width / MiniSudokuPuzzle.size;
-    final double cellHeight = size.height / MiniSudokuPuzzle.size;
-    for (int line = 0; line <= MiniSudokuPuzzle.size; line++) {
-      final bool majorHorizontal = line % MiniSudokuPuzzle.boxHeight == 0;
-      final bool majorVertical = line % MiniSudokuPuzzle.boxWidth == 0;
-      final Paint horizontal = Paint()
-        ..color = _MiniSudokuPlayPageState._line.withValues(
-          alpha: majorHorizontal ? .78 : .24,
-        )
-        ..strokeWidth = majorHorizontal ? 2.0 : .65;
-      final Paint vertical = Paint()
-        ..color = _MiniSudokuPlayPageState._line.withValues(
-          alpha: majorVertical ? .78 : .24,
-        )
-        ..strokeWidth = majorVertical ? 2.0 : .65;
+  void paint(Canvas canvas, Size canvasSize) {
+    final double step = canvasSize.width / size;
+    final Paint thin = Paint()
+      ..color = const Color(0xFFD3DDD7)
+      ..strokeWidth = 1.0;
+    final Paint thick = Paint()
+      ..color = _MiniSudokuPlayPageState._ink.withValues(alpha: 0.65)
+      ..strokeWidth = 2.4;
+
+    for (int line = 1; line < size; line++) {
+      final double position = line * step;
+      final bool thickCol = line % boxWidth == 0;
+      final bool thickRow = line % boxHeight == 0;
+
       canvas.drawLine(
-        Offset(0, line * cellHeight),
-        Offset(size.width, line * cellHeight),
-        horizontal,
+        Offset(position, 0),
+        Offset(position, canvasSize.height),
+        thickCol ? thick : thin,
       );
       canvas.drawLine(
-        Offset(line * cellWidth, 0),
-        Offset(line * cellWidth, size.height),
-        vertical,
+        Offset(0, position),
+        Offset(canvasSize.width, position),
+        thickRow ? thick : thin,
       );
     }
   }
 
   @override
-  bool shouldRepaint(_SudokuGridPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _SudokuGridPainter oldDelegate) =>
+      oldDelegate.size != size ||
+      oldDelegate.boxHeight != boxHeight ||
+      oldDelegate.boxWidth != boxWidth;
 }
 
 class _BoardStatus extends StatelessWidget {
   const _BoardStatus({
     required this.selectedIndex,
     required this.value,
+    required this.maxDigit,
     required this.noteMode,
     required this.conflicts,
     required this.english,
@@ -938,47 +1131,64 @@ class _BoardStatus extends StatelessWidget {
 
   final int? selectedIndex;
   final int value;
+  final int maxDigit;
   final bool noteMode;
   final int conflicts;
   final bool english;
 
   @override
   Widget build(BuildContext context) {
-    final String text = conflicts > 0
-        ? (english
-              ? '$conflicts conflicting cells — review the red marks.'
-              : '$conflicts çakışan hücre — kırmızı işaretleri gözden geçir.')
-        : noteMode
-        ? (english
-              ? 'Pencil marks · choose candidates for the selected cell.'
-              : 'Not modu · seçili hücre için adayları işaretle.')
-        : selectedIndex == null
-        ? (english
-              ? 'Select an empty cell, then choose 1–6.'
-              : 'Boş bir hücre seç, sonra 1–6 arasından yaz.')
-        : value != 0
-        ? (english
-              ? 'Selected cell: $value · tap another cell to continue.'
-              : 'Seçili hücre: $value · devam etmek için başka hücreye dokun.')
-        : (english
-              ? 'Selected cell ready · enter a value from 1 to 6.'
-              : 'Seçili hücre hazır · 1–6 arasında bir sayı gir.');
-    return SizedBox(
-      height: 27,
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontFamily: 'Roboto',
-            color: conflicts > 0
-                ? _MiniSudokuPlayPageState._coral
-                : _MiniSudokuPlayPageState._muted,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
+    final String text;
+    if (selectedIndex == null) {
+      text = context.l10n.gameUi(
+        english
+            ? 'Tap a cell to place a number.'
+            : 'Sayı girmek için bir hücreye dokun.',
+      );
+    } else if (value != 0) {
+      text = context.l10n.gameUi(
+        english
+            ? 'Selected: $value. Tap another number to change.'
+            : 'Seçili: $value. Değiştirmek için başka sayıya dokun.',
+      );
+    } else if (noteMode) {
+      text = context.l10n.gameUi(
+        english
+            ? 'Note mode active: toggle candidate numbers.'
+            : 'Not modu aktif: olası sayıları ekle/kaldır.',
+      );
+    } else {
+      text = context.l10n.gameUi(
+        english
+            ? 'Cell ready: enter 1–$maxDigit.'
+            : 'Seçili hücre hazır · 1–$maxDigit arasında bir sayı gir.',
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(
+          color: noteMode
+              ? _MiniSudokuPlayPageState._brass.withValues(alpha: 0.5)
+              : const Color(0xFFE2E7E4),
+        ),
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontFamily: 'Roboto',
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: noteMode
+              ? _MiniSudokuPlayPageState._brass
+              : _MiniSudokuPlayPageState._muted,
         ),
       ),
     );
@@ -1006,88 +1216,104 @@ class _SudokuActionRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     children: <Widget>[
       Expanded(
-        child: _SudokuAction(
-          key: const ValueKey<String>('mini_sudoku_undo_action'),
+        child: _MiniActionButton(
+          key: const ValueKey<String>('mini_sudoku_undo_btn'),
           icon: Icons.undo_rounded,
-          label: english ? 'UNDO' : 'GERİ AL',
-          onPressed: onUndo,
+          label: context.l10n.gameUi(english ? 'UNDO' : 'GERİ AL'),
+          onTap: onUndo,
         ),
       ),
-      const SizedBox(width: 5),
+      const SizedBox(width: 4),
       Expanded(
-        flex: 2,
-        child: _SudokuAction(
+        child: _MiniActionButton(
           key: const ValueKey<String>('mini_sudoku_notes'),
           icon: Icons.edit_note_rounded,
-          label: noteMode
-              ? (english ? 'NOTES ON' : 'NOT AÇIK')
-              : (english ? 'NOTES' : 'NOT'),
-          selected: noteMode,
-          onPressed: onToggleNotes,
+          label: context.l10n.gameUi(english ? 'NOTE' : 'NOT'),
+          active: noteMode,
+          onTap: onToggleNotes,
         ),
       ),
-      const SizedBox(width: 5),
+      const SizedBox(width: 4),
       Expanded(
-        child: _SudokuAction(
+        child: _MiniActionButton(
           key: const ValueKey<String>('mini_sudoku_clear'),
           icon: Icons.backspace_outlined,
-          label: english ? 'CLEAR' : 'SİL',
-          onPressed: onClear,
+          label: context.l10n.gameUi(english ? 'CLEAR' : 'SİL'),
+          onTap: onClear,
         ),
       ),
-      const SizedBox(width: 5),
+      const SizedBox(width: 4),
       Expanded(
-        child: _SudokuAction(
+        child: _MiniActionButton(
           key: const ValueKey<String>('mini_sudoku_hint'),
           icon: Icons.lightbulb_outline_rounded,
-          label: english ? 'HINT' : 'İPUCU',
-          onPressed: onHint,
+          label: context.l10n.gameUi(english ? 'HINT' : 'İPUCU'),
+          onTap: onHint,
         ),
       ),
     ],
   );
 }
 
-class _SudokuAction extends StatelessWidget {
-  const _SudokuAction({
+class _MiniActionButton extends StatelessWidget {
+  const _MiniActionButton({
     super.key,
     required this.icon,
     required this.label,
-    required this.onPressed,
-    this.selected = false,
+    this.active = false,
+    required this.onTap,
   });
 
   final IconData icon;
   final String label;
-  final VoidCallback? onPressed;
-  final bool selected;
+  final bool active;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: selected ? const Color(0xFFE0EEE9) : Colors.white,
-    borderRadius: BorderRadius.circular(12),
-    child: InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(12),
-      child: SizedBox(
-        height: GameInputPolicy.minimumTargetSize,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 3),
+  Widget build(BuildContext context) {
+    final Color bg = active
+        ? _MiniSudokuPlayPageState._brass
+        : Colors.white;
+    final Color fg = active
+        ? Colors.white
+        : onTap == null
+        ? const Color(0xFFACB7B2)
+        : _MiniSudokuPlayPageState._ink;
+
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(9),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(9),
+        child: Container(
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(
+              color: active
+                  ? _MiniSudokuPlayPageState._brass
+                  : const Color(0xFFDCE5E0),
+            ),
+          ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              Icon(icon, size: 15, color: _MiniSudokuPlayPageState._accent),
+              Icon(icon, size: 15, color: fg),
               const SizedBox(width: 3),
               Flexible(
                 child: Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Roboto',
-                    color: _MiniSudokuPlayPageState._ink,
                     fontSize: 10,
                     fontWeight: FontWeight.w900,
+                    color: fg,
+                    letterSpacing: .3,
                   ),
                 ),
               ),
@@ -1095,33 +1321,40 @@ class _SudokuAction extends StatelessWidget {
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _SudokuNumberPad extends StatelessWidget {
-  const _SudokuNumberPad({required this.noteMode, required this.onDigit});
+  const _SudokuNumberPad({
+    required this.size,
+    required this.noteMode,
+    required this.onDigit,
+  });
 
+  final int size;
   final bool noteMode;
   final ValueChanged<int> onDigit;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (BuildContext context, BoxConstraints constraints) {
-      const double gap = 5;
-      final double buttonWidth = (constraints.maxWidth - gap * 2) / 3;
-      return Wrap(
-        spacing: gap,
-        runSpacing: gap,
+      final double gap = size == 9 ? 3.5 : (size == 6 ? 5.0 : 8.0);
+      final double buttonWidth =
+          (constraints.maxWidth - (size - 1) * gap) / size;
+      final double buttonHeight = size == 9 ? 42.0 : (size == 6 ? 46.0 : 50.0);
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          for (int digit = 1; digit <= MiniSudokuPuzzle.size; digit++)
+          for (int digit = 1; digit <= size; digit++)
             SizedBox(
               width: buttonWidth,
-              height: GameInputPolicy.minimumTargetSize,
+              height: buttonHeight,
               child: _NumberKey(
                 key: ValueKey<String>('mini_sudoku_num_$digit'),
                 digit: digit,
                 noteMode: noteMode,
+                fontSize: size == 4 ? 22 : (size == 6 ? 19 : 16),
                 onTap: () => onDigit(digit),
               ),
             ),
@@ -1136,26 +1369,40 @@ class _NumberKey extends StatelessWidget {
     super.key,
     required this.digit,
     required this.noteMode,
+    this.fontSize = 18,
     required this.onTap,
   });
 
   final int digit;
   final bool noteMode;
+  final double fontSize;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(12),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE0E7E3)),
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTapDown: (_) => onTap(),
+    child: Container(
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(
+          color: noteMode
+              ? _MiniSudokuPlayPageState._brass.withValues(alpha: 0.6)
+              : const Color(0xFFDCE5E0),
+          width: noteMode ? 1.5 : 1.0,
         ),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 3,
+            offset: Offset(0, 1.5),
+          ),
+        ],
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
         child: Text(
           '$digit',
           style: TextStyle(
@@ -1163,7 +1410,7 @@ class _NumberKey extends StatelessWidget {
             color: noteMode
                 ? _MiniSudokuPlayPageState._brass
                 : _MiniSudokuPlayPageState._accent,
-            fontSize: 19,
+            fontSize: fontSize,
             fontWeight: FontWeight.w900,
           ),
         ),

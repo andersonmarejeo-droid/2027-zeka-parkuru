@@ -561,9 +561,19 @@ class _AttentionTunnelPlayPageState extends State<AttentionTunnelPlayPage>
         final double gap = compact ? 8 : 11;
         final double cardWidth =
             (constraints.maxWidth - inset * 2 - gap * (columns - 1)) / columns;
-        final double cardHeight = (cardWidth * (cardCount <= 3 ? 1.64 : 1.42))
-            .clamp(compact ? 126.0 : 144.0, compact ? 184.0 : 200.0)
-            .toDouble();
+        final double preferredHeight =
+            (cardWidth * (cardCount <= 3 ? 1.64 : 1.42))
+                .clamp(compact ? 126.0 : 144.0, compact ? 184.0 : 200.0)
+                .toDouble();
+        // İlerleyen bölümlerde kart sayısı arttığında kartlar ekrana sığacak
+        // şekilde küçülür; kaydırma ya da taşma oluşmaz.
+        final double fitHeight = constraints.hasBoundedHeight
+            ? (constraints.maxHeight - inset * 2 - gap * (rows - 1) - 2) / rows
+            : preferredHeight;
+        final double cardHeight = math.max(
+          64.0,
+          math.min(preferredHeight, fitHeight),
+        );
         final double gridHeight = cardHeight * rows + gap * (rows - 1);
         final int travelMs = _scenario.movementIntervalMs;
         // Keep every swap on screen for almost the whole movement interval.
@@ -902,13 +912,117 @@ class _AttentionTunnelPlayPageState extends State<AttentionTunnelPlayPage>
     ),
   );
 
+  void _showHowToPlay(BuildContext context, StudioGameSkin skin) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: StudioVisuals.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: skin.accent.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.style_rounded, color: skin.accent, size: 22),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            _english ? 'Attention Tunnel Rules' : 'Dikkat Tüneli Kuralları',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                          Text(
+                            _english ? 'Focus Tracking & Object Memory' : 'Odak Takibi ve Kart Hafızası',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 12,
+                              color: StudioVisuals.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surfaceSoft,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: skin.accent.withValues(alpha: 0.20)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        _english
+                            ? '1. First, study the marked target card carefully.\n2. When shuffle starts, all cards turn face down and swap positions.\n3. Keep your eyes on the moving target card and tap it when shuffling stops!'
+                            : '1. İlk olarak işaretli hedef kartı dikkatle aklında tut.\n2. Karıştırma başladığında tüm kartlar kapanır ve yer değiştirir.\n3. Gözünü hareket eden hedef karttan ayırma ve karıştırma bitince doğru kartı seç!',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 13,
+                          height: 1.4,
+                          color: StudioVisuals.ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: skin.accent,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    _english ? 'UNDERSTOOD' : 'ANLADIM, BAŞLA',
+                    style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool english = _english;
     final bool compact = MediaQuery.sizeOf(context).width < 365;
-    final bool reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final bool reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final StudioGameSkin skin = StudioGameSkin.forId('attention_tunnel');
+
     return Scaffold(
       backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
@@ -916,305 +1030,227 @@ class _AttentionTunnelPlayPageState extends State<AttentionTunnelPlayPage>
         foregroundColor: StudioVisuals.ink,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: Text(
-          english ? 'ATTENTION TUNNEL' : 'DİKKAT TÜNELİ',
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-            letterSpacing: .9,
-          ),
-        ),
-        actions: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(right: 13),
-            child: Center(
-              child: _TunnelMetric(
-                icon: Icons.favorite_border_rounded,
-                value: '$_errorsLeft',
-                color: _errorsLeft <= 1 ? StudioVisuals.danger : skin.accent,
+        titleSpacing: 12,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              english ? 'ATTENTION TUNNEL' : 'DİKKAT TÜNELİ',
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.6,
               ),
             ),
+            Text(
+              '${english ? 'Level' : 'Bölüm'} ${widget.level.number} • ${widget.level.title(english)}',
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          IconButton(
+            tooltip: english ? 'How to Play' : 'Nasıl Oynanır',
+            icon: const Icon(Icons.help_outline_rounded, size: 22),
+            onPressed: () => _showHowToPlay(context, skin),
           ),
         ],
       ),
       body: SafeArea(
         top: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: SingleChildScrollView(
-              key: const ValueKey<String>('attention_tunnel_scroll'),
-              padding: EdgeInsets.fromLTRB(
-                compact ? 13 : 22,
-                compact ? 4 : 12,
-                compact ? 13 : 22,
-                compact ? 10 : 24,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Row(
+        child: ResponsiveGameFrame(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                // Kompakt Tek Satır Durum Çubuğu
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
+                  ),
+                  child: Row(
                     children: <Widget>[
-                      Expanded(
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: skin.accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         child: Text(
                           _choosingLane
-                              ? (english ? 'CHOOSE THE CARD' : 'KARTI SEÇ')
+                              ? (english ? 'CHOOSE CARD' : 'KARTI SEÇ')
                               : _tracking
-                              ? (english
-                                    ? 'FOLLOW THE SHUFFLE'
-                                    : 'KARIŞTIRMAYI İZLE')
-                              : (english ? 'CARD PREVIEW' : 'KART ÖNİZLEMESİ'),
+                              ? (english ? 'TRACKING' : 'TAKİP ET')
+                              : (english ? 'PREVIEW' : 'ÖNİZLEME'),
                           style: TextStyle(
                             fontFamily: 'Roboto',
                             color: skin.accent,
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 1,
                           ),
                         ),
                       ),
-                      _TunnelMetric(
-                        icon: Icons.shuffle_rounded,
-                        value: '$_movementIndex/${_scenario.movementCount}',
-                        color: StudioVisuals.ink,
+                      const Spacer(),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            Icons.favorite_rounded,
+                            size: 14,
+                            color: _errorsLeft <= 1 ? StudioVisuals.danger : skin.accent,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '$_errorsLeft',
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: _errorsLeft <= 1 ? StudioVisuals.danger : skin.accent,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      _TunnelMetric(
-                        icon: Icons.stars_rounded,
-                        value: '${_session.score}',
-                        color: StudioVisuals.amber,
+                      const SizedBox(width: 10),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Icon(Icons.shuffle_rounded, size: 14, color: StudioVisuals.ink),
+                          const SizedBox(width: 2),
+                          Text(
+                            '$_movementIndex/${_scenario.movementCount}',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 10),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Icon(Icons.star_rounded, size: 14, color: StudioVisuals.amber),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${_session.score}',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 9),
-                  Container(
-                    padding: EdgeInsets.all(compact ? 11 : 15),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(17),
-                      border: Border.all(color: StudioVisuals.line),
-                      boxShadow: StudioVisuals.softShadow,
-                    ),
-                    child: Row(
-                      children: <Widget>[
-                        Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: skin.accentSoft,
-                            borderRadius: BorderRadius.circular(11),
-                          ),
-                          child: Icon(
-                            Icons.style_rounded,
-                            color: skin.accent,
-                            size: 19,
-                          ),
-                        ),
-                        const SizedBox(width: 9),
-                        Expanded(
-                          child: Text(
-                            _tracking
-                                ? (english
-                                      ? 'Follow the marked card through ${_scenario.cardCount} cards.'
-                                      : 'İşaretli kartı ${_scenario.cardCount} kartın arasında izle.')
-                                : _choosingLane
-                                ? (english
-                                      ? 'Which face-down card held the target?'
-                                      : 'İşaretli hedef hangi kapalı kartta kaldı?')
-                                : (english
-                                      ? 'Study the marked picture. All cards turn over before the shuffle.'
-                                      : 'İşaretli görseli aklında tut. Karıştırma başlamadan tüm kartlar kapanır.'),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: 'Roboto',
-                              color: StudioVisuals.ink,
-                              fontSize: 11,
-                              height: 1.2,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        if (_tracking)
-                          _TunnelTag(
-                            label:
-                                _scenario
-                                    .movements[math.min(
-                                      _movementIndex,
-                                      _scenario.movementCount - 1,
-                                    )]
-                                    .occluded
-                                    ? (english ? 'SLOW' : 'YAVAŞ')
-                                : (english ? 'SHUFFLE' : 'KARIŞTIR'),
-                            tint: StudioVisuals.teal,
-                          ),
-                      ],
-                    ),
+                ),
+                // Genişletilmiş Kart Karıştırma Alanı (Kaydırmasız - Expanded)
+                Expanded(
+                  child: Center(
+                    child: _tunnelBoard(compact: compact, reduceMotion: reduceMotion),
                   ),
-                  const SizedBox(height: 9),
-                  _tunnelBoard(compact: compact, reduceMotion: reduceMotion),
-                  if (_feedback != null) ...<Widget>[
-                    const SizedBox(height: 8),
-                    _TunnelFeedback(
-                      text: _feedback!,
-                      positive: _lastCorrect ?? false,
+                ),
+                if (_feedback != null) ...<Widget>[
+                  const SizedBox(height: 6),
+                  _TunnelFeedback(
+                    text: _feedback!,
+                    positive: _lastCorrect ?? false,
+                  ),
+                ],
+                const SizedBox(height: 6),
+                // Alt Kontrol Barı
+                if (_solved)
+                  FilledButton.icon(
+                    key: const ValueKey<String>('attention_tunnel_finish'),
+                    onPressed: _finish,
+                    icon: const Icon(Icons.celebration_rounded, size: 18),
+                    label: Text(english ? 'CONTINUE' : 'DEVAM ET'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 44),
+                      backgroundColor: skin.accent,
+                      foregroundColor: Colors.white,
                     ),
-                  ],
-                  const SizedBox(height: 9),
-                  if (_solved)
-                    FilledButton.icon(
-                      key: const ValueKey<String>('attention_tunnel_finish'),
-                      onPressed: _finish,
-                      icon: const Icon(Icons.celebration_rounded),
-                      label: Text(english ? 'CONTINUE' : 'DEVAM ET'),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(48, 50),
-                        backgroundColor: skin.accent,
-                        foregroundColor: Colors.white,
-                      ),
-                    )
-                  else if (_choosingLane)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        Text(
-                          english ? 'Tap a card above to reveal your choice.' : 'Seçimini açmak için yukarıdaki kartlardan birine dokun.',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontFamily: 'Roboto',
-                            color: StudioVisuals.muted,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        FilledButton.tonalIcon(
+                  )
+                else if (_choosingLane)
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: FilledButton.tonalIcon(
                           key: const ValueKey<String>('attention_tunnel_hint'),
                           onPressed: _session.acceptsInput ? _useHint : null,
-                          icon: const Icon(Icons.lightbulb_outline_rounded),
-                          label: Text(english ? 'HINT • 45' : 'İPUCU • 45'),
+                          icon: const Icon(Icons.lightbulb_outline_rounded, size: 16),
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              english ? 'HINT • 45' : 'İPUCU • 45',
+                              maxLines: 1,
+                            ),
+                          ),
                           style: FilledButton.styleFrom(
-                            minimumSize: const Size(48, 42),
+                            minimumSize: const Size(0, 42),
                             foregroundColor: StudioVisuals.ink,
                           ),
                         ),
-                      ],
-                    )
-                  else if (!_tracking)
-                    FilledButton.icon(
-                      key: const ValueKey<String>('attention_tunnel_start'),
-                      onPressed: _startTracking,
-                      icon: const Icon(Icons.shuffle_rounded),
-                      label: Text(
+                      ),
+                    ],
+                  )
+                else if (!_tracking)
+                  FilledButton.icon(
+                    key: const ValueKey<String>('attention_tunnel_start'),
+                    onPressed: _startTracking,
+                    icon: const Icon(Icons.shuffle_rounded, size: 18),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
                         english ? 'START SHUFFLE' : 'KARTLARI KARIŞTIR',
-                      ),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(48, 50),
-                        backgroundColor: skin.accent,
-                        foregroundColor: Colors.white,
-                      ),
-                    )
-                  else
-                    OutlinedButton.icon(
-                      key: const ValueKey<String>('attention_tunnel_live'),
-                      onPressed: null,
-                      icon: const Icon(Icons.visibility_rounded),
-                      label: Text(
-                        '${english ? 'SHUFFLING' : 'KARIŞTIRMA'} • $_movementIndex/${_scenario.movementCount}',
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(48, 50),
-                        foregroundColor: skin.accent,
+                        maxLines: 1,
                       ),
                     ),
-                  if (_tracking) ...<Widget>[
-                    const SizedBox(height: 6),
-                    Text(
-                      english
-                          ? 'Every card back is identical. Follow the position that began marked.'
-                          : 'Kartların arkası artık aynı. Başlangıçta işaretli olan konumu izle.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: 'Roboto',
-                        color: StudioVisuals.muted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 44),
+                      backgroundColor: skin.accent,
+                      foregroundColor: Colors.white,
+                    ),
+                  )
+                else
+                  OutlinedButton.icon(
+                    key: const ValueKey<String>('attention_tunnel_live'),
+                    onPressed: null,
+                    icon: const Icon(Icons.visibility_rounded, size: 16),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        english ? 'FOLLOW TARGET...' : 'HEDEFİ İZLE...',
+                        maxLines: 1,
                       ),
                     ),
-                  ],
-                ],
-              ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 42),
+                      side: const BorderSide(color: StudioVisuals.line),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
-}
-
-class _TunnelMetric extends StatelessWidget {
-  const _TunnelMetric({
-    required this.icon,
-    required this.value,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: StudioVisuals.line),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Icon(icon, color: color, size: 14),
-        const SizedBox(width: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontFamily: 'Roboto',
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _TunnelTag extends StatelessWidget {
-  const _TunnelTag({required this.label, required this.tint});
-
-  final String label;
-  final Color tint;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-    decoration: BoxDecoration(
-      color: tint.withValues(alpha: .12),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(
-        fontFamily: 'Roboto',
-        color: tint,
-        fontSize: 10,
-        fontWeight: FontWeight.w900,
-        letterSpacing: .5,
-      ),
-    ),
-  );
 }
 
 class _TunnelFeedback extends StatelessWidget {

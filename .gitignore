@@ -65,3 +65,11 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+
+# Local build, gradle cache and agent runtime artifacts
+.gradle-home/
+/android/build/
+.codex-runtime/
+.codex-remote-attachments/
+*.apk

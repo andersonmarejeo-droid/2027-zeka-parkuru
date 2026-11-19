@@ -407,10 +407,96 @@ class _LanguageDetectivePlayPageState extends State<LanguageDetectivePlayPage> {
     if (mounted) Navigator.of(context).pop(result.toParkurResult());
   }
 
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        final StudioGameSkin skin = StudioGameSkin.forId('language_detective');
+        return Container(
+          decoration: const BoxDecoration(
+            color: StudioVisuals.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Icon(Icons.help_outline_rounded, color: skin.accent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    _english ? 'How to Play?' : 'Nasıl Oynanır?',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: StudioVisuals.ink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _english
+                    ? '• Analyze the provided evidence text carefully.\n'
+                      '• Only choose deductions directly supported by facts, not assumptions.\n'
+                      '• Tap "FIND CLUE" if you need to highlight relevant textual evidence.\n'
+                      '• Solve all case exhibits before your mistake allowance runs out!'
+                    : '• Verilen delil metnini ve tanık ifadelerini dikkatle oku.\n'
+                      '• Varsayımlardan kaçın; yalnızca metnin kesin olarak doğruladığı çıkarımı seç.\n'
+                      '• Takıldığında "DELİL İPUCU" butonuna basarak kilit cümleyi vurgula.\n'
+                      '• Hata hakkın bitmeden dosyadaki tüm delilleri çözerek davayı kapat!',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 13,
+                  height: 1.5,
+                  color: StudioVisuals.ink,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: skin.accent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    _english ? 'GOT IT' : 'ANLADIM',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final StudioGameSkin skin = StudioGameSkin.forId('language_detective');
     final int total = _scenario.cases.length;
+
     return Scaffold(
       backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
@@ -426,7 +512,7 @@ class _LanguageDetectivePlayPageState extends State<LanguageDetectivePlayPage> {
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 fontWeight: FontWeight.w900,
-                fontSize: 18,
+                fontSize: 16,
               ),
             ),
             Text(
@@ -435,204 +521,200 @@ class _LanguageDetectivePlayPageState extends State<LanguageDetectivePlayPage> {
                         ? 'PRACTICE  •  ${widget.practiceRound} / 300'
                         : 'PRATİK  •  ${widget.practiceRound} / 300')
                   : (_english
-                        ? 'CASE  •  ${widget.level.number} / ${GameContentPolicy.campaignLevels}'
-                        : 'DOSYA  •  ${widget.level.number} / ${GameContentPolicy.campaignLevels}'),
+                        ? 'CASE ${widget.level.number} / ${GameContentPolicy.campaignLevels}'
+                        : 'DOSYA ${widget.level.number} / ${GameContentPolicy.campaignLevels}'),
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 color: StudioVisuals.muted,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: .5,
               ),
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: _english ? 'How to play' : 'Nasıl Oynanır?',
+            onPressed: _showHowToPlay,
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
         child: ResponsiveGameFrame(
+          maxContentWidth: 620,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 3, 14, 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             child: Column(
               children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        _english
-                            ? 'Use only what the source supports. Separate evidence from inference.'
-                            : 'Yalnızca kaynağın desteklediği sonuca var. Kanıtla çıkarımı ayır.',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                // Kompakt durum çubuğu (36px)
+                Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Text(
+                        '${_english ? 'Exhibit' : 'Delil'} ${_caseIndex + 1}/$total',
                         style: const TextStyle(
                           fontFamily: 'Roboto',
                           color: StudioVisuals.ink,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '•  ❤️ $_errorsLeft/$_mistakeLimit',
+                        style: TextStyle(
+                          fontFamily: 'Roboto',
+                          color: _errorsLeft <= 1 ? StudioVisuals.danger : skin.accent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const Spacer(),
+                      SizedBox(
+                        width: 44,
+                        height: 6,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: LinearProgressIndicator(
+                            value: (_caseIndex + (_solved ? 1 : 0)) / total,
+                            minHeight: 6,
+                            color: skin.accent,
+                            backgroundColor: skin.accentSoft,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Ana Delil ve Soru Alanı: Taşma Korumalı & Kaydırılabilir
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        _EvidenceFile(
+                          boardCase: _boardCase,
+                          english: _english,
+                          caseNumber: _caseIndex + 1,
+                          totalCases: total,
+                          accent: skin.accent,
+                        ),
+                        const SizedBox(height: 6),
+                        _DetectiveQuestion(
+                          boardCase: _boardCase,
+                          english: _english,
+                          selectedOption: _selectedOption,
+                          solved: _solved,
+                          accent: skin.accent,
+                          onSelect: _selectOption,
+                        ),
+                        if (_feedback != null) ...<Widget>[
+                          const SizedBox(height: 6),
+                          _DetectiveFeedback(message: _feedback!),
+                        ],
+                        if (_solved) ...<Widget>[
+                          const SizedBox(height: 6),
+                          _DetectiveExplanation(
+                            boardCase: _boardCase,
+                            english: _english,
+                            accent: skin.accent,
+                          ),
+                        ],
+                        const SizedBox(height: 4),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Alt Aksiyon Butonları (42px)
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      flex: 2,
+                      child: OutlinedButton.icon(
+                        key: const ValueKey<String>('language_detective_hint'),
+                        onPressed: _solved ? null : _useEvidenceHint,
+                        icon: const Icon(Icons.search_rounded, size: 16),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _english ? 'FIND CLUE' : 'DELİL İPUCU',
+                            maxLines: 1,
+                            softWrap: false,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: skin.accent,
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Roboto',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _DetectiveStat(
-                      icon: Icons.favorite_outline_rounded,
-                      label: '$_errorsLeft/$_mistakeLimit',
-                      accent: _errorsLeft <= 1
-                          ? StudioVisuals.danger
-                          : skin.accent,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 7),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
-                  child: LinearProgressIndicator(
-                    value: (_caseIndex + (_solved ? 1 : 0)) / total,
-                    minHeight: 5,
-                    color: skin.accent,
-                    backgroundColor: skin.accentSoft,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (BuildContext context, BoxConstraints limits) =>
-                        SingleChildScrollView(
-                          key: const ValueKey<String>(
-                            'language_detective_scroll',
+                    Expanded(
+                      flex: 3,
+                      child: FilledButton.icon(
+                        key: const ValueKey<String>('language_detective_submit'),
+                        onPressed: _solved
+                            ? _continue
+                            : _selectedOption == null
+                                ? null
+                                : _checkAnswer,
+                        icon: Icon(
+                          _solved ? Icons.arrow_forward_rounded : Icons.fact_check_outlined,
+                          size: 16,
+                        ),
+                        label: Text(
+                          _solved
+                              ? _caseIndex == total - 1
+                                  ? (_english ? 'CLOSE FILE' : 'DOSYAYI KAPAT')
+                                  : (_english ? 'NEXT EXHIBIT' : 'SONRAKİ DELİL')
+                              : (_english ? 'CHECK FINDING' : 'SONUCU KONTROL ET'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: skin.accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minHeight: limits.maxHeight,
-                            ),
-                            child: Column(
-                              children: <Widget>[
-                                _EvidenceFile(
-                                  boardCase: _boardCase,
-                                  english: _english,
-                                  caseNumber: _caseIndex + 1,
-                                  totalCases: total,
-                                  accent: skin.accent,
-                                ),
-                                const SizedBox(height: 8),
-                                _DetectiveQuestion(
-                                  boardCase: _boardCase,
-                                  english: _english,
-                                  selectedOption: _selectedOption,
-                                  solved: _solved,
-                                  accent: skin.accent,
-                                  onSelect: _selectOption,
-                                ),
-                                if (_feedback != null) ...<Widget>[
-                                  const SizedBox(height: 7),
-                                  _DetectiveFeedback(message: _feedback!),
-                                ],
-                                if (_solved) ...<Widget>[
-                                  const SizedBox(height: 7),
-                                  _DetectiveExplanation(
-                                    boardCase: _boardCase,
-                                    english: _english,
-                                    accent: skin.accent,
-                                  ),
-                                ],
-                                const SizedBox(height: 9),
-                                Row(
-                                  children: <Widget>[
-                                    Expanded(
-                                      flex: 2,
-                                      child: OutlinedButton.icon(
-                                        key: const ValueKey<String>(
-                                          'language_detective_hint',
-                                        ),
-                                        onPressed: _solved
-                                            ? null
-                                            : _useEvidenceHint,
-                                        icon: const Icon(
-                                          Icons.search_rounded,
-                                          size: 17,
-                                        ),
-                                        label: Text(
-                                          _english
-                                              ? 'FIND CLUE'
-                                              : 'DELİL İPUCU',
-                                          maxLines: 1,
-                                          softWrap: false,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: skin.accent,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 5,
-                                          ),
-                                          minimumSize: const Size.fromHeight(
-                                            46,
-                                          ),
-                                          textStyle: const TextStyle(
-                                            fontFamily: 'Roboto',
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      flex: 3,
-                                      child: FilledButton.icon(
-                                        key: const ValueKey<String>(
-                                          'language_detective_submit',
-                                        ),
-                                        onPressed: _solved
-                                            ? _continue
-                                            : _selectedOption == null
-                                            ? null
-                                            : _checkAnswer,
-                                        icon: Icon(
-                                          _solved
-                                              ? Icons.arrow_forward_rounded
-                                              : Icons.fact_check_outlined,
-                                          size: 18,
-                                        ),
-                                        label: Text(
-                                          _solved
-                                              ? _caseIndex == total - 1
-                                                    ? (_english
-                                                          ? 'CLOSE FILE'
-                                                          : 'DOSYAYI KAPAT')
-                                                    : (_english
-                                                          ? 'NEXT EXHIBIT'
-                                                          : 'SONRAKİ DELİL')
-                                              : (_english
-                                                    ? 'CHECK FINDING'
-                                                    : 'SONUCU KONTROL ET'),
-                                          maxLines: 1,
-                                          softWrap: false,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor: skin.accent,
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                          ),
-                                          minimumSize: const Size.fromHeight(
-                                            46,
-                                          ),
-                                          textStyle: const TextStyle(
-                                            fontFamily: 'Roboto',
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                              ],
-                            ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Roboto',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -664,16 +746,16 @@ class _EvidenceFile extends StatelessWidget {
     return Container(
       key: const ValueKey<String>('language_detective_evidence'),
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 9),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(15),
         border: Border.all(color: const Color(0xFFE0E7E9)),
         boxShadow: const <BoxShadow>[
           BoxShadow(
             color: Color(0x080F2931),
-            blurRadius: 15,
-            offset: Offset(0, 5),
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -683,28 +765,28 @@ class _EvidenceFile extends StatelessWidget {
           Row(
             children: <Widget>[
               Container(
-                width: 27,
-                height: 27,
+                width: 25,
+                height: 25,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: .1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(7),
                 ),
                 child: Icon(
                   Icons.description_outlined,
                   color: accent,
-                  size: 16,
+                  size: 15,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 7),
               Expanded(
                 child: Text(
                   english ? 'EVIDENCE FILE' : 'DELİL DOSYASI',
                   style: TextStyle(
                     fontFamily: 'Roboto',
                     color: accent,
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: .65,
+                    letterSpacing: .6,
                   ),
                 ),
               ),
@@ -713,29 +795,29 @@ class _EvidenceFile extends StatelessWidget {
                 style: const TextStyle(
                   fontFamily: 'Roboto',
                   color: StudioVisuals.muted,
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             english ? item.sourceEn : item.sourceTr,
             style: const TextStyle(
               fontFamily: 'Roboto',
               color: StudioVisuals.muted,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+            padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
             decoration: BoxDecoration(
               color: const Color(0xFFF5F7F7),
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(10),
               border: const Border(
                 left: BorderSide(color: Color(0xFFB7C7C2), width: 3),
               ),
@@ -746,7 +828,7 @@ class _EvidenceFile extends StatelessWidget {
                 fontFamily: 'Roboto',
                 color: StudioVisuals.ink,
                 fontSize: 12,
-                height: 1.35,
+                height: 1.3,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -846,8 +928,8 @@ class _DetectiveOption extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Container(
           width: double.infinity,
-          constraints: const BoxConstraints(minHeight: 48),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          constraints: const BoxConstraints(minHeight: 42),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
@@ -858,24 +940,24 @@ class _DetectiveOption extends StatelessWidget {
           child: Row(
             children: <Widget>[
               Container(
-                width: 25,
-                height: 25,
+                width: 24,
+                height: 24,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: selected ? accent : const Color(0xFFF2F5F5),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(7),
                 ),
                 child: Text(
                   String.fromCharCode(65 + index),
                   style: TextStyle(
                     fontFamily: 'Roboto',
                     color: selected ? Colors.white : letters,
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
-              const SizedBox(width: 9),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   label,
@@ -883,13 +965,13 @@ class _DetectiveOption extends StatelessWidget {
                     fontFamily: 'Roboto',
                     color: StudioVisuals.ink,
                     fontSize: 11,
-                    height: 1.22,
+                    height: 1.2,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
               if (selected)
-                Icon(Icons.check_circle_rounded, color: accent, size: 17),
+                Icon(Icons.check_circle_rounded, color: accent, size: 16),
             ],
           ),
         ),
@@ -915,10 +997,10 @@ class _DetectiveExplanation extends StatelessWidget {
     return Container(
       key: const ValueKey<String>('language_detective_explanation'),
       width: double.infinity,
-      padding: const EdgeInsets.all(11),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFFEAF3ED),
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFBBD7C4)),
       ),
       child: Column(
@@ -926,39 +1008,39 @@ class _DetectiveExplanation extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(Icons.verified_outlined, color: accent, size: 17),
+              Icon(Icons.verified_outlined, color: accent, size: 16),
               const SizedBox(width: 6),
               Text(
                 english ? 'FINDING SUPPORTED' : 'KANITLI SONUÇ',
                 style: TextStyle(
                   fontFamily: 'Roboto',
                   color: accent,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w900,
                   letterSpacing: .4,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           Text(
             english ? item.explanationEn : item.explanationTr,
             style: const TextStyle(
               fontFamily: 'Roboto',
               color: StudioVisuals.ink,
               fontSize: 11,
-              height: 1.3,
+              height: 1.25,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           Text(
             '${english ? 'Evidence' : 'Kanıt'}: ${english ? item.evidenceEn : item.evidenceTr}',
             style: TextStyle(
               fontFamily: 'Roboto',
               color: accent,
-              fontSize: 12,
-              height: 1.25,
+              fontSize: 11,
+              height: 1.2,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -992,45 +1074,6 @@ class _DetectiveFeedback extends StatelessWidget {
           height: 1.25,
           fontWeight: FontWeight.w800,
         ),
-      ),
-    );
-  }
-}
-
-class _DetectiveStat extends StatelessWidget {
-  const _DetectiveStat({
-    required this.icon,
-    required this.label,
-    required this.accent,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: .09),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon, color: accent, size: 14),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Roboto',
-              color: accent,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
       ),
     );
   }

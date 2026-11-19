@@ -79,6 +79,24 @@ class OnlineLeaderboardEntry {
       updatedAt = DateTime.tryParse(rawUpdatedAt);
     }
 
+    final int completedLevels = _safeInt(
+      data['completedLevels'],
+      0,
+      UnifiedProgressData.maksimumSeviye,
+    );
+
+    final int rawScore = _safeInt(data['score'], 0, 10000000);
+    int normalizedScore = rawScore;
+    if (completedLevels > 0 && normalizedScore > (completedLevels * 15 + 100)) {
+      normalizedScore = (normalizedScore / 18.0).round().clamp(10, 1000000);
+    }
+
+    final int rawXp = _safeInt(data['xp'], 0, 1000000);
+    int normalizedXp = rawXp;
+    if (completedLevels > 0 && normalizedXp > (completedLevels * 15 + 100)) {
+      normalizedXp = (normalizedXp / 18.0).round().clamp(10, 1000000);
+    }
+
     return OnlineLeaderboardEntry(
       uid: uid,
       displayName: _safeString(
@@ -87,15 +105,11 @@ class OnlineLeaderboardEntry {
         maxLength: 18,
       ),
       avatar: _safeString(data['avatar'], fallback: '🧠', maxLength: 32),
-      xp: _safeInt(data['xp'], 0, 1000000),
+      xp: normalizedXp,
       level: _safeInt(data['level'], 1, 50),
-      score: _safeInt(data['score'], 0, 10000000),
+      score: normalizedScore,
       stars: _safeInt(data['stars'], 0, UnifiedProgressData.maksimumYildiz),
-      completedLevels: _safeInt(
-        data['completedLevels'],
-        0,
-        UnifiedProgressData.maksimumSeviye,
-      ),
+      completedLevels: completedLevels,
       bestStreak: _safeInt(data['bestStreak'], 0, 10000),
       perfectDays: _safeInt(data['perfectDays'], 0, 10000),
       leagueShortName: _safeString(

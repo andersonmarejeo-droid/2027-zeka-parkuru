@@ -56,6 +56,56 @@ class MeaningMatchScenario {
 
   static const List<MeaningCategory> _categoryBank = <MeaningCategory>[
     MeaningCategory(
+      id: 'fruits',
+      minimumStage: 1,
+      titleTr: 'Meyveler',
+      titleEn: 'Fruits',
+      clueTr: 'Taze ve tatlı meyveler',
+      clueEn: 'Sweet and fresh fruits',
+      wordsTr: <String>['Elma', 'Armut', 'Çilek', 'Muz'],
+      wordsEn: <String>['Apple', 'Pear', 'Strawberry', 'Banana'],
+    ),
+    MeaningCategory(
+      id: 'colors',
+      minimumStage: 1,
+      titleTr: 'Renkler',
+      titleEn: 'Colors',
+      clueTr: 'Temel renk tonları',
+      clueEn: 'Common primary colors',
+      wordsTr: <String>['Kırmızı', 'Mavi', 'Sarı', 'Yeşil'],
+      wordsEn: <String>['Red', 'Blue', 'Yellow', 'Green'],
+    ),
+    MeaningCategory(
+      id: 'animals',
+      minimumStage: 1,
+      titleTr: 'Sevimli hayvanlar',
+      titleEn: 'Common animals',
+      clueTr: 'Çok iyi bilinen evcil ve sevimli hayvanlar',
+      clueEn: 'Well-known friendly animals',
+      wordsTr: <String>['Kedi', 'Köpek', 'Tavşan', 'At'],
+      wordsEn: <String>['Cat', 'Dog', 'Rabbit', 'Horse'],
+    ),
+    MeaningCategory(
+      id: 'vehicles',
+      minimumStage: 1,
+      titleTr: 'Ulaşım araçları',
+      titleEn: 'Vehicles',
+      clueTr: 'Yolculukta kullanılan taşıtlar',
+      clueEn: 'Common travel vehicles',
+      wordsTr: <String>['Araba', 'Otobüs', 'Tren', 'Uçak'],
+      wordsEn: <String>['Car', 'Bus', 'Train', 'Airplane'],
+    ),
+    MeaningCategory(
+      id: 'school_supplies',
+      minimumStage: 1,
+      titleTr: 'Okul eşyaları',
+      titleEn: 'School supplies',
+      clueTr: 'Ders ve yazı araç gereçleri',
+      clueEn: 'Common stationery items',
+      wordsTr: <String>['Kalem', 'Defter', 'Silgi', 'Cetvel'],
+      wordsEn: <String>['Pencil', 'Notebook', 'Eraser', 'Ruler'],
+    ),
+    MeaningCategory(
       id: 'bowed_strings',
       minimumStage: 1,
       titleTr: 'Yaylı çalgılar',
@@ -374,6 +424,9 @@ class MeaningMatchScenario {
   final bool isPractice;
   final int round;
 
+  int get wordsPerCategory =>
+      categories.isEmpty ? 4 : tiles.length ~/ categories.length;
+
   String get groupSignature =>
       (categories.map((MeaningCategory category) => category.id).toList()
             ..sort())
@@ -422,12 +475,19 @@ class MeaningMatchScenario {
     required String languageCode,
   }) {
     final bool english = languageCode.toLowerCase() != 'tr';
+    // Başlangıç bölümleri (Bölüm 1 - 3): 3'erli 3 grup (3 kategori, 3'er kelime)
+    final bool isIntroLevel = !isPractice && stage <= 3;
+    final int categoryCount = isIntroLevel ? 3 : 4;
+    final int wordsPerCategory = isIntroLevel ? 3 : 4;
+
     final List<MeaningCategory> selected = categoryIndices
+        .take(categoryCount)
         .map((int index) => _categoryBank[index])
         .toList(growable: false);
     final List<MeaningTile> tiles = <MeaningTile>[];
     for (final MeaningCategory category in selected) {
-      final List<String> words = category.words(english);
+      final List<String> words =
+          category.words(english).take(wordsPerCategory).toList();
       for (int index = 0; index < words.length; index++) {
         tiles.add(
           MeaningTile(

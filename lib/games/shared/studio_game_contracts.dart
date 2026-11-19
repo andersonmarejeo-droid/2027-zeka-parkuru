@@ -67,6 +67,7 @@ abstract final class GameInputPolicy {
 abstract final class GameContentPolicy {
   static const int campaignLevels = 30;
   static const int variantsPerChapter = 10;
+
   /// Kelime Çarkı uses 700 deterministic rounds while showing 30 chapters.
   static const int wordWheelPoolSize = 700;
   static const Set<String> standardGames = {
@@ -120,6 +121,7 @@ abstract final class GameContentPolicy {
   /// chapters; pool generators map their rounds monotonically to these stages.
   static int nativeStages(String gameId) {
     if (gameId == 'single_stroke') return campaignLevels;
+    if (gameId == 'mini_sudoku') return campaignLevels;
     if (gameId == 'parking_puzzle' ||
         gameId == 'detective_notes' ||
         gameId == 'hanoi') {
@@ -150,24 +152,47 @@ abstract final class GameContentPolicy {
       'word_wheel',
       'hidden_masses',
       'kakuro',
+      'slide_sweets',
     }.contains(gameId)) {
       return 20;
     }
     return 10;
   }
 
-  static int nativeLevel(int chapter, {int stages = 10}) =>
-      1 +
-      (chapter.clamp(1, campaignLevels) - 1) *
-          variantsPerChapter ~/
-          (minimumUniqueRounds ~/ stages);
+  /// 30. bölümden sonra zorluğun asla kolay seviyelere dönmemesi ve
+  /// en az 25-30. bölümler arasındaki yüksek zorlukta başlayıp kademeli
+  /// artarak devam etmesi için yüksek zorluk eşlemesi.
+  static int endlessHighChapter(int chapter) {
+    if (chapter <= campaignLevels) {
+      return chapter.clamp(1, campaignLevels);
+    }
+    final int extra = chapter - campaignLevels - 1;
+    // 31..42: 25..30 (En zor 6 bölüm bandı)
+    // 43..60: 27..30 (En zor 4 bölüm bandı)
+    // 61+:    28..30 (Zirve 3 bölüm bandı)
+    final int floor = extra < 12
+        ? 25
+        : extra < 30
+        ? 27
+        : 28;
+    final int span = campaignLevels - floor + 1;
+    return floor + (extra % span);
+  }
+
+  static int nativeLevel(int chapter, {int stages = 10}) {
+    final int effectiveChapter = endlessHighChapter(chapter);
+    return 1 +
+        (effectiveChapter - 1) *
+            variantsPerChapter ~/
+            (minimumUniqueRounds ~/ stages);
+  }
 
   static int variantsForChapter(String gameId, int chapter) {
     if (gameId != 'word_wheel') return variantsPerChapter;
-    RangeError.checkValueInInterval(chapter, 1, campaignLevels, 'chapter');
+    final int safeChapter = endlessHighChapter(chapter);
     final int base = wordWheelPoolSize ~/ campaignLevels;
     final int remainder = wordWheelPoolSize % campaignLevels;
-    return base + (chapter <= remainder ? 1 : 0);
+    return base + (safeChapter <= remainder ? 1 : 0);
   }
 
   static int poolIndexForGame(
@@ -176,51 +201,73 @@ abstract final class GameContentPolicy {
     int variant, {
     int stages = 10,
   }) {
+    if (gameId == 'mini_sudoku') {
+      final int safeChapter = endlessHighChapter(chapter);
+      final int baseVariant = variant.clamp(0, variantsPerChapter - 1);
+      final int effectiveVariant = chapter <= campaignLevels
+          ? baseVariant
+          : (baseVariant + (chapter - campaignLevels) * 3) % variantsPerChapter;
+      return safeChapter + effectiveVariant * campaignLevels;
+    }
     if (gameId != 'word_wheel') {
       return poolIndex(chapter, variant, stages: stages);
     }
-    RangeError.checkValueInInterval(chapter, 1, campaignLevels, 'chapter');
-    RangeError.checkValueInInterval(
-      variant,
-      0,
-      variantsForChapter(gameId, chapter) - 1,
-      'variant',
-    );
+    final int safeChapter = endlessHighChapter(chapter);
+    final int count = variantsForChapter(gameId, safeChapter);
+    final int baseVariant = variant.clamp(0, count - 1);
+    final int effectiveVariant = chapter <= campaignLevels
+        ? baseVariant
+        : (baseVariant + (chapter - campaignLevels) * 7) % count;
     final int base = wordWheelPoolSize ~/ campaignLevels;
     final int remainder = wordWheelPoolSize % campaignLevels;
-    final int preceding = (chapter - 1) * base +
-        (chapter - 1 < remainder ? chapter - 1 : remainder);
-    return preceding + variant + 1;
+    final int preceding =
+        (safeChapter - 1) * base +
+        (safeChapter - 1 < remainder ? safeChapter - 1 : remainder);
+    return preceding + effectiveVariant + 1;
   }
 
   /// A bijection: 30 chapters × 10 variants address all 300 native entries
   /// exactly once. Adjacent chapters never regress to an earlier template.
+  /// Beyond chapter 30, draws exclusively from chapters 25..30 with a
+  /// deterministic variant rotation so difficulty stays high and boards vary.
   static int poolIndex(int chapter, int variant, {int stages = 10}) {
-    RangeError.checkValueInInterval(chapter, 1, campaignLevels, 'chapter');
-    RangeError.checkValueInInterval(
-      variant,
-      0,
-      variantsPerChapter - 1,
-      'variant',
-    );
+    final int safeChapter = endlessHighChapter(chapter);
+    final int baseVariant = variant.clamp(0, variantsPerChapter - 1);
+    final int safeVariant = chapter <= campaignLevels
+        ? baseVariant
+        : (baseVariant + (chapter - campaignLevels) * 3) % variantsPerChapter;
     if (minimumUniqueRounds % stages != 0) throw ArgumentError.value(stages);
-    final int slot = (chapter - 1) * variantsPerChapter + variant;
+    final int slot = (safeChapter - 1) * variantsPerChapter + safeVariant;
     final int copies = minimumUniqueRounds ~/ stages;
     return (slot % copies) * stages + slot ~/ copies + 1;
   }
 
   static int safeUnlocked(int stored, List<int> stars) {
-    if (stored <= campaignLevels) return stored.clamp(1, campaignLevels);
+    if (stored <= stars.length) return stored.clamp(1, math.max(1, stars.length));
+    if (stars.length >= campaignLevels && stars[campaignLevels - 1] > 0) {
+      int contiguous = 1;
+      while (contiguous <= stars.length && stars[contiguous - 1] > 0) {
+        contiguous++;
+      }
+      return math.max(stored, contiguous);
+    }
+    if (stored == minimumUniqueRounds) {
+      return math.min(campaignLevels, math.max(1, stars.length));
+    }
     int unlocked = 1;
-    while (unlocked < campaignLevels &&
-        unlocked <= stars.length &&
-        stars[unlocked - 1] > 0) {
+    while (unlocked <= stars.length && stars[unlocked - 1] > 0) {
       unlocked++;
     }
-    return unlocked;
+    return math.max(1, unlocked);
   }
 
   static String difficulty(int chapter, {bool english = false}) {
+    if (chapter > campaignLevels) {
+      final int masteryTier = ((chapter - campaignLevels - 1) ~/ 10) + 1;
+      return english
+          ? 'MASTER TIER $masteryTier'
+          : 'USTALIK KADEMESİ $masteryTier';
+    }
     final int band = ((chapter - 1) ~/ 6).clamp(0, 4);
     return (english
         ? const ['FOUNDATION', 'DEVELOPING', 'ADVANCED', 'EXPERT', 'MASTER']

@@ -19,7 +19,7 @@ android {
     namespace = "com.mustafapolat.zeka_parkuru"
     // Google Play 2026 yayın hattı için Android 16 / API 36 hedefi sabitlenmiştir.
     compileSdk = 36
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
@@ -38,20 +38,31 @@ android {
 
     signingConfigs {
         if (hasReleaseSigning) {
-            create("release") {
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
-                storeFile = file(keystoreProperties.getProperty("storeFile"))
-                storePassword = keystoreProperties.getProperty("storePassword")
+            val storeFilePath = keystoreProperties.getProperty("storeFile")
+            val storeFileObj = if (storeFilePath != null) file(storeFilePath) else null
+            if (storeFileObj != null && storeFileObj.exists()) {
+                create("release") {
+                    keyAlias = keystoreProperties.getProperty("keyAlias")
+                    keyPassword = keystoreProperties.getProperty("keyPassword")
+                    storeFile = storeFileObj
+                    storePassword = keystoreProperties.getProperty("storePassword")
+                }
             }
         }
     }
 
     buildTypes {
         release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             // Release hiçbir koşulda debug anahtarıyla imzalanmaz.
-            if (hasReleaseSigning) {
-                signingConfig = signingConfigs.getByName("release")
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning != null) {
+                signingConfig = releaseSigning
             }
         }
     }

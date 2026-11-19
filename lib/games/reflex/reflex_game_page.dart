@@ -162,31 +162,53 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
     ),
   ];
 
-  late final List<ReflexLevel> levels = List.generate(
-    GameContentPolicy.campaignLevels,
-    (index) {
-      final chapter = index + 1;
-      final base = _nativeLevels[GameContentPolicy.nativeLevel(chapter) - 1];
-      return ReflexLevel(
-        number: chapter,
-        sourceNumber: base.number,
-        difficulty: GameContentPolicy.difficulty(chapter),
-        title: base.title,
-        subtitle: base.subtitle,
-        mode: base.mode,
-        rounds: base.rounds,
-        lives: base.lives,
-        timeLimitMs: base.timeLimitMs,
-        targetMs: base.targetMs,
-        distractors: base.distractors,
-      );
-    },
-    growable: false,
-  );
+  final ScrollController _scrollController = ScrollController();
+  late List<ReflexLevel> levels;
+
+  List<ReflexLevel> _generateLevels(int targetLevel) {
+    final int count = targetLevel >= 26
+        ? max(GameContentPolicy.campaignLevels, targetLevel + 5)
+        : GameContentPolicy.campaignLevels;
+    return List.generate(
+      count,
+      (index) {
+        final chapter = index + 1;
+        final base = _nativeLevels[GameContentPolicy.nativeLevel(chapter) - 1];
+        final int extraChapters = max(0, chapter - GameContentPolicy.campaignLevels);
+        final int extraTier = extraChapters == 0 ? 0 : (extraChapters - 1) ~/ 4 + 1;
+        return ReflexLevel(
+          number: chapter,
+          sourceNumber: base.number,
+          difficulty: GameContentPolicy.difficulty(chapter),
+          title: extraChapters > 0
+              ? '${base.title} • Faz $extraChapters'
+              : base.title,
+          subtitle: extraChapters > 0
+              ? 'Usta Kademesi: ${base.subtitle}'
+              : base.subtitle,
+          mode: base.mode,
+          rounds: min(22, base.rounds + extraTier),
+          lives: base.lives,
+          timeLimitMs: max(450, base.timeLimitMs - min(90, extraTier * 15)),
+          targetMs: max(270, base.targetMs - min(40, extraTier * 8)),
+          distractors: min(8, base.distractors + (extraTier ~/ 2)),
+        );
+      },
+      growable: false,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
+    levels = _generateLevels(1);
     _loadProgress();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProgress() async {
@@ -200,14 +222,46 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
 
     if (!mounted) return;
 
+    final int star30 = savedStars != null &&
+            savedStars.length >= GameContentPolicy.campaignLevels
+        ? (int.tryParse(savedStars[GameContentPolicy.campaignLevels - 1]) ?? 0)
+        : 0;
+    final int targetLength = star30 > 0
+        ? [
+            GameContentPolicy.campaignLevels,
+            savedLevel,
+            savedStars?.length ?? 0,
+            savedScores?.length ?? 0,
+          ].reduce((a, b) => a > b ? a : b)
+        : GameContentPolicy.campaignLevels;
+    final List<int> decodedStars = _decodeList(savedStars, targetLength);
+    final int effectiveUnlocked = GameContentPolicy.safeUnlocked(
+      savedLevel,
+      decodedStars,
+    );
+    final nextLevels = _generateLevels(effectiveUnlocked);
+
     setState(() {
-      stars = _decodeList(savedStars);
-      unlockedLevel = GameContentPolicy.safeUnlocked(savedLevel, stars);
-      bestScores = _decodeList(savedScores);
+      unlockedLevel = effectiveUnlocked;
+      levels = nextLevels;
+      stars = _decodeList(savedStars, nextLevels.length);
+      bestScores = _decodeList(savedScores, nextLevels.length);
       loading = false;
     });
 
     _openCompetitionLevelIfNeeded();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      if (unlockedLevel > 2) {
+        final double targetOffset = (unlockedLevel - 2) * 110.0;
+        _scrollController.animateTo(
+          targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
   }
 
   void _openCompetitionLevelIfNeeded() {
@@ -220,8 +274,8 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
     });
   }
 
-  List<int> _decodeList(List<String>? source) {
-    return List<int>.generate(GameContentPolicy.campaignLevels, (index) {
+  List<int> _decodeList(List<String>? source, int targetCount) {
+    return List<int>.generate(targetCount, (index) {
       if (source == null || index >= source.length) return 0;
       return int.tryParse(source[index]) ?? 0;
     });
@@ -310,8 +364,19 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
       stars[index] = max(stars[index], completedResult.stars);
       bestScores[index] = max(bestScores[index], completedResult.score);
 
-      if (index + 1 == unlockedLevel && unlockedLevel < levels.length) {
+      if (index + 1 == unlockedLevel) {
         unlockedLevel++;
+        if (unlockedLevel + 3 >= levels.length) {
+          levels = _generateLevels(unlockedLevel);
+          stars = List<int>.generate(
+            levels.length,
+            (i) => i < stars.length ? stars[i] : 0,
+          );
+          bestScores = List<int>.generate(
+            levels.length,
+            (i) => i < bestScores.length ? bestScores[i] : 0,
+          );
+        }
       }
     });
 
@@ -330,10 +395,23 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
       score: commonPoints,
     );
 
-    if (completedResult.nextLevel && index + 1 < levels.length && mounted) {
+    if (completedResult.nextLevel && mounted) {
       await Future.delayed(const Duration(milliseconds: 180));
 
       if (mounted) {
+        if (index + 1 >= levels.length) {
+          setState(() {
+            levels = _generateLevels(index + 2);
+            stars = List<int>.generate(
+              levels.length,
+              (i) => i < stars.length ? stars[i] : 0,
+            );
+            bestScores = List<int>.generate(
+              levels.length,
+              (i) => i < bestScores.length ? bestScores[i] : 0,
+            );
+          });
+        }
         _openLevel(index + 1);
       }
     }
@@ -381,42 +459,68 @@ class _ReflexGamePageState extends State<ReflexGamePage> {
       body: SafeArea(
         top: false,
         child: ResponsiveGameFrame(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(18),
-                child: _ReflexProgressPanel(
-                  totalScore: totalScore,
-                  totalStars: totalStars,
-                  unlockedLevel: unlockedLevel,
-                ),
-              ),
-              Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
-                  itemCount: levels.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 1,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                    mainAxisExtent:
-                        104 *
-                        MediaQuery.textScalerOf(context)
-                            .scale(1)
-                            .clamp(1.0, 1.6),
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints limits) {
+              final bool compact = limits.maxWidth < 360;
+              final bool isLandscape = limits.maxWidth > limits.maxHeight;
+
+              return CustomScrollView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
+                          child: _ReflexProgressPanel(
+                            totalScore: totalScore,
+                            totalStars: totalStars,
+                            unlockedLevel: unlockedLevel,
+                            levelCount: levels.length,
+                          ),
+                        ),
+                        if (unlockedLevel <= levels.length)
+                          _ReflexQuickResumeCard(
+                            levelNumber: unlockedLevel,
+                            levelTitle: levels[unlockedLevel - 1].title,
+                            difficulty: levels[unlockedLevel - 1].difficulty,
+                            onPlay: () => _openLevel(unlockedLevel - 1),
+                          ),
+                      ],
+                    ),
                   ),
-                  itemBuilder: (context, index) {
-                    return _ReflexLevelCard(
-                      level: levels[index],
-                      unlocked: index + 1 <= unlockedLevel,
-                      stars: stars[index],
-                      bestScore: bestScores[index],
-                      onTap: () => _openLevel(index),
-                    );
-                  },
-                ),
-              ),
-            ],
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: isLandscape ? 2 : 1,
+                        crossAxisSpacing: compact ? 10 : 14,
+                        mainAxisSpacing: 14,
+                        mainAxisExtent:
+                            104 *
+                            MediaQuery.textScalerOf(context)
+                                .scale(1)
+                                .clamp(1.0, 1.6),
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          return _ReflexLevelCard(
+                            level: levels[index],
+                            unlocked: index + 1 <= unlockedLevel,
+                            stars: stars[index],
+                            bestScore: bestScores[index],
+                            onTap: () => _openLevel(index),
+                          );
+                        },
+                        childCount: levels.length,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -1283,20 +1387,12 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
                           completed: true,
                           stars: stars,
                           score: finalScore,
-                          nextLevel: widget.level.number < widget.totalLevels,
+                          nextLevel: true,
                         ),
                       );
                     },
-                    icon: Icon(
-                      widget.level.number < widget.totalLevels
-                          ? Icons.arrow_forward_rounded
-                          : Icons.workspace_premium_rounded,
-                    ),
-                    label: LText(
-                      widget.level.number < widget.totalLevels
-                          ? 'SONRAKİ SEVİYE'
-                          : 'REFLEKS PARKURUNU TAMAMLA',
-                    ),
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    label: const LText('SONRAKİ SEVİYE'),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -1468,7 +1564,7 @@ class _ReflexPlayPageState extends State<ReflexPlayPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LText(
-              widget.level.title.toUpperCase(),
+              context.l10n.uppercaseLabel(widget.level.title),
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 fontWeight: FontWeight.w900,
@@ -2088,15 +2184,18 @@ class _ReflexProgressPanel extends StatelessWidget {
   final int totalScore;
   final int totalStars;
   final int unlockedLevel;
+  final int levelCount;
 
   const _ReflexProgressPanel({
     required this.totalScore,
     required this.totalStars,
     required this.unlockedLevel,
+    required this.levelCount,
   });
 
   @override
   Widget build(BuildContext context) {
+    final int maxLevels = max(GameContentPolicy.campaignLevels, levelCount);
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -2136,7 +2235,7 @@ class _ReflexProgressPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 LText(
-                  'Seviye $unlockedLevel / ${GameContentPolicy.campaignLevels}   •   ⭐ $totalStars / ${GameContentPolicy.campaignLevels * 3}',
+                  'Seviye $unlockedLevel / $maxLevels   •   ⭐ $totalStars / ${maxLevels * 3}',
                   style: const TextStyle(
                     fontFamily: 'Roboto',
                     color: StudioVisuals.muted,
@@ -2167,6 +2266,137 @@ class _ReflexProgressPanel extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReflexQuickResumeCard extends StatelessWidget {
+  final int levelNumber;
+  final String levelTitle;
+  final String difficulty;
+  final VoidCallback onPlay;
+
+  const _ReflexQuickResumeCard({
+    required this.levelNumber,
+    required this.levelTitle,
+    required this.difficulty,
+    required this.onPlay,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const Color accent = Color(0xFFA84640);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: StudioVisuals.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.bolt_rounded, color: accent, size: 20),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 2,
+                  children: [
+                    const LText(
+                      'SIRADAKİ PARKUR',
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        color: accent,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: LText(
+                        difficulty,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          color: accent,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                LText(
+                  'Bölüm $levelNumber • $levelTitle',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.ink,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: onPlay,
+            style: FilledButton.styleFrom(
+              backgroundColor: accent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.play_arrow_rounded, size: 16),
+                SizedBox(width: 2),
+                LText(
+                  'OYNA',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11),
+                ),
+              ],
+            ),
           ),
         ],
       ),

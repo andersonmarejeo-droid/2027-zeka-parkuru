@@ -526,6 +526,144 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
     );
   }
 
+  void _showHowToPlay(BuildContext context, ProfessionalIqCopy copy) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: StudioVisuals.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.help_outline_rounded, color: _accent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    copy.text('visualReasoning'),
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: StudioVisuals.ink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                copy.text('notClinical'),
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 13,
+                  height: 1.45,
+                  color: StudioVisuals.ink,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('ANLADIM', style: TextStyle(fontWeight: FontWeight.w900)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showExplanation(BuildContext context, ProfessionalIqCopy copy) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: StudioVisuals.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: const <Widget>[
+                  Icon(Icons.lightbulb_outline_rounded, color: Color(0xFFD97706), size: 22),
+                  SizedBox(width: 8),
+                  Text(
+                    'Çözüm Mantığı',
+                    style: TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: StudioVisuals.ink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _ExplanationCard(copy: copy, question: _question),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('TAMAM', style: TextStyle(fontWeight: FontWeight.w900)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ProfessionalIqCopy copy = ProfessionalIqCopy(
@@ -542,158 +680,265 @@ class _PictureIqPlayPageState extends State<PictureIqPlayPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: Text(
-          '${copy.text('visualReasoning')} • ${widget.level.number}/${GameContentPolicy.campaignLevels}',
+          '${copy.text('visualReasoning')} • Bölüm ${widget.level.number}',
           style: const TextStyle(
             fontFamily: 'Roboto',
             fontWeight: FontWeight.w900,
             fontSize: 15,
           ),
         ),
+        actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded),
+            tooltip: 'Nasıl Oynanır?',
+            onPressed: () => _showHowToPlay(context, copy),
+          ),
+        ],
       ),
       body: SafeArea(
-        top: false,
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints limits) {
-            final bool compact = limits.maxHeight < 690;
-            return ListView(
-              padding: EdgeInsets.fromLTRB(14, compact ? 3 : 9, 14, 24),
-              children: <Widget>[
-                _IqHeader(
-                  progress: copy.questionProgress(
-                    _questionIndex + 1,
-                    _questions.length,
-                  ),
-                  correct: _correct,
-                  elapsed: _elapsed,
+        child: ResponsiveGameFrame(
+          maxContentWidth: 620,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // Kompakt tek satır durum çubuğu (38px)
+              Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
-                SizedBox(height: compact ? 9 : 14),
-                Text(
-                  copy.prompt(_question),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Roboto',
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Center(
-                  child: _FamilyChip(label: copy.familyName(_question.family)),
-                ),
-                SizedBox(height: compact ? 8 : 12),
-                Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: _QuestionBoard(question: _question, compact: compact),
-                ),
-                SizedBox(height: compact ? 9 : 14),
-                Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _question.options.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 9,
-                      mainAxisSpacing: 9,
-                      // The artwork is the answer, not decoration. Give the
-                      // visual tile enough vertical space to be read at a
-                      // glance, while the list remains scrollable on short
-                      // phones.
-                      mainAxisExtent: compact ? 116 : 132,
+                child: Row(
+                  children: <Widget>[
+                    Text(
+                      copy.questionProgress(_questionIndex + 1, _questions.length),
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        color: StudioVisuals.ink,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                    itemBuilder: (BuildContext context, int index) {
-                      final bool selected = _selectedIndex == index;
-                      final bool correct = index == _question.correctIndex;
-                      Color border = const Color(0xFFD7E2EA);
-                      Color background = Colors.white;
-                      if (_answerLocked && correct) {
-                        border = const Color(0xFF20A464);
-                        background = const Color(0xFFEAF8F1);
-                      } else if (_answerLocked && selected) {
-                        border = const Color(0xFFE64B5D);
-                        background = const Color(0xFFFFEEF0);
-                      } else if (selected) {
-                        border = const Color(0xFF4A90D9);
-                        background = const Color(0xFFEEF6FF);
-                      }
-                      return Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: _answerLocked
-                              ? null
-                              : () => _selectAnswer(index),
-                          borderRadius: BorderRadius.circular(16),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            decoration: BoxDecoration(
-                              color: background,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: border, width: 1.4),
-                            ),
-                            child: Stack(
-                              children: <Widget>[
-                                Center(
-                                  child: _FigureView(
-                                    figure: _question.options[index],
-                                    scene: _question.scene,
-                                  ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '•  ✓ $_correct',
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        color: Color(0xFF20A464),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Icon(Icons.timer_outlined, size: 14, color: StudioVisuals.muted),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${_elapsed}s',
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        color: StudioVisuals.muted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+
+              // Soru Talimatı & Kategori
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE6EEF4)),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        copy.prompt(_question),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          color: StudioVisuals.ink,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    _FamilyChip(label: copy.familyName(_question.family)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+
+              // Ana Oyun Alanı: Tahta & Seçenekler (Zero-Scroll Kaydırmasız)
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (BuildContext context, BoxConstraints constraints) {
+                    final bool hasBoard = _question.layout != ProfessionalIqLayout.oddOneOut;
+                    final double totalHeight = constraints.maxHeight;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        if (hasBoard) ...<Widget>[
+                          Expanded(
+                            flex: 5,
+                            child: Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: Center(
+                                child: _QuestionBoard(
+                                  question: _question,
+                                  compact: totalHeight < 560,
                                 ),
-                                Positioned(
-                                  left: 9,
-                                  top: 7,
-                                  child: Text(
-                                    String.fromCharCode(65 + index),
-                                    style: const TextStyle(
-                                      fontFamily: 'Roboto',
-                                      color: Color(0xFF526D82),
-                                      fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                        ],
+                        Expanded(
+                          flex: hasBoard ? 5 : 10,
+                          child: Directionality(
+                            textDirection: TextDirection.ltr,
+                            child: GridView.builder(
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _question.options.length,
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
+                                childAspectRatio: 1.6,
+                              ),
+                              itemBuilder: (BuildContext context, int index) {
+                                final bool selected = _selectedIndex == index;
+                                final bool correct = index == _question.correctIndex;
+                                Color border = const Color(0xFFD7E2EA);
+                                Color background = Colors.white;
+                                if (_answerLocked && correct) {
+                                  border = const Color(0xFF20A464);
+                                  background = const Color(0xFFEAF8F1);
+                                } else if (_answerLocked && selected) {
+                                  border = const Color(0xFFE64B5D);
+                                  background = const Color(0xFFFFEEF0);
+                                } else if (selected) {
+                                  border = const Color(0xFF4A90D9);
+                                  background = const Color(0xFFEEF6FF);
+                                }
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: _answerLocked ? null : () => _selectAnswer(index),
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 180),
+                                      decoration: BoxDecoration(
+                                        color: background,
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(color: border, width: 1.4),
+                                      ),
+                                      child: Stack(
+                                        children: <Widget>[
+                                          Center(
+                                            child: _FigureView(
+                                              figure: _question.options[index],
+                                              scene: _question.scene,
+                                            ),
+                                          ),
+                                          Positioned(
+                                            left: 8,
+                                            top: 6,
+                                            child: Text(
+                                              String.fromCharCode(65 + index),
+                                              style: const TextStyle(
+                                                fontFamily: 'Roboto',
+                                                color: Color(0xFF526D82),
+                                                fontWeight: FontWeight.w900,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                );
+                              },
                             ),
                           ),
                         ),
-                      );
-                    },
-                  ),
+                      ],
+                    );
+                  },
                 ),
-                if (_answerLocked) ...<Widget>[
-                  const SizedBox(height: 11),
-                  _ExplanationCard(copy: copy, question: _question),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _nextQuestion,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _accent,
-                        foregroundColor: const Color(0xFFEEF3F0),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                      ),
-                      icon: Icon(
-                        _questionIndex + 1 == _questions.length
-                            ? Icons.insights_rounded
-                            : Icons.arrow_forward_rounded,
-                      ),
-                      label: Text(
-                        _questionIndex + 1 == _questions.length
-                            ? copy.text('viewProfile')
-                            : copy.text('nextQuestion'),
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
-                          fontWeight: FontWeight.w900,
+              ),
+
+              // Cevap Kilitlendiğinde Alt Kontrol Çubuğu (44px)
+              if (_answerLocked) ...<Widget>[
+                const SizedBox(height: 6),
+                Container(
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    children: <Widget>[
+                      OutlinedButton.icon(
+                        onPressed: () => _showExplanation(context, copy),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: StudioVisuals.tealInk,
+                          side: BorderSide(color: StudioVisuals.teal.withValues(alpha: 0.4)),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: const Icon(Icons.lightbulb_outline_rounded, size: 16),
+                        label: const Text(
+                          'Açıklama',
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _nextQuestion,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _accent,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          icon: Icon(
+                            _questionIndex + 1 == _questions.length
+                                ? Icons.insights_rounded
+                                : Icons.arrow_forward_rounded,
+                            size: 16,
+                          ),
+                          label: Text(
+                            _questionIndex + 1 == _questions.length
+                                ? copy.text('viewProfile')
+                                : copy.text('nextQuestion'),
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ],
-            );
-          },
+            ],
+          ),
         ),
       ),
     );
@@ -1264,65 +1509,7 @@ class _DotPattern extends StatelessWidget {
   }
 }
 
-class _IqHeader extends StatelessWidget {
-  final String progress;
-  final int correct;
-  final int elapsed;
 
-  const _IqHeader({
-    required this.progress,
-    required this.correct,
-    required this.elapsed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: StudioVisuals.line),
-      ),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: Text(
-              progress,
-              style: const TextStyle(
-                fontFamily: 'Roboto',
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-          const Icon(
-            Icons.check_circle_rounded,
-            color: Color(0xFF34715D),
-            size: 18,
-          ),
-          const SizedBox(width: 5),
-          Text(
-            '$correct',
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(width: 13),
-          const Icon(Icons.timer_outlined, color: Color(0xFF3D7183), size: 18),
-          const SizedBox(width: 5),
-          Text(
-            '${elapsed}s',
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _FamilyChip extends StatelessWidget {
   final String label;

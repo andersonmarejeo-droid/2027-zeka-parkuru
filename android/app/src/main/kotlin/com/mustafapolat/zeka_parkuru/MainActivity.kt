@@ -1,10 +1,12 @@
 package com.mustafapolat.zeka_parkuru
 
 import android.media.AudioAttributes
+import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -21,6 +23,53 @@ class MainActivity : FlutterActivity() {
     private var narratorReady = false
     private var speechChannel: MethodChannel? = null
     private var pendingSpeech: PendingSpeech? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setHighRefreshRate()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        setHighRefreshRate()
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        setHighRefreshRate()
+    }
+
+    private fun setHighRefreshRate() {
+        try {
+            window.addFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                display?.let { d ->
+                    val modes = d.supportedModes
+                    val maxMode = modes.maxByOrNull { it.refreshRate }
+                    if (maxMode != null && maxMode.refreshRate >= 60.0f) {
+                        val params = window.attributes
+                        params.preferredDisplayModeId = maxMode.modeId
+                        params.preferredRefreshRate = maxMode.refreshRate
+                        window.attributes = params
+                    }
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                @Suppress("DEPRECATION")
+                val display = windowManager.defaultDisplay
+                display?.let { d ->
+                    val modes = d.supportedModes
+                    val maxMode = modes.maxByOrNull { it.refreshRate }
+                    if (maxMode != null && maxMode.refreshRate >= 60.0f) {
+                        val params = window.attributes
+                        params.preferredDisplayModeId = maxMode.modeId
+                        window.attributes = params
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            // Cihaz kısıtlaması durumunda sessizce devam et
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

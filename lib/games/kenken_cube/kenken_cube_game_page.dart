@@ -313,11 +313,13 @@ class _KenKenCubePlayPageState extends State<KenKenCubePlayPage> {
           : StudioResultAction.map,
     );
     _audio.hapticMedium();
-    unawaited(_audioProfile.play(
-      _audio,
-      GameAudioEvent.levelComplete,
-      levelNumber: widget.level.number,
-    ));
+    unawaited(
+      _audioProfile.play(
+        _audio,
+        GameAudioEvent.levelComplete,
+        levelNumber: widget.level.number,
+      ),
+    );
     await Future<void>.delayed(const Duration(milliseconds: 150));
     if (!mounted) return;
     await showDialog<void>(
@@ -369,10 +371,72 @@ class _KenKenCubePlayPageState extends State<KenKenCubePlayPage> {
     );
   }
 
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(
+                    Icons.help_outline_rounded,
+                    color: _accent,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _english ? 'HOW TO PLAY?' : 'NASIL OYNANIR?',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: _ink,
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _english
+                    ? '• Fill the grid so that each row and column contains numbers from 1 to ${_puzzle.size} without repeating.\n• Each heavily outlined group of cells is a "cage".\n• The numbers in each cage must combine using the given math operator (+, −, ×, ÷) to match the target clue.\n• Single-cell cages simply take the clue number.'
+                    : '• Her satır ve sütunda 1 ile ${_puzzle.size} arasındaki sayılar tekrarsız olarak yer almalıdır.\n• Kalın çizgilerle çevrili hücre gruplarına "kafes" denir.\n• Kafes içindeki sayılar, köşedeki işlem işaretiyle (+, −, ×, ÷) birleştiğinde hedef sonucu vermelidir.\n• İşaretsiz tek hücreli kafeslerde doğrudan hedef sayı yazılır.',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 14,
+                  height: 1.5,
+                  color: _ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     _english = context.l10n.isEnglish;
-    final double width = MediaQuery.sizeOf(context).width;
     final int stage = _puzzle.localStage;
     final Set<int> conflicts = _conflicts;
     return Scaffold(
@@ -382,7 +446,7 @@ class _KenKenCubePlayPageState extends State<KenKenCubePlayPage> {
         backgroundColor: _canvas,
         foregroundColor: _ink,
         surfaceTintColor: Colors.transparent,
-        titleSpacing: 8,
+        titleSpacing: 10,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -394,7 +458,7 @@ class _KenKenCubePlayPageState extends State<KenKenCubePlayPage> {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontFamily: 'Roboto',
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: FontWeight.w900,
                 letterSpacing: .55,
               ),
@@ -414,10 +478,9 @@ class _KenKenCubePlayPageState extends State<KenKenCubePlayPage> {
         ),
         actions: <Widget>[
           IconButton(
-            key: const ValueKey<String>('kenken_undo'),
-            onPressed: _undo.isEmpty ? null : _undoMove,
-            tooltip: _english ? 'Undo' : 'Geri al',
-            icon: const Icon(Icons.undo_rounded),
+            onPressed: _showHowToPlay,
+            tooltip: _english ? 'How to play' : 'Nasıl oynanır',
+            icon: const Icon(Icons.help_outline_rounded),
           ),
           IconButton(
             key: const ValueKey<String>('kenken_reset'),
@@ -433,12 +496,12 @@ class _KenKenCubePlayPageState extends State<KenKenCubePlayPage> {
           maxContentWidth: 560,
           child: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
-              final double boardSize = math.min(
-                math.min(width - 24, 440),
-                math.max(240, constraints.maxHeight - 210),
-              );
-              return SingleChildScrollView(
-                key: const ValueKey<String>('kenken_scroll'),
+              final double availableWidth = constraints.maxWidth;
+              final double availableHeight = constraints.maxHeight;
+              final double boardSize = math
+                  .min(availableWidth - 24, availableHeight - 220)
+                  .clamp(180.0, 400.0);
+              return Padding(
                 padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
                 child: Column(
                   children: <Widget>[
@@ -450,20 +513,20 @@ class _KenKenCubePlayPageState extends State<KenKenCubePlayPage> {
                       moves: _moves,
                       english: _english,
                     ),
-                    const SizedBox(height: 9),
-                    Center(
-                      child: SizedBox.square(
-                        dimension: boardSize,
-                        child: _KenKenBoard(
-                          puzzle: _puzzle,
-                          values: _values,
-                          selected: _selected,
-                          conflicts: conflicts,
-                          onSelect: _select,
+                    Expanded(
+                      child: Center(
+                        child: SizedBox.square(
+                          dimension: boardSize,
+                          child: _KenKenBoard(
+                            puzzle: _puzzle,
+                            values: _values,
+                            selected: _selected,
+                            conflicts: conflicts,
+                            onSelect: _select,
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
                     _KenKenStatus(
                       selected: _selected,
                       puzzle: _puzzle,
@@ -471,72 +534,69 @@ class _KenKenCubePlayPageState extends State<KenKenCubePlayPage> {
                       conflicts: conflicts.length,
                       english: _english,
                     ),
-                    const SizedBox(height: 7),
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 8,
-                      runSpacing: 6,
+                    const SizedBox(height: 6),
+                    // Sayılar üstte ve yan yana satır olarak
+                    SizedBox(
+                      width: double.infinity,
+                      child: _KenKenKeypad(size: _puzzle.size, onDigit: _enter),
+                    ),
+                    const SizedBox(height: 6),
+                    // İşlem Kontrol Butonları Satırı
+                    Row(
                       children: <Widget>[
-                        _ToolButton(
-                          key: const ValueKey<String>('kenken_hint'),
-                          icon: Icons.lightbulb_outline_rounded,
-                          label: _english ? 'HINT' : 'İPUCU',
-                          onTap: _hint,
+                        Expanded(
+                          child: _ToolButton(
+                            key: const ValueKey<String>('kenken_undo_action'),
+                            icon: Icons.undo_rounded,
+                            label: _english ? 'UNDO' : 'GERİ AL',
+                            onTap: _undo.isEmpty ? null : _undoMove,
+                          ),
                         ),
-                        _ToolButton(
-                          key: const ValueKey<String>('kenken_clear'),
-                          icon: Icons.backspace_outlined,
-                          label: _english ? 'CLEAR' : 'SİL',
-                          onTap: _clear,
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: _ToolButton(
+                            key: const ValueKey<String>('kenken_clear'),
+                            icon: Icons.backspace_outlined,
+                            label: _english ? 'CLEAR' : 'SİL',
+                            onTap: _clear,
+                          ),
                         ),
-                        _ToolButton(
-                          key: const ValueKey<String>('kenken_undo_action'),
-                          icon: Icons.undo_rounded,
-                          label: _english ? 'UNDO' : 'GERİ AL',
-                          onTap: _undoMove,
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: _ToolButton(
+                            key: const ValueKey<String>('kenken_hint'),
+                            icon: Icons.lightbulb_outline_rounded,
+                            label: _english ? 'HINT' : 'İPUCU',
+                            onTap: _hint,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    _KenKenKeypad(size: _puzzle.size, onDigit: _enter),
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 8),
                     FilledButton.icon(
                       key: const ValueKey<String>('kenken_check'),
                       onPressed: _check,
-                      icon: const Icon(Icons.fact_check_outlined),
-                      label: Text(
-                        _english ? 'CHECK THE GRID' : 'TABLOYU KONTROL ET',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      icon: const Icon(Icons.fact_check_outlined, size: 18),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          _english ? 'CHECK GRID' : 'TABLOYU KONTROL ET',
+                          maxLines: 1,
+                        ),
                       ),
                       style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(
-                          GameInputPolicy.minimumTargetSize + 4,
-                        ),
+                        minimumSize: const Size.fromHeight(44),
                         backgroundColor: _accent,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                         textStyle: const TextStyle(
                           fontFamily: 'Roboto',
                           fontWeight: FontWeight.w900,
                           letterSpacing: .35,
+                          fontSize: 13,
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _english
-                          ? 'Each row and column uses 1–${_puzzle.size} once. Match every cage target with its operation.'
-                          : 'Her satır ve sütunda 1–${_puzzle.size} sayıları birer kez yer alır. Her kafesin hedef işlemini tuttur.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: 'Roboto',
-                        color: _muted,
-                        fontSize: 11,
-                        height: 1.25,
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -889,40 +949,50 @@ class _KenKenKeypad extends StatelessWidget {
   final ValueChanged<int> onDigit;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-    alignment: WrapAlignment.center,
-    spacing: 7,
-    runSpacing: 7,
-    children: <Widget>[
-      for (int digit = 1; digit <= size; digit++)
-        SizedBox(
-          width: 46,
-          height: GameInputPolicy.minimumTargetSize,
-          child: FilledButton(
-            key: ValueKey<String>('kenken_num_$digit'),
-            onPressed: () => onDigit(digit),
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: _KenKenCubePlayPageState._ink,
-              elevation: 0,
-              side: const BorderSide(color: Color(0xFFDCE4E0)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: EdgeInsets.zero,
-            ),
-            child: Text(
-              '$digit',
-              style: const TextStyle(
-                fontFamily: 'Roboto',
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        for (int digit = 1; digit <= size; digit++) ...<Widget>[
+          if (digit > 1) const SizedBox(width: 8),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: Material(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(13),
+                elevation: 0,
+                child: InkWell(
+                  key: ValueKey<String>('kenken_num_$digit'),
+                  borderRadius: BorderRadius.circular(13),
+                  onTap: () => onDigit(digit),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: const Color(0xFFDCE4E0),
+                        width: 1.3,
+                      ),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$digit',
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        color: _KenKenCubePlayPageState._ink,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-    ],
-  );
+        ],
+      ],
+    );
+  }
 }
 
 class _ToolButton extends StatelessWidget {
@@ -934,26 +1004,29 @@ class _ToolButton extends StatelessWidget {
   });
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => OutlinedButton.icon(
     onPressed: onTap,
-    icon: Icon(icon, size: 15),
-    label: Text(
-      label,
-      style: const TextStyle(
-        fontFamily: 'Roboto',
-        fontSize: 10,
-        fontWeight: FontWeight.w900,
+    icon: Icon(icon, size: 16),
+    label: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontFamily: 'Roboto',
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
       ),
     ),
     style: OutlinedButton.styleFrom(
       foregroundColor: _KenKenCubePlayPageState._accent,
       side: const BorderSide(color: Color(0xFFD5E4DF)),
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      minimumSize: const Size(90, GameInputPolicy.minimumTargetSize),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      minimumSize: const Size(0, 42),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
   );
 }

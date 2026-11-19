@@ -195,7 +195,8 @@ class LetterMazePlayPage extends StatefulWidget {
   State<LetterMazePlayPage> createState() => _LetterMazePlayPageState();
 }
 
-class _LetterMazePlayPageState extends State<LetterMazePlayPage> {
+class _LetterMazePlayPageState extends State<LetterMazePlayPage>
+    with SingleTickerProviderStateMixin {
   final GameAudioService _audio = GameAudioService.instance;
   final GameAudioProfile _audioProfile = GameAudioProfile.forClass(
     StudioGameClass.language,
@@ -203,6 +204,8 @@ class _LetterMazePlayPageState extends State<LetterMazePlayPage> {
 
   late StudioGameSession _session;
   late LetterMazeScenario _scenario;
+  late final AnimationController _entranceBlinkController;
+  int _blinkCount = 0;
   bool _initialized = false;
   bool _failureDialogOpen = false;
   bool _solved = false;
@@ -233,6 +236,32 @@ class _LetterMazePlayPageState extends State<LetterMazePlayPage> {
       level: widget.level.number,
       seed: widget.practiceRound ?? widget.level.number,
     )..start();
+    _entranceBlinkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    )..addStatusListener((AnimationStatus status) {
+        if (status == AnimationStatus.completed) {
+          _entranceBlinkController.reverse();
+        } else if (status == AnimationStatus.dismissed) {
+          _blinkCount++;
+          if (_blinkCount < 3 && mounted) {
+            _entranceBlinkController.forward();
+          }
+        }
+      });
+    _startEntranceBlink();
+  }
+
+  void _startEntranceBlink() {
+    _blinkCount = 0;
+    _entranceBlinkController.reset();
+    _entranceBlinkController.forward();
+  }
+
+  @override
+  void dispose() {
+    _entranceBlinkController.dispose();
+    super.dispose();
   }
 
   @override
@@ -266,6 +295,9 @@ class _LetterMazePlayPageState extends State<LetterMazePlayPage> {
               ? 'Begin at the marked entrance.'
               : 'İşaretli giriş hücresinden başla.';
           return;
+        }
+        if (_entranceBlinkController.isAnimating) {
+          _entranceBlinkController.stop();
         }
         _route.add(index);
         return;
@@ -410,6 +442,7 @@ class _LetterMazePlayPageState extends State<LetterMazePlayPage> {
         level: widget.level.number,
         seed: widget.practiceRound ?? widget.level.number,
       )..start();
+      _startEntranceBlink();
     });
   }
 
@@ -458,6 +491,91 @@ class _LetterMazePlayPageState extends State<LetterMazePlayPage> {
     if (mounted) Navigator.of(context).pop(result.toParkurResult());
   }
 
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        final StudioGameSkin skin = StudioGameSkin.forId('letter_maze');
+        return Container(
+          decoration: const BoxDecoration(
+            color: StudioVisuals.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Icon(Icons.help_outline_rounded, color: skin.accent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    _english ? 'How to Play?' : 'Nasıl Oynanır?',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: StudioVisuals.ink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _english
+                    ? '• Trace the correct word path from the maze entrance, passing through root gates to the exit.\n'
+                      '• Tap adjacent letters step-by-step to form the target word.\n'
+                      '• Use the hint button if you need help finding the next letter.\n'
+                      '• Press "CHECK ROUTE" once your sequence is complete!'
+                    : '• Labirent girişinden başlayarak kök kapısından geçen ve çıkışa ulaşan doğru kelime rotasını çiz.\n'
+                      '• Komşu harflere sırayla dokunarak hedef sözcüğü oluştur.\n'
+                      '• Takıldığında "İPUCU" butonuna basarak bir sonraki harfi görebilirsin.\n'
+                      '• Rotanı tamamlayınca "ROTAYI KONTROL ET" butonuyla doğrula!',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 13,
+                  height: 1.5,
+                  color: StudioVisuals.ink,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: skin.accent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    _english ? 'GOT IT' : 'ANLADIM',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final StudioGameSkin skin = StudioGameSkin.forId('letter_maze');
@@ -479,7 +597,7 @@ class _LetterMazePlayPageState extends State<LetterMazePlayPage> {
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 fontWeight: FontWeight.w900,
-                fontSize: 18,
+                fontSize: 16,
               ),
             ),
             Text(
@@ -488,239 +606,254 @@ class _LetterMazePlayPageState extends State<LetterMazePlayPage> {
                         ? 'PRACTICE  •  ${widget.practiceRound} / 300'
                         : 'PRATİK  •  ${widget.practiceRound} / 300')
                   : (_english
-                        ? 'CAMPAIGN  •  ${widget.level.number} / ${GameContentPolicy.campaignLevels}'
-                        : 'KAMPANYA  •  ${widget.level.number} / ${GameContentPolicy.campaignLevels}'),
+                        ? 'LEVEL ${widget.level.number} / ${GameContentPolicy.campaignLevels}'
+                        : 'BÖLÜM ${widget.level.number} / ${GameContentPolicy.campaignLevels}'),
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 color: StudioVisuals.muted,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: .5,
               ),
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: _english ? 'How to play' : 'Nasıl Oynanır?',
+            onPressed: _showHowToPlay,
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
         child: ResponsiveGameFrame(
+          maxContentWidth: 620,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             child: Column(
               children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        _english
-                            ? 'Trace a real word through the maze: entrance → root gate → exit.'
-                            : 'Gerçek sözcüğü labirentte izle: giriş → kök kapısı → çıkış.',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
-                          color: StudioVisuals.ink,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _MazeStat(
-                      icon: Icons.favorite_outline_rounded,
-                      label: '$_errorsLeft/$_mistakeLimit',
-                      accent: _errorsLeft <= 1
-                          ? StudioVisuals.danger
-                          : skin.accent,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 7),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
-                  child: LinearProgressIndicator(
-                    value: _solved
-                        ? 1
-                        : _route.length / _scenario.answer.runes.length,
-                    minHeight: 5,
-                    color: skin.accent,
-                    backgroundColor: skin.accentSoft,
+                // Kompakt durum çubuğu (38px)
+                Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
                   ),
-                ),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (BuildContext context, BoxConstraints limits) =>
-                        SingleChildScrollView(
-                          key: const ValueKey<String>('letter_maze_scroll'),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minHeight: limits.maxHeight,
-                            ),
-                            child: Column(
-                              children: <Widget>[
-                                const SizedBox(height: 8),
-                                _MazeClue(
-                                  scenario: _scenario,
-                                  english: _english,
-                                  accent: skin.accent,
-                                ),
-                                const SizedBox(height: 8),
-                                LayoutBuilder(
-                                  builder:
-                                      (
-                                        BuildContext context,
-                                        BoxConstraints gridLimits,
-                                      ) {
-                                        final double width = math.min(
-                                          gridLimits.maxWidth,
-                                          360,
-                                        );
-                                        return SizedBox(
-                                          width: width,
-                                          height: width,
-                                          child: _MazeGrid(
-                                            scenario: _scenario,
-                                            accent: skin.accent,
-                                            selectedSteps: routeSteps,
-                                            hintTile: _hintTile,
-                                            solved: _solved,
-                                            onTap: _selectTile,
-                                          ),
-                                        );
-                                      },
-                                ),
-                                const SizedBox(height: 8),
-                                _RouteReadout(
-                                  attempt: _attempt,
-                                  targetLength: _scenario.answer.runes.length,
-                                  english: _english,
-                                  accent: skin.accent,
-                                  solved: _solved,
-                                ),
-                                if (_feedback != null) ...<Widget>[
-                                  const SizedBox(height: 7),
-                                  _MazeFeedback(message: _feedback!),
-                                ],
-                                if (_solved) ...<Widget>[
-                                  const SizedBox(height: 8),
-                                  _MazeSolved(
-                                    scenario: _scenario,
-                                    english: _english,
-                                    accent: skin.accent,
-                                  ),
-                                ],
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: <Widget>[
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: _solved || _hints >= 2
-                                            ? null
-                                            : _useHint,
-                                        icon: const Icon(
-                                          Icons.lightbulb_outline_rounded,
-                                          size: 17,
-                                        ),
-                                        label: Text(
-                                          _english
-                                              ? 'HINT  $_hints/2'
-                                              : 'İPUCU  $_hints/2',
-                                          maxLines: 1,
-                                          softWrap: false,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: skin.accent,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 5,
-                                          ),
-                                          minimumSize: const Size.fromHeight(
-                                            48,
-                                          ),
-                                          textStyle: const TextStyle(
-                                            fontFamily: 'Roboto',
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: _solved ? null : _clearRoute,
-                                        icon: const Icon(
-                                          Icons.restart_alt_rounded,
-                                          size: 18,
-                                        ),
-                                        label: Text(
-                                          _english ? 'CLEAR' : 'TEMİZLE',
-                                          maxLines: 1,
-                                          softWrap: false,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: StudioVisuals.muted,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 5,
-                                          ),
-                                          minimumSize: const Size.fromHeight(
-                                            48,
-                                          ),
-                                          textStyle: const TextStyle(
-                                            fontFamily: 'Roboto',
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 7),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: FilledButton.icon(
-                                    key: const ValueKey<String>(
-                                      'letter_maze_submit',
-                                    ),
-                                    onPressed: _solved
-                                        ? _finish
-                                        : _route.isEmpty
-                                        ? null
-                                        : _checkRoute,
-                                    icon: Icon(
-                                      _solved
-                                          ? Icons.celebration_rounded
-                                          : Icons.route_rounded,
-                                      size: 18,
-                                    ),
-                                    label: Text(
-                                      _solved
-                                          ? (_english ? 'CONTINUE' : 'DEVAM ET')
-                                          : (_english
-                                                ? 'CHECK ROUTE'
-                                                : 'ROTAYI KONTROL ET'),
-                                    ),
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: skin.accent,
-                                      foregroundColor: Colors.white,
-                                      minimumSize: const Size.fromHeight(49),
-                                      textStyle: const TextStyle(
-                                        fontFamily: 'Roboto',
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: .2,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                              ],
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          '${_english ? 'Word' : 'Sözcük'}: ${_route.length}/${_scenario.answer.runes.length}',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: StudioVisuals.ink,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '•  ❤️ $_errorsLeft/$_mistakeLimit',
+                          style: TextStyle(
+                            fontFamily: 'Roboto',
+                            color: _errorsLeft <= 1 ? StudioVisuals.danger : skin.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 50,
+                          height: 6,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: _solved ? 1 : _route.length / _scenario.answer.runes.length,
+                              minHeight: 6,
+                              color: skin.accent,
+                              backgroundColor: skin.accentSoft,
                             ),
                           ),
                         ),
+                      ],
+                    ),
                   ),
+                ),
+                const SizedBox(height: 6),
+
+                // Ana Labirent Alanı: Kaydırmasız (Zero-Scroll)
+                Expanded(
+                  child: Column(
+                    children: <Widget>[
+                      _MazeClue(
+                        scenario: _scenario,
+                        english: _english,
+                        accent: skin.accent,
+                      ),
+                      const SizedBox(height: 6),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (BuildContext context, BoxConstraints gridLimits) {
+                            final double width = math.min(
+                              math.min(gridLimits.maxWidth, gridLimits.maxHeight),
+                              340,
+                            );
+                            return Center(
+                              child: SizedBox(
+                                width: width,
+                                height: width,
+                                child: AnimatedBuilder(
+                                  animation: _entranceBlinkController,
+                                  builder: (
+                                    BuildContext context,
+                                    Widget? child,
+                                  ) {
+                                    return _MazeGrid(
+                                      scenario: _scenario,
+                                      accent: skin.accent,
+                                      selectedSteps: routeSteps,
+                                      hintTile: _hintTile,
+                                      solved: _solved,
+                                      entranceBlinkValue:
+                                          _route.isEmpty
+                                              ? _entranceBlinkController.value
+                                              : 0.0,
+                                      onTap: _selectTile,
+                                    );
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      _RouteReadout(
+                        attempt: _attempt,
+                        targetLength: _scenario.answer.runes.length,
+                        english: _english,
+                        accent: skin.accent,
+                        solved: _solved,
+                      ),
+                      if (_feedback != null) ...<Widget>[
+                        const SizedBox(height: 4),
+                        _MazeFeedback(message: _feedback!),
+                      ],
+                      if (_solved) ...<Widget>[
+                        const SizedBox(height: 6),
+                        _MazeSolved(
+                          scenario: _scenario,
+                          english: _english,
+                          accent: skin.accent,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Alt Aksiyon Butonları (42px)
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      flex: 1,
+                      child: OutlinedButton.icon(
+                        onPressed: _solved || _hints >= 2 ? null : _useHint,
+                        icon: const Icon(Icons.lightbulb_outline_rounded, size: 16),
+                        label: Text(
+                          _english ? 'HINT $_hints/2' : 'İPUCU $_hints/2',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: skin.accent,
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Roboto',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      flex: 1,
+                      child: OutlinedButton.icon(
+                        onPressed: _solved ? null : _clearRoute,
+                        icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                        label: Text(
+                          _english ? 'CLEAR' : 'TEMİZLE',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: StudioVisuals.muted,
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Roboto',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton.icon(
+                        key: const ValueKey<String>('letter_maze_submit'),
+                        onPressed: _solved
+                            ? _finish
+                            : _route.isEmpty
+                                ? null
+                                : _checkRoute,
+                        icon: Icon(
+                          _solved ? Icons.celebration_rounded : Icons.route_rounded,
+                          size: 16,
+                        ),
+                        label: Text(
+                          _solved
+                              ? (_english ? 'COMPLETED' : 'TAMAMLANDI')
+                              : (_english ? 'CHECK ROUTE' : 'ROTAYI KONTROL ET'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: skin.accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Roboto',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -882,6 +1015,7 @@ class _MazeGrid extends StatelessWidget {
     required this.selectedSteps,
     required this.hintTile,
     required this.solved,
+    this.entranceBlinkValue = 0.0,
     required this.onTap,
   });
 
@@ -890,6 +1024,7 @@ class _MazeGrid extends StatelessWidget {
   final Map<int, int> selectedSteps;
   final int? hintTile;
   final bool solved;
+  final double entranceBlinkValue;
   final ValueChanged<int> onTap;
 
   @override
@@ -930,6 +1065,7 @@ class _MazeGrid extends StatelessWidget {
             isExit: index == exit,
             isHint: index == hintTile && !solved,
             solved: solved && scenario.solutionPath.contains(index),
+            entranceBlinkValue: index == entrance ? entranceBlinkValue : 0.0,
             accent: accent,
             onTap: () => onTap(index),
           );
@@ -962,6 +1098,7 @@ class _LetterTile extends StatelessWidget {
     required this.isExit,
     required this.isHint,
     required this.solved,
+    this.entranceBlinkValue = 0.0,
     required this.accent,
     required this.onTap,
   });
@@ -973,67 +1110,86 @@ class _LetterTile extends StatelessWidget {
   final bool isExit;
   final bool isHint;
   final bool solved;
+  final double entranceBlinkValue;
   final Color accent;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final bool selected = selectedStep != null;
-    final Color tone = selected
+    final bool isBlinking = isEntrance && !selected && entranceBlinkValue > 0;
+    final Color baseTone = selected
         ? accent
         : isCheckpoint
         ? const Color(0xFFB48236)
         : isExit
         ? StudioVisuals.ink
         : const Color(0xFFFCFDFD);
+    final Color tone = isBlinking
+        ? Color.lerp(baseTone, accent.withValues(alpha: .30), entranceBlinkValue)!
+        : baseTone;
     final Color foreground = selected || isExit
         ? Colors.white
         : StudioVisuals.ink;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 140),
-      decoration: BoxDecoration(
-        color: isHint ? const Color(0xFFFFEDB8) : tone,
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(
-          color: isHint
-              ? const Color(0xFFE0A62B)
-              : selected
-              ? accent
-              : isEntrance
-              ? accent.withValues(alpha: .52)
-              : isCheckpoint
-              ? const Color(0xFFD5AD69)
-              : const Color(0xFFD9E1E4),
-          width: isHint || selected ? 2 : 1,
-        ),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: (isHint ? const Color(0xFFD59B24) : accent).withValues(
-              alpha: .11,
-            ),
-            blurRadius: isHint ? 10 : 5,
-            offset: const Offset(0, 2),
+    final Color borderColor = isHint
+        ? const Color(0xFFE0A62B)
+        : selected
+        ? accent
+        : isBlinking
+        ? Color.lerp(accent.withValues(alpha: .52), accent, entranceBlinkValue)!
+        : isEntrance
+        ? accent.withValues(alpha: .52)
+        : isCheckpoint
+        ? const Color(0xFFD5AD69)
+        : const Color(0xFFD9E1E4);
+    final double borderWidth = isHint || selected
+        ? 2
+        : isBlinking
+        ? 1.0 + 1.8 * entranceBlinkValue
+        : 1;
+    final double scale = isBlinking ? 1.0 + 0.07 * entranceBlinkValue : 1.0;
+
+    return Transform.scale(
+      scale: scale,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        decoration: BoxDecoration(
+          color: isHint ? const Color(0xFFFFEDB8) : tone,
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(
+            color: borderColor,
+            width: borderWidth,
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Stack(
-            alignment: Alignment.center,
-            children: <Widget>[
-              Text(
-                letter,
-                style: TextStyle(
-                  fontFamily: 'Roboto',
-                  color: isHint ? const Color(0xFF614512) : foreground,
-                  fontSize: 22,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: isBlinking
+                  ? accent.withValues(alpha: .14 + .26 * entranceBlinkValue)
+                  : (isHint ? const Color(0xFFD59B24) : accent).withValues(
+                      alpha: .11,
+                    ),
+              blurRadius: isBlinking ? 6 + 10 * entranceBlinkValue : (isHint ? 10 : 5),
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(10),
+            child: Stack(
+              alignment: Alignment.center,
+              children: <Widget>[
+                Text(
+                  letter,
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: isHint ? const Color(0xFF614512) : foreground,
+                    fontSize: 22,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
               if (selectedStep != null)
                 Positioned(
                   top: 2,
@@ -1075,7 +1231,8 @@ class _LetterTile extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
 
@@ -1239,41 +1396,3 @@ class _MazeSolved extends StatelessWidget {
   }
 }
 
-class _MazeStat extends StatelessWidget {
-  const _MazeStat({
-    required this.icon,
-    required this.label,
-    required this.accent,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: .09),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon, color: accent, size: 14),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Roboto',
-              color: accent,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

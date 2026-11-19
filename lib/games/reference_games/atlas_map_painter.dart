@@ -1,8 +1,23 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
 import 'atlas_puzzle.dart';
+
+class _AtlasRenderCache {
+  const _AtlasRenderCache({
+    required this.baseMapPicture,
+    required this.featurePaths,
+    required this.featureCenters,
+    required this.featureColors,
+  });
+
+  final ui.Picture baseMapPicture;
+  final Map<String, List<Path>> featurePaths;
+  final Map<String, Offset> featureCenters;
+  final Map<String, Color> featureColors;
+}
 
 class AtlasMapPainter extends CustomPainter {
   static const List<Color> _regionPalette = <Color>[
@@ -20,17 +35,21 @@ class AtlasMapPainter extends CustomPainter {
     Color(0xFF4C76C8),
   ];
 
+  static final Map<String, _AtlasRenderCache> _cache = <String, _AtlasRenderCache>{};
+
   AtlasMapPainter({
     required this.kind,
     required this.features,
     this.revealCode,
     this.revealProgress = 0,
-  });
+    this.revealAnimation,
+  }) : super(repaint: revealAnimation);
 
   final AtlasKind kind;
   final List<AtlasFeature> features;
   final String? revealCode;
   final double revealProgress;
+  final Animation<double>? revealAnimation;
 
   double get _minLon => kind == AtlasKind.turkey ? 25.4 : -180;
   double get _maxLon => kind == AtlasKind.turkey ? 45.0 : 180;
@@ -42,8 +61,10 @@ class AtlasMapPainter extends CustomPainter {
     ((_maxLat - latitude) / (_maxLat - _minLat)) * size.height,
   );
 
-  @override
-  void paint(Canvas canvas, Size size) {
+  _AtlasRenderCache _buildCache(Size size) {
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(recorder);
+
     final RRect bounds = RRect.fromRectAndRadius(
       Offset.zero & size,
       const Radius.circular(22),
@@ -64,51 +85,33 @@ class AtlasMapPainter extends CustomPainter {
     canvas.save();
     canvas.clipRRect(bounds);
     _paintGrid(canvas, size);
-    final List<AtlasFeature> sorted = features.toList()
-      ..sort(
-        (AtlasFeature a, AtlasFeature b) =>
-            _emphasis(a).compareTo(_emphasis(b)),
-      );
-    for (final AtlasFeature feature in sorted) {
-      final bool isRevealed = feature.code == revealCode;
-      final double pulse = isRevealed
-          ? .5 + .5 * math.sin(revealProgress * math.pi * 6)
-          : 0;
-      // Doğru bölgeyi kısa süreliğine 5 kata kadar öne çıkarıp yerine geri
-      // döndür. Böylece özellikle küçük şehir/ülke şekilleri de net biçimde
-      // takip edilebilir; haritanın dışına taşan kısım kliplenir.
-      final double revealScale = isRevealed
-          ? 1 + 4 * math.sin(revealProgress * math.pi)
-          : 1;
-      if (isRevealed && revealScale > 1.001) {
-        final Offset center = feature.center.length >= 2
-            ? project(feature.center[0], feature.center[1], size)
-            : size.center(Offset.zero);
-        canvas.save();
-        canvas.translate(center.dx, center.dy);
-        canvas.scale(revealScale);
-        canvas.translate(-center.dx, -center.dy);
-      }
+
+    final Map<String, List<Path>> featurePaths = <String, List<Path>>{};
+    final Map<String, Offset> featureCenters = <String, Offset>{};
+    final Map<String, Color> featureColors = <String, Color>{};
+
+    for (final AtlasFeature feature in features) {
+      final Offset center = feature.center.length >= 2
+          ? project(feature.center[0], feature.center[1], size)
+          : size.center(Offset.zero);
+      featureCenters[feature.code] = center;
+
       final Color regionColor = _regionColor(feature);
-      final Color fill = isRevealed
-          ? Color.lerp(regionColor, const Color(0xFFFFD166), .20 + .42 * pulse)!
-          : regionColor;
-      final Color outlineColor = isRevealed
-          ? const Color(0xFF155F55)
-          : Color.lerp(regionColor, const Color(0xFF203D3C), .58)!;
+      featureColors[feature.code] = regionColor;
+
       final Paint fillPaint = Paint()
-        ..color = fill
+        ..color = regionColor
         ..style = PaintingStyle.fill;
-      final Paint outline = Paint()
-        ..color = outlineColor
+      final Paint outlinePaint = Paint()
+        ..color = Color.lerp(regionColor, const Color(0xFF203D3C), .58)!
         ..style = PaintingStyle.stroke
-        ..strokeWidth = isRevealed
-            ? (kind == AtlasKind.turkey ? 2.2 : 1.5)
-            : (kind == AtlasKind.turkey ? 1.15 : .65)
+        ..strokeWidth = kind == AtlasKind.turkey ? 1.15 : .65
         ..strokeJoin = StrokeJoin.round;
+
+      final List<Path> paths = <Path>[];
       for (final List<List<double>> ring in feature.rings) {
         if (ring.length < 4) continue;
-        final Path path = Path();
+        Path path = Path();
         Offset? previous;
         bool started = false;
         for (final List<double> point in ring) {
@@ -121,14 +124,10 @@ class AtlasMapPainter extends CustomPainter {
           if (!started || wraps) {
             if (wraps) {
               path.close();
-              _drawRegion(
-                canvas,
-                path,
-                fillPaint,
-                outline,
-                revealed: isRevealed,
-                pulse: pulse,
-              );
+              paths.add(path);
+              canvas.drawPath(path, fillPaint);
+              canvas.drawPath(path, outlinePaint);
+              path = Path();
             }
             path.moveTo(next.dx, next.dy);
             started = true;
@@ -138,43 +137,101 @@ class AtlasMapPainter extends CustomPainter {
           previous = next;
         }
         path.close();
-        _drawRegion(
-          canvas,
-          path,
-          fillPaint,
-          outline,
-          revealed: isRevealed,
-          pulse: pulse,
-        );
+        paths.add(path);
+        canvas.drawPath(path, fillPaint);
+        canvas.drawPath(path, outlinePaint);
       }
-      if (isRevealed && revealScale > 1.001) {
+      featurePaths[feature.code] = paths;
+    }
+    canvas.restore();
+
+    final ui.Picture picture = recorder.endRecording();
+    return _AtlasRenderCache(
+      baseMapPicture: picture,
+      featurePaths: featurePaths,
+      featureCenters: featureCenters,
+      featureColors: featureColors,
+    );
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+
+    final String cacheKey =
+        '${kind.name}_${features.length}_${size.width.round()}_${size.height.round()}';
+    _AtlasRenderCache? cache = _cache[cacheKey];
+    if (cache == null) {
+      if (_cache.length > 6) {
+        _cache.clear();
+      }
+      cache = _buildCache(size);
+      _cache[cacheKey] = cache;
+    }
+
+    // 1. Statik temel haritayı tek bir GPU komutu ile anında çiz
+    canvas.drawPicture(cache.baseMapPicture);
+
+    // 2. Eğer doğru cevap bulunup bir bölge vurgulanacaksa, yalnızca o tek bölgeyi üstte animasyonla göster
+    if (revealCode != null) {
+      final List<Path>? paths = cache.featurePaths[revealCode];
+      if (paths != null && paths.isNotEmpty) {
+        final double progress = revealAnimation?.value ?? revealProgress;
+        final double pulse = .5 + .5 * math.sin(progress * math.pi * 6);
+        final double revealScale = 1 + 4 * math.sin(progress * math.pi);
+        final Offset center =
+            cache.featureCenters[revealCode] ?? size.center(Offset.zero);
+
+        final RRect bounds = RRect.fromRectAndRadius(
+          Offset.zero & size,
+          const Radius.circular(22),
+        );
+        canvas.save();
+        canvas.clipRRect(bounds);
+
+        if (revealScale > 1.001) {
+          canvas.save();
+          canvas.translate(center.dx, center.dy);
+          canvas.scale(revealScale);
+          canvas.translate(-center.dx, -center.dy);
+        }
+
+        final Color baseColor =
+            cache.featureColors[revealCode] ?? const Color(0xFF0E9F87);
+        final Color fill = Color.lerp(
+          baseColor,
+          const Color(0xFFFFD166),
+          .20 + .42 * pulse,
+        )!;
+        final Color outlineColor = const Color(0xFF155F55);
+
+        final Paint fillPaint = Paint()
+          ..color = fill
+          ..style = PaintingStyle.fill;
+        final Paint outlinePaint = Paint()
+          ..color = outlineColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = kind == AtlasKind.turkey ? 2.2 : 1.5
+          ..strokeJoin = StrokeJoin.round;
+        final Paint haloPaint = Paint()
+          ..color = const Color(0xFF22B58E).withValues(alpha: .22 + .25 * pulse)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = kind == AtlasKind.turkey ? 6.5 : 4.5
+          ..strokeJoin = StrokeJoin.round;
+
+        for (final Path path in paths) {
+          canvas.drawPath(path, haloPaint);
+          canvas.drawPath(path, fillPaint);
+          canvas.drawPath(path, outlinePaint);
+        }
+
+        if (revealScale > 1.001) {
+          canvas.restore();
+        }
         canvas.restore();
       }
     }
-    canvas.restore();
   }
-
-  void _drawRegion(
-    Canvas canvas,
-    Path path,
-    Paint fill,
-    Paint outline, {
-    required bool revealed,
-    required double pulse,
-  }) {
-    if (revealed) {
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = const Color(0xFF22B58E).withValues(alpha: .20 + .22 * pulse)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
-      );
-    }
-    canvas.drawPath(path, fill);
-    canvas.drawPath(path, outline);
-  }
-
-  int _emphasis(AtlasFeature feature) => feature.code == revealCode ? 1 : 0;
 
   Color _regionColor(AtlasFeature feature) {
     int hash = 17;
@@ -182,7 +239,6 @@ class AtlasMapPainter extends CustomPainter {
       hash = (hash * 31 + codeUnit) & 0x7fffffff;
     }
     final Color base = _regionPalette[hash % _regionPalette.length];
-    // Keep the map vivid while leaving enough contrast for the boundaries.
     return Color.lerp(base, Colors.white, kind == AtlasKind.turkey ? .16 : .21)!;
   }
 
@@ -203,9 +259,16 @@ class AtlasMapPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant AtlasMapPainter oldDelegate) =>
-      oldDelegate.kind != kind ||
-      oldDelegate.features != features ||
-      oldDelegate.revealCode != revealCode ||
-      oldDelegate.revealProgress != revealProgress;
+  bool shouldRepaint(covariant AtlasMapPainter oldDelegate) {
+    if (oldDelegate.kind != kind ||
+        oldDelegate.features.length != features.length ||
+        oldDelegate.revealCode != revealCode) {
+      return true;
+    }
+    if (revealCode != null) {
+      return oldDelegate.revealProgress != revealProgress;
+    }
+    return false;
+  }
 }
+

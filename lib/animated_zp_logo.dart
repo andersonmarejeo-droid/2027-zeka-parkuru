@@ -72,7 +72,7 @@ class AnimatedZpLogo extends StatefulWidget {
 class _AnimatedZpLogoState extends State<AnimatedZpLogo>
     with SingleTickerProviderStateMixin {
   static const String _heroAsset =
-      'assets/branding/studio_daily_puzzle_hero.png';
+      'assets/branding/studio_daily_puzzle_hero.webp';
 
   late final AnimationController _controller;
   late final Animation<double> _logoLift;

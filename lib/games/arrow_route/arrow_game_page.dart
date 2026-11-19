@@ -386,6 +386,105 @@ class _ArrowRoutePlayPageState extends State<ArrowRoutePlayPage> {
     );
   }
 
+  void _showHowToPlay(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: StudioVisuals.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _accent.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.navigation_rounded, color: _accent, size: 22),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            _english ? 'Arrow Route Rules' : 'Ok Rotası Kuralları',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                          Text(
+                            _english ? 'Trace clear exit paths' : 'Engelsiz çıkış yolunu bul',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 12,
+                              color: StudioVisuals.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surfaceSoft,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _accent.withValues(alpha: 0.20)),
+                  ),
+                  child: Text(
+                    _english
+                        ? 'Tap an arrow to send it flying off the board. An arrow can only escape if no other arrow blocks its forward path to the border. If blocked, remove the blocker first!'
+                        : 'Bir oka dokunarak tahtadan dışarı fırlat. Bir ok, yalnızca yöneldiği sınır çizgisine kadar önünde başka hiçbir ok yoksa tahtadan çıkabilir. Eğer önü tıkalıysa önce o engeli temizle!',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 13,
+                      height: 1.4,
+                      color: StudioVisuals.ink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accent,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    _english ? 'UNDERSTOOD' : 'ANLADIM, BAŞLA',
+                    style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     _english = context.l10n.isEnglish;
@@ -396,7 +495,11 @@ class _ArrowRoutePlayPageState extends State<ArrowRoutePlayPage> {
           backgroundColor: StudioVisuals.canvas,
           foregroundColor: StudioVisuals.ink,
           surfaceTintColor: Colors.transparent,
-          title: Text(_english ? 'ARROW ROUTE' : 'OK ROTASI'),
+          elevation: 0,
+          title: Text(
+            _english ? 'ARROW ROUTE' : 'OK ROTASI',
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
         ),
         body: const Center(child: CircularProgressIndicator(color: _accent)),
       );
@@ -404,273 +507,235 @@ class _ArrowRoutePlayPageState extends State<ArrowRoutePlayPage> {
     final RouteArrow? selected = _selectedId == null
         ? null
         : _puzzle.arrowById(_selectedId!);
+
     return Scaffold(
       backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
         backgroundColor: StudioVisuals.canvas,
         foregroundColor: StudioVisuals.ink,
         surfaceTintColor: Colors.transparent,
+        elevation: 0,
         titleSpacing: 12,
-        title: Text(
-          _english ? 'ARROW ROUTE' : 'OK ROTASI',
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              _english ? 'ARROW ROUTE' : 'OK ROTASI',
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.6,
+              ),
+            ),
+            Text(
+              '${_english ? 'Level' : 'Bölüm'} ${widget.level.number} • ${_puzzle.size}×${_puzzle.size}',
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
         actions: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(child: _RouteLevelPill(level: widget.level.number)),
+          IconButton(
+            tooltip: _english ? 'How to Play' : 'Nasıl Oynanır',
+            icon: const Icon(Icons.help_outline_rounded, size: 22),
+            onPressed: () => _showHowToPlay(context),
           ),
         ],
       ),
       body: SafeArea(
         top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(14, 4, 14, 22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _RouteStatus(
-                total: _puzzle.arrows.length,
-                remaining: _remaining.length,
-                mistakes: _mistakes,
-                english: _english,
-              ),
-              const SizedBox(height: 12),
-              LayoutBuilder(
-                builder: (BuildContext context, BoxConstraints constraints) {
-                  final double cell = math.min(
-                    48,
-                    (constraints.maxWidth - 14) / _puzzle.size,
-                  );
-                  final double boardSize = cell * _puzzle.size;
-                  return Center(
-                    child: Container(
-                      key: const ValueKey<String>('arrow_route_board'),
-                      width: boardSize + 14,
-                      height: boardSize + 14,
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE6E1D8),
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(color: const Color(0xFFD6D0C5)),
-                        boxShadow: StudioVisuals.softShadow,
+        child: ResponsiveGameFrame(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                // Kompakt Tek Satır Durum Çubuğu
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${_puzzle.size}×${_puzzle.size}',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: _accent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(15),
-                        child: SizedBox(
-                          width: boardSize,
-                          height: boardSize,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: <Widget>[
-                              CustomPaint(
-                                painter: _ArrowGridPainter(
-                                  size: _puzzle.size,
-                                  selected: selected,
-                                  blocker: _blockerId == null
-                                      ? null
-                                      : _puzzle.arrowById(_blockerId!),
-                                ),
-                              ),
-                              GridView.builder(
-                                padding: EdgeInsets.zero,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: _puzzle.size * _puzzle.size,
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_puzzle.arrows.length - _remaining.length}/${_puzzle.arrows.length}',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          color: StudioVisuals.ink,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Icon(Icons.flag_rounded, size: 14, color: StudioVisuals.teal),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${_remaining.length}',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 10),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            Icons.error_outline_rounded,
+                            size: 14,
+                            color: _mistakes > 0 ? StudioVisuals.danger : StudioVisuals.muted,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            '$_mistakes',
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: _mistakes > 0 ? StudioVisuals.danger : StudioVisuals.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Genişletilmiş Ok Tahtası (Kaydırmasız - Expanded)
+                Expanded(
+                  child: Center(
+                    child: LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final double maxDimension = math.min(constraints.maxWidth, constraints.maxHeight) - 16;
+                        final double cell = (maxDimension / _puzzle.size).clamp(28.0, 56.0);
+                        final double boardSize = cell * _puzzle.size;
+                        return Container(
+                          key: const ValueKey<String>('arrow_route_board'),
+                          width: boardSize + 14,
+                          height: boardSize + 14,
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE6E1D8),
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(color: const Color(0xFFD6D0C5)),
+                            boxShadow: StudioVisuals.softShadow,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(15),
+                            child: SizedBox(
+                              width: boardSize,
+                              height: boardSize,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: <Widget>[
+                                  CustomPaint(
+                                    painter: _ArrowGridPainter(
+                                      size: _puzzle.size,
+                                      selected: selected,
+                                      blocker: _blockerId == null
+                                          ? null
+                                          : _puzzle.arrowById(_blockerId!),
+                                    ),
+                                  ),
+                                  GridView.builder(
+                                    padding: EdgeInsets.zero,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    itemCount: _puzzle.size * _puzzle.size,
+                                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: _puzzle.size,
                                       mainAxisSpacing: 0,
                                       crossAxisSpacing: 0,
                                     ),
-                                itemBuilder: (BuildContext context, int index) {
-                                  final int row = index ~/ _puzzle.size;
-                                  final int column = index % _puzzle.size;
-                                  final RouteArrow? arrow = _puzzle.arrows
-                                      .where(
-                                        (RouteArrow item) =>
-                                            item.row == row &&
-                                            item.column == column &&
-                                            _remaining.contains(item.id),
-                                      )
-                                      .firstOrNull;
-                                  if (arrow == null) {
-                                    return const SizedBox.expand();
-                                  }
-                                  return _ArrowTile(
-                                    key: ValueKey<String>(
-                                      'arrow-tile-${arrow.id}',
-                                    ),
-                                    arrow: arrow,
-                                    color:
-                                        _arrowColors[_puzzle.colorIndexFor(
-                                          arrow,
-                                        )],
-                                    cellSize: cell,
-                                    selected: _selectedId == arrow.id,
-                                    blocked: _blockerId == arrow.id,
-                                    hinted: _hintedId == arrow.id,
-                                    exiting: _exitingId == arrow.id,
-                                    english: _english,
-                                    onTap: () => _tapArrow(arrow),
-                                  );
-                                },
+                                    itemBuilder: (BuildContext context, int index) {
+                                      final int row = index ~/ _puzzle.size;
+                                      final int column = index % _puzzle.size;
+                                      final RouteArrow? arrow = _puzzle.arrows
+                                          .where(
+                                            (RouteArrow item) =>
+                                                item.row == row &&
+                                                item.column == column &&
+                                                _remaining.contains(item.id),
+                                          )
+                                          .firstOrNull;
+                                      if (arrow == null) {
+                                        return const SizedBox.expand();
+                                      }
+                                      return _ArrowTile(
+                                        key: ValueKey<String>('arrow-tile-${arrow.id}'),
+                                        arrow: arrow,
+                                        color: _arrowColors[_puzzle.colorIndexFor(arrow)],
+                                        cellSize: cell,
+                                        selected: _selectedId == arrow.id,
+                                        blocked: _blockerId == arrow.id,
+                                        hinted: _hintedId == arrow.id,
+                                        exiting: _exitingId == arrow.id,
+                                        english: _english,
+                                        onTap: () => _tapArrow(arrow),
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
-              const SizedBox(height: 11),
-              _RouteActions(
-                canUndo: _moveHistory.isNotEmpty,
-                busy: _animating || _finished,
-                english: _english,
-                onUndo: _undo,
-                onHint: _showHint,
-                onReset: _confirmReset,
-              ),
-              if (_notice != null) ...<Widget>[
-                const SizedBox(height: 9),
-                _RouteNotice(text: _notice!, warning: _blockerId != null),
-              ],
-              const SizedBox(height: 9),
-              Text(
-                _english
-                    ? 'Tap an arrow to trace its lane to the boundary. If another arrow crosses it, clear that blocker first.'
-                    : 'Şeridi sınır çizgisine kadar taramak için oka dokun. Başka bir ok kesiyorsa önce o engeli çıkar.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.muted,
-                  fontSize: 12,
-                  height: 1.35,
+                  ),
                 ),
-              ),
-            ],
+                if (_notice != null) ...<Widget>[
+                  const SizedBox(height: 4),
+                  _RouteNotice(text: _notice!, warning: _blockerId != null),
+                ],
+                const SizedBox(height: 6),
+                // Alt Kontrol Butonları
+                _RouteActions(
+                  canUndo: _moveHistory.isNotEmpty,
+                  busy: _animating || _finished,
+                  english: _english,
+                  onUndo: _undo,
+                  onHint: _showHint,
+                  onReset: _confirmReset,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-}
-
-class _RouteLevelPill extends StatelessWidget {
-  const _RouteLevelPill({required this.level});
-  final int level;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-    decoration: BoxDecoration(
-      color: StudioVisuals.surface,
-      borderRadius: BorderRadius.circular(99),
-      border: Border.all(color: StudioVisuals.line),
-    ),
-    child: Text(
-      context.l10n.levelOutOf(level, ArrowRouteGamePage.totalCases),
-      style: const TextStyle(
-        fontFamily: 'Roboto',
-        color: StudioVisuals.ink,
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
-      ),
-    ),
-  );
-}
-
-class _RouteStatus extends StatelessWidget {
-  const _RouteStatus({
-    required this.total,
-    required this.remaining,
-    required this.mistakes,
-    required this.english,
-  });
-
-  final int total;
-  final int remaining;
-  final int mistakes;
-  final bool english;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    decoration: BoxDecoration(
-      color: StudioVisuals.surface,
-      borderRadius: BorderRadius.circular(17),
-      border: Border.all(color: StudioVisuals.line),
-      boxShadow: StudioVisuals.softShadow,
-    ),
-    child: Row(
-      children: <Widget>[
-        Container(
-          width: 8,
-          height: 8,
-          decoration: const BoxDecoration(
-            color: _ArrowRoutePlayPageState._accent,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            english ? 'FIELD SCAN' : 'ROTA TARAMASI',
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              color: StudioVisuals.ink,
-              fontSize: 12,
-              letterSpacing: .6,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        _RouteStat(
-          value: '$remaining / $total',
-          label: english ? 'LEFT' : 'KALDI',
-        ),
-        const SizedBox(width: 13),
-        _RouteStat(value: '$mistakes', label: english ? 'MISSES' : 'HATA'),
-      ],
-    ),
-  );
-}
-
-class _RouteStat extends StatelessWidget {
-  const _RouteStat({required this.value, required this.label});
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.end,
-    children: <Widget>[
-      Text(
-        value,
-        style: const TextStyle(
-          fontFamily: 'Roboto',
-          color: StudioVisuals.ink,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-      Text(
-        label,
-        style: const TextStyle(
-          fontFamily: 'Roboto',
-          color: StudioVisuals.muted,
-          fontSize: 10,
-          letterSpacing: .45,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    ],
-  );
 }
 
 class _ArrowTile extends StatelessWidget {

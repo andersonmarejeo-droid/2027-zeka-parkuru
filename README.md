@@ -1,8 +1,8 @@
 # Zekâ Parkuru
 
-Flutter + Firebase tabanlı; 11 oyun, 110 bölüm, 330 yıldız, günlük görevler, Zekâ Puanı, rozetler, dünya sıralaması ve sosyal yarışmalar içeren mobil oyun.
+Flutter + Firebase tabanlı; 100'ü aşkın oyun, yüzlerce bölüm, zengin yıldız sistemi, günlük görevler, Zekâ Puanı, rozetler, dünya sıralaması ve Zekâ Arenası çoklu oyuncu yarışmaları içeren mobil zekâ ve akıl oyunları platformu.
 
-**Güncel yayın adayı:** `1.7.0+15`  
+**Güncel sürüm:** `1.8.10+26`  
 **Toplu sertleştirme:** V12  
 **Görsel IQ motoru:** V11.5 çeşitlilik + tek-doğru-cevap garantisi
 

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 /// Displays a profile avatar from the realistic sprite sheet, while keeping
 /// backwards compatibility with the emoji avatars saved by older versions.
@@ -59,7 +59,7 @@ class AvatarIcon extends StatelessWidget {
             child: Transform.translate(
               offset: Offset(-column * size, -row * size),
               child: Image.asset(
-                'assets/avatars/avatar_sheet.png',
+                'assets/avatars/avatar_sheet.webp',
                 width: size * 4,
                 height: size * 4,
                 fit: BoxFit.fill,

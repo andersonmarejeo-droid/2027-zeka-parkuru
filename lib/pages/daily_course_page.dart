@@ -832,160 +832,23 @@ class _DailyCoursePageState extends State<DailyCoursePage> {
   }
 
   String _gameName(String gameId, bool english) {
-    switch (gameId) {
-      case 'logic':
-        return english ? 'Logic Path' : 'Mantık Yolu';
-      case 'numbers':
-        return english ? 'Number Arena' : 'Sayı Arenası';
-      case 'blocks':
-        return english ? 'Block Mind' : 'Blok Zekâ';
-      case 'memory':
-        return english ? 'Memory Master' : 'Hafıza Ustası';
-      case 'card_pairs':
-        return english ? 'Card Pairs' : 'Kart Çifti';
-      case 'focus_filter':
-        return english ? 'Focus Filter' : 'Odak Filtresi';
-      case 'spot_change':
-        return english ? 'Spot the Change' : 'Değişeni Bul';
-      case 'rhythm_memory':
-        return english ? 'Rhythm Memory' : 'Ritim Hafızası';
-      case 'attention_tunnel':
-        return english ? 'Attention Tunnel' : 'Dikkat Tüneli';
-      case 'hanoi':
-        return english ? 'Tower of Hanoi' : 'Hanoi Kulesi';
-      case 'candy_sort':
-        return english ? 'Candy Sort' : 'Şeker Sıralama';
-      case 'word_hunt':
-        return english ? 'Word Hunt' : 'Kelime Avı';
-      case 'meaning_match':
-        return english ? 'Meaning Match' : 'Anlam Eşleştir';
-      case 'proverb_finish':
-        return english ? 'Finish the Proverb' : 'Atasözü Tamamla';
-      case 'sentence_builder':
-        return english ? 'Sentence Builder' : 'Cümle Kur';
-      case 'near_meaning':
-        return english ? 'Near Meaning' : 'Yakın Anlam';
-      case 'letter_maze':
-        return english ? 'Letter Maze' : 'Harf Labirenti';
-      case 'language_detective':
-        return english ? 'Language Detective' : 'Dil Dedektifi';
-      case 'story_order':
-        return english ? 'Story Order' : 'Hikâye Sırası';
-      case 'picture_iq':
-        return english ? 'Visual IQ' : 'Görsel IQ';
-      case 'number_sort':
-        return english ? '15-Tile Master' : '15 Taş Ustası';
-      case 'shape_puzzle':
-        return english ? 'Shape Merge' : 'Şekil Birleştir';
-      case 'reflex':
-        return english ? 'Reflex Hunt' : 'Refleks Avı';
-      default:
-        final GameDefinition? definition = StudioGameCatalog.byId(gameId);
-        return definition?.title(english: english) ??
-            (english ? 'Game' : 'Oyun');
+    final String localized = context.l10n.gameTitle(gameId);
+    if (localized.isNotEmpty && localized != 'Zeka Parkuru') {
+      return localized;
     }
+    final GameDefinition? definition = StudioGameCatalog.byId(gameId);
+    return definition?.title(english: english) ?? (english ? 'Game' : 'Oyun');
   }
 
   String _gameDescription(String gameId, bool english) {
-    switch (gameId) {
-      case 'logic':
-        return english
-            ? 'Find the route and solve the logic.'
-            : 'Rotayı bul, mantığı çöz.';
-      case 'numbers':
-        return english
-            ? 'Complete a number challenge.'
-            : 'Bir sayı meydan okumasını tamamla.';
-      case 'blocks':
-        return english
-            ? 'Place the pieces with a smart move.'
-            : 'Parçaları akıllı hamleyle yerleştir.';
-      case 'memory':
-        return english
-            ? 'Put your visual memory to work.'
-            : 'Görsel hafızanı çalıştır.';
-      case 'card_pairs':
-        return english
-            ? 'Match visual, color and meaning pairs with a changing rule.'
-            : 'Değişen kuralla görsel, renk ve anlam eşlerini bul.';
-      case 'focus_filter':
-        return english
-            ? 'Track the changing target, ignore near-misses and avoid false alarms.'
-            : 'Değişen hedefi izle, yakın yanıltıcıları ele ve yanlış alarmı önle.';
-      case 'spot_change':
-        return english
-            ? 'Compare two scenes and select every altered position.'
-            : 'İki sahneyi karşılaştır ve değişen tüm konumları seç.';
-      case 'rhythm_memory':
-        return english
-            ? 'Repeat the note sequence with its accents and relative pauses.'
-            : 'Nota dizisini vurguları ve göreli bekleme aralıklarıyla tekrar et.';
-      case 'attention_tunnel':
-        return english
-            ? 'Follow the target through crossing rails and brief tunnel shutters.'
-            : 'Hedefi kesişen hatlar ve kısa tünel örtülmeleri boyunca takip et.';
-      case 'hanoi':
-        return english
-            ? 'Move the rings in the right order.'
-            : 'Halkaları doğru sırayla taşı.';
-      case 'candy_sort':
-        return english
-            ? 'Move candies onto matching colors or into empty jars.'
-            : 'Şekerleri aynı rengin üzerine veya boş kavanoza taşı.';
-      case 'word_hunt':
-        return english
-            ? 'Find every hidden word.'
-            : 'Gizlenen kelimelerin tamamını bul.';
-      case 'meaning_match':
-        return english
-            ? 'Group sixteen words into four precise connections.'
-            : 'On altı sözcüğü dört doğru anlam kümesine ayır.';
-      case 'proverb_finish':
-        return english
-            ? 'Complete Turkish sayings and learn their usage.'
-            : 'Atasözlerini tamamla, anlamını ve kullanımını öğren.';
-      case 'sentence_builder':
-        return english
-            ? 'Order sentence blocks using context and grammar cues.'
-            : 'Bağlam ve dilbilgisi ipuçlarıyla cümle bloklarını sırala.';
-      case 'near_meaning':
-        return english
-            ? 'Choose the closest definition that fits the context.'
-            : 'Bağlama en uygun yakın anlam açıklamasını seç.';
-      case 'letter_maze':
-        return english
-            ? 'Trace the clue word through its entrance, root gate and exit.'
-            : 'İpucundaki sözcüğü giriş, kök kapısı ve çıkıştan geçir.';
-      case 'language_detective':
-        return english
-            ? 'Separate supported findings from assumptions in short source files.'
-            : 'Kısa kaynak dosyalarında kanıtlı sonucu varsayımdan ayır.';
-      case 'story_order':
-        return english
-            ? 'Order events by cause and effect, then reject one unsupported detail.'
-            : 'Olayları neden-sonuç ilişkisiyle sırala, ardından kanıtsız ayrıntıyı ele.';
-      case 'picture_iq':
-        return english
-            ? 'Decode a visual transformation.'
-            : 'Görsel dönüşüm kuralını çöz.';
-      case 'number_sort':
-        return english
-            ? 'Restore the number order.'
-            : 'Sayıları doğru sıraya getir.';
-      case 'shape_puzzle':
-        return english
-            ? 'Combine fragments into a silhouette.'
-            : 'Parçaları tek silüette birleştir.';
-      case 'reflex':
-        return english
-            ? 'React to the correct target.'
-            : 'Doğru hedefe hızla tepki ver.';
-      default:
-        final GameDefinition? definition = StudioGameCatalog.byId(gameId);
-        return english
-            ? 'Complete a ${definition?.titleEn ?? 'brain'} challenge.'
-            : '${definition?.titleTr ?? 'Oyunu'} tamamla.';
+    final String localized = context.l10n.gameDescription(gameId);
+    if (localized.isNotEmpty) {
+      return localized;
     }
+    final GameDefinition? definition = StudioGameCatalog.byId(gameId);
+    return english
+        ? 'Complete a ${definition?.titleEn ?? 'brain'} challenge.'
+        : '${definition?.titleTr ?? 'Oyunu'} tamamla.';
   }
 
   IconData _gameIcon(String gameId) {

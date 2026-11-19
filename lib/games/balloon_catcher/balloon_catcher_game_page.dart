@@ -614,24 +614,26 @@ class _BalloonCatcherPlayPageState extends State<BalloonCatcherPlayPage>
                                     details.localPosition.dx,
                                     limits.maxWidth,
                                   ),
-                              child: CustomPaint(
-                                key: const ValueKey<String>(
-                                  'balloon_scene_painter',
-                                ),
-                                painter: _BalloonScenePainter(
-                                  flights: List<_BalloonFlight>.unmodifiable(
-                                    _flights,
+                              child: RepaintBoundary(
+                                child: CustomPaint(
+                                  key: const ValueKey<String>(
+                                    'balloon_scene_painter',
                                   ),
-                                  particles: List<_CatchParticle>.unmodifiable(
-                                    _particles,
+                                  painter: _BalloonScenePainter(
+                                    flights: List<_BalloonFlight>.unmodifiable(
+                                      _flights,
+                                    ),
+                                    particles: List<_CatchParticle>.unmodifiable(
+                                      _particles,
+                                    ),
+                                    basketX: _basketX,
+                                    elapsed: _elapsed,
+                                    wind: _scenario.windStrength,
+                                    level: widget.level.number,
+                                    score: _score,
+                                    targetColor: _colors[_activeColor],
+                                    paused: _paused,
                                   ),
-                                  basketX: _basketX,
-                                  elapsed: _elapsed,
-                                  wind: _scenario.windStrength,
-                                  level: widget.level.number,
-                                  score: _score,
-                                  targetColor: _colors[_activeColor],
-                                  paused: _paused,
                                 ),
                               ),
                             ),
@@ -810,15 +812,18 @@ class _HudMetric extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.clip,
-              style: const TextStyle(
-                color: StudioVisuals.muted,
-                fontSize: 8,
-                fontWeight: FontWeight.w900,
-                letterSpacing: .35,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: const TextStyle(
+                  color: StudioVisuals.muted,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: .35,
+                ),
               ),
             ),
             Text(

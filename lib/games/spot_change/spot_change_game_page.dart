@@ -672,7 +672,7 @@ class _SpotChangePlayPageState extends State<SpotChangePlayPage> {
           children: <Widget>[
             Expanded(
               child: Text(
-                widget.level.title(english).toUpperCase(),
+                context.l10n.uppercaseLabel(widget.level.title(english)),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(

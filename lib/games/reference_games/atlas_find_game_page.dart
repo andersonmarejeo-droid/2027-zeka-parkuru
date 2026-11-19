@@ -1,4 +1,4 @@
-import '../shared/studio_game_contracts.dart';
+﻿import '../shared/studio_game_contracts.dart';
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -64,36 +64,38 @@ class AtlasFindGamePage extends StatelessWidget {
       dailyCourseMode: dailyCourseMode,
       competitionLevel: competitionLevel,
       competitionLayoutCode: competitionLayoutCode,
-      playBuilder: (
-        BuildContext context,
-        ParkurLevelSpec level,
-        int best,
-        int? layout,
-        bool competition,
-      ) => _AtlasPlayPage(
-        kind: kind,
-        level: level,
-        dailyCourseMode: dailyCourseMode,
-      ),
+      playBuilder:
+          (
+            BuildContext context,
+            ParkurLevelSpec level,
+            int best,
+            int? layout,
+            bool competition,
+          ) => AtlasPlayPage(
+            kind: kind,
+            level: level,
+            dailyCourseMode: dailyCourseMode,
+          ),
     );
   }
 }
 
-class _AtlasPlayPage extends StatefulWidget {
-  const _AtlasPlayPage({
+class AtlasPlayPage extends StatefulWidget {
+  const AtlasPlayPage({
+    super.key,
     required this.kind,
     required this.level,
-    required this.dailyCourseMode,
+    this.dailyCourseMode = false,
   });
   final AtlasKind kind;
   final ParkurLevelSpec level;
   final bool dailyCourseMode;
 
   @override
-  State<_AtlasPlayPage> createState() => _AtlasPlayPageState();
+  State<AtlasPlayPage> createState() => _AtlasPlayPageState();
 }
 
-class _AtlasPlayPageState extends State<_AtlasPlayPage>
+class _AtlasPlayPageState extends State<AtlasPlayPage>
     with TickerProviderStateMixin {
   static const Color _accent = Color(0xFF247568);
   final GameAudioService _audio = GameAudioService.instance;
@@ -120,6 +122,8 @@ class _AtlasPlayPageState extends State<_AtlasPlayPage>
   String? _feedback;
   bool _showConfetti = false;
 
+  Timer? _autoAdvanceTimer;
+
   int get _pointsForCurrentAnswer =>
       AtlasScorePolicy.pointsForHints(_hintCount);
 
@@ -132,36 +136,40 @@ class _AtlasPlayPageState extends State<_AtlasPlayPage>
     _answerController = TextEditingController();
     _revealController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 900),
     );
     _hintPulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 1400),
     );
     _confettiController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     );
-    _hintPulse = TweenSequence<double>(<TweenSequenceItem<double>>[
-      TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 1, end: .42),
-        weight: 1,
-      ),
-      TweenSequenceItem<double>(
-        tween: Tween<double>(begin: .42, end: 1),
-        weight: 1,
-      ),
-      TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 1, end: .42),
-        weight: 1,
-      ),
-      TweenSequenceItem<double>(
-        tween: Tween<double>(begin: .42, end: 1),
-        weight: 1,
-      ),
-    ]).animate(
-      CurvedAnimation(parent: _hintPulseController, curve: Curves.easeInOut),
-    );
+    _hintPulse =
+        TweenSequence<double>(<TweenSequenceItem<double>>[
+          TweenSequenceItem<double>(
+            tween: Tween<double>(begin: 1, end: .42),
+            weight: 1,
+          ),
+          TweenSequenceItem<double>(
+            tween: Tween<double>(begin: .42, end: 1),
+            weight: 1,
+          ),
+          TweenSequenceItem<double>(
+            tween: Tween<double>(begin: 1, end: .42),
+            weight: 1,
+          ),
+          TweenSequenceItem<double>(
+            tween: Tween<double>(begin: .42, end: 1),
+            weight: 1,
+          ),
+        ]).animate(
+          CurvedAnimation(
+            parent: _hintPulseController,
+            curve: Curves.easeInOut,
+          ),
+        );
     _hintPulseController.forward();
     _session = StudioGameSession(
       level: widget.level.number,
@@ -180,6 +188,7 @@ class _AtlasPlayPageState extends State<_AtlasPlayPage>
 
   @override
   void dispose() {
+    _autoAdvanceTimer?.cancel();
     _answerController.dispose();
     _revealController.dispose();
     _hintPulseController.dispose();
@@ -233,8 +242,63 @@ class _AtlasPlayPageState extends State<_AtlasPlayPage>
     _sound(GameAudioEvent.hint);
   }
 
-  Future<void> _submitAnswer() async {
+  String _hintText(int index, AtlasFeature target) => switch (index) {
+    1 => AtlasDataset.positionClue(widget.kind, target, english: _english),
+    2 => AtlasDataset.culturalClue(widget.kind, target.code, english: _english),
+    3 => AtlasDataset.culturalDetailClue(
+      widget.kind,
+      target.code,
+      english: _english,
+    ),
+    4 => AtlasDataset.nameStructureClue(
+      widget.kind,
+      target.code,
+      english: _english,
+    ),
+    5 => AtlasDataset.firstLetterClue(
+      widget.kind,
+      target.code,
+      english: _english,
+    ),
+    _ => AtlasDataset.lastLetterClue(
+      widget.kind,
+      target.code,
+      english: _english,
+    ),
+  };
+
+  void _skipQuestion() {
     if (_loading || _finished || _answerLocked || _targets.isEmpty) return;
+    _autoAdvanceTimer?.cancel();
+    final AtlasFeature target = _targets[_question];
+    _session.recordMistake();
+    _mistakes++;
+    _sound(GameAudioEvent.hint);
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _answerLocked = true;
+      _answerCorrect = false;
+      _revealedCode = target.code;
+      _feedback =
+          '${_english ? 'Skipped. Correct answer' : 'Pas geçildi. Doğru yanıt'}: ${AtlasDataset.label(widget.kind, target.code, english: _english)}';
+    });
+
+    unawaited(_revealController.forward(from: 0));
+    // 1400 ms sonra otonom olarak sonraki soruya geçer (veya kullanıcı butona basabilir)
+    _autoAdvanceTimer = Timer(const Duration(milliseconds: 1400), () {
+      if (mounted) _proceedToNext();
+    });
+  }
+
+  Future<void> _submitAnswer() async {
+    if (_loading || _finished || _targets.isEmpty) return;
+    // Eğer cevap zaten kilitliyse (doğru veya pas geçilmişse), butona basarak anında sonraki soruya geç
+    if (_answerLocked) {
+      _proceedToNext();
+      return;
+    }
+
     final String answer = _answerController.text.trim();
     if (answer.isEmpty) {
       setState(() {
@@ -256,10 +320,8 @@ class _AtlasPlayPageState extends State<_AtlasPlayPage>
       return;
     }
 
+    _autoAdvanceTimer?.cancel();
     _session.recordAccepted(points: _pointsForCurrentAnswer);
-    // Atlas sorularında doğru cevap, Blok Blast'teki bölüm başarı jingle'ı
-    // kadar belirgin bir geri bildirim vermeli. Son soruda bu efekt bölüm
-    // kapanışında zaten çalacağı için iki kez üst üste oynatmayalım.
     final bool completesLevel = _question + 1 >= _targets.length;
     if (!completesLevel) {
       unawaited(_audio.play(GameSound.levelComplete, gain: .78));
@@ -272,14 +334,25 @@ class _AtlasPlayPageState extends State<_AtlasPlayPage>
       _feedback =
           '${_english ? 'Correct' : 'Doğru'}: ${AtlasDataset.label(widget.kind, target.code, english: _english)}';
     });
-    await _revealController.forward(from: 0);
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    if (!mounted) return;
+
+    unawaited(_revealController.forward(from: 0));
+
+    // Doğru bilinince otonom olarak (850ms) sonraki soruya ilerler
+    _autoAdvanceTimer = Timer(const Duration(milliseconds: 850), () {
+      if (mounted) _proceedToNext();
+    });
+  }
+
+  void _proceedToNext() {
+    _autoAdvanceTimer?.cancel();
+    _autoAdvanceTimer = null;
+    if (_finished || !mounted) return;
 
     if (_question + 1 >= _targets.length) {
-      await _finish();
+      unawaited(_finish());
       return;
     }
+
     setState(() {
       _question++;
       _answerController.clear();
@@ -341,7 +414,7 @@ class _AtlasPlayPageState extends State<_AtlasPlayPage>
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    final double aspect = turkey ? 1.90 : 1.80;
+    final double aspect = turkey ? 2.75 : 2.65;
     final AtlasFeature target = _targets[_question];
     final String targetCode = target.code;
     return ReferencePlayScaffold(
@@ -351,494 +424,520 @@ class _AtlasPlayPageState extends State<_AtlasPlayPage>
       level: widget.level.contentLevel,
       accent: _accent,
       english: _english,
+      scrollable: true,
       child: Stack(
         clipBehavior: Clip.none,
         children: <Widget>[
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-          ReferenceCard(
-            child: Row(
-              children: <Widget>[
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: _accent.withValues(alpha: .11),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(Icons.explore_outlined, color: _accent),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF23333A),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _english
-                            ? 'Question ${_question + 1} of ${_targets.length} · write the answer'
-                            : 'Soru ${_question + 1} / ${_targets.length} · cevabı yaz',
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
-                          fontSize: 12,
-                          color: Color(0xFF75847E),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          ReferenceCard(
-            padding: 15,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
+              ReferenceCard(
+                padding: 10,
+                child: Row(
                   children: <Widget>[
-                    const Icon(
-                      Icons.lightbulb_outline_rounded,
-                      color: _accent,
-                      size: 21,
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: _accent.withValues(alpha: .11),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(Icons.explore_outlined, color: _accent),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        _english ? 'ATLAS CLUE' : 'ATLAS İPUCU',
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF23333A),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _english
+                                ? 'Question ${_question + 1} of ${_targets.length} · write the answer'
+                                : 'Soru ${_question + 1} / ${_targets.length} · cevabı yaz',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 12,
+                              color: Color(0xFF75847E),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              ReferenceCard(
+                padding: 10,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        const Icon(
+                          Icons.lightbulb_outline_rounded,
                           color: _accent,
-                          fontSize: 12,
-                          letterSpacing: .8,
-                          fontWeight: FontWeight.w900,
+                          size: 21,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _english ? 'ATLAS CLUE' : 'ATLAS İPUCU',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              color: _accent,
+                              fontSize: 12,
+                              letterSpacing: .8,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF2F6F3),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${_session.score} ${_english ? 'pts' : 'puan'}',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF60736C),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      AtlasDataset.areaClue(
+                        widget.kind,
+                        targetCode,
+                        english: _english,
+                      ),
+                      key: const ValueKey<String>('atlas_area_clue'),
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        color: Color(0xFF23333A),
+                        fontSize: 16,
+                        height: 1.35,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (_hintCount > 0)
+                      Theme(
+                        data: Theme.of(context).copyWith(
+                          dividerColor: Colors.transparent,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        child: ExpansionTile(
+                          key: const ValueKey<String>('atlas_hints_dropdown'),
+                          tilePadding: EdgeInsets.zero,
+                          childrenPadding: const EdgeInsets.only(bottom: 4),
+                          minTileHeight: 38,
+                          title: Text(
+                            _english
+                                ? 'Hints revealed ($_hintCount)'
+                                : 'Görülen ipuçları ($_hintCount)',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              color: _accent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          subtitle: Text(
+                            _hintText(_hintCount, target),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          children: <Widget>[
+                            for (int index = 1; index <= _hintCount; index++)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 3,
+                                ),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    '${_english ? 'Hint' : 'İpucu'} $index: ${_hintText(index, target)}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
+                    const SizedBox(height: 5),
+                    Text(
+                      _english
+                          ? 'The name stays hidden until you answer correctly.'
+                          : 'Doğru yanıt gelene kadar şehir/ülke adı gizli kalır.',
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        color: StudioVisuals.muted,
+                        fontSize: 12,
+                      ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 7,
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              ReferenceCard(
+                padding: 10,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(5, 2, 5, 9),
+                      child: Row(
+                        children: <Widget>[
+                          Icon(
+                            turkey ? Icons.map_outlined : Icons.public_rounded,
+                            color: _accent,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 7),
+                          Text(
+                            _english ? 'MAP' : 'HARİTA',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              color: Color(0xFF60736C),
+                              fontSize: 12,
+                              letterSpacing: .8,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF2F6F3),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                    ),
+                    LayoutBuilder(
+                      builder:
+                          (BuildContext context, BoxConstraints constraints) {
+                            final Size size = Size(
+                              constraints.maxWidth,
+                              constraints.maxWidth / aspect,
+                            );
+                            return SizedBox.fromSize(
+                              size: size,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(22),
+                                child: InteractiveViewer(
+                                  minScale: 1,
+                                  maxScale: 3.4,
+                                  boundaryMargin: const EdgeInsets.all(24),
+                                  constrained: false,
+                                  child: RepaintBoundary(
+                                    child: CustomPaint(size: size, isComplex: true, willChange: _revealedCode != null,
+                                      painter: AtlasMapPainter(
+                                        kind: widget.kind,
+                                        features: _features,
+                                        revealCode: _revealedCode,
+                                        revealProgress: _revealController.value,
+                                        revealAnimation: _revealController,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                    ),
+                    const SizedBox(height: 5),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 5),
                       child: Text(
-                        '${_session.score} ${_english ? 'pts' : 'puan'}',
+                        _answerCorrect
+                            ? (_english
+                                  ? 'The correct region is highlighted.'
+                                  : 'Doğru bölge haritada yanıp sönüyor.')
+                            : (_english
+                                  ? 'It will flash here when you solve the clue.'
+                                  : 'Doğru cevabında hedef bölge burada yanıp söner.'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontFamily: 'Roboto',
+                          color: StudioVisuals.muted,
                           fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF60736C),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  AtlasDataset.areaClue(
-                    widget.kind,
-                    targetCode,
-                    english: _english,
-                  ),
-                  key: const ValueKey<String>('atlas_area_clue'),
-                  style: const TextStyle(
-                    fontFamily: 'Roboto',
-                    color: Color(0xFF23333A),
-                    fontSize: 16,
-                    height: 1.35,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (_hintCount >= 1) ...<Widget>[
-                  const SizedBox(height: 8),
-                  Text(
-                    AtlasDataset.positionClue(
-                      widget.kind,
-                      target,
-                      english: _english,
-                    ),
-                    key: const ValueKey<String>('atlas_position_hint'),
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      color: Color(0xFF66766F),
-                      fontSize: 14,
-                      height: 1.3,
-                    ),
-                  ),
-                ],
-                if (_hintCount >= 2) ...<Widget>[
-                  const SizedBox(height: 7),
-                  Text(
-                    AtlasDataset.culturalClue(
-                      widget.kind,
-                      targetCode,
-                      english: _english,
-                    ),
-                    key: const ValueKey<String>('atlas_cultural_hint'),
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      color: Color(0xFF66766F),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-                if (_hintCount >= 3) ...<Widget>[
-                  const SizedBox(height: 7),
-                  Text(
-                    AtlasDataset.culturalDetailClue(
-                      widget.kind,
-                      targetCode,
-                      english: _english,
-                    ),
-                    key: const ValueKey<String>(
-                      'atlas_cultural_detail_hint',
-                    ),
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      color: Color(0xFF66766F),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-                if (_hintCount >= 4) ...<Widget>[
-                  const SizedBox(height: 7),
-                  Text(
-                    AtlasDataset.nameStructureClue(
-                      widget.kind,
-                      targetCode,
-                      english: _english,
-                    ),
-                    key: const ValueKey<String>('atlas_structure_hint'),
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      color: Color(0xFF66766F),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-                if (_hintCount >= 5) ...<Widget>[
-                  const SizedBox(height: 7),
-                  Text(
-                    AtlasDataset.firstLetterClue(
-                      widget.kind,
-                      targetCode,
-                      english: _english,
-                    ),
-                    key: const ValueKey<String>('atlas_letter_hint'),
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      color: _accent,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-                if (_hintCount >= 6) ...<Widget>[
-                  const SizedBox(height: 7),
-                  Text(
-                    AtlasDataset.lastLetterClue(
-                      widget.kind,
-                      targetCode,
-                      english: _english,
-                    ),
-                    key: const ValueKey<String>('atlas_last_letter_hint'),
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      color: _accent,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 5),
-                Text(
-                  _english
-                      ? 'The name stays hidden until you answer correctly.'
-                      : 'Doğru yanıt gelene kadar şehir/ülke adı gizli kalır.',
-                  style: const TextStyle(
-                    fontFamily: 'Roboto',
-                    color: StudioVisuals.muted,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          ReferenceCard(
-            padding: 10,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(5, 2, 5, 9),
-                  child: Row(
-                    children: <Widget>[
-                      Icon(
-                        turkey ? Icons.map_outlined : Icons.public_rounded,
-                        color: _accent,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 7),
-                      Text(
-                        _english ? 'MAP' : 'HARİTA',
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
-                          color: Color(0xFF60736C),
-                          fontSize: 12,
-                          letterSpacing: .8,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                LayoutBuilder(
-                  builder: (BuildContext context, BoxConstraints constraints) {
-                    final Size size = Size(
-                      constraints.maxWidth,
-                      constraints.maxWidth / aspect,
-                    );
-                    return AnimatedBuilder(
-                      animation: _revealController,
-                      builder: (BuildContext context, Widget? child) {
-                        return SizedBox.fromSize(
-                          size: size,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(22),
-                            child: InteractiveViewer(
-                              minScale: 1,
-                              maxScale: 3.4,
-                              boundaryMargin: const EdgeInsets.all(24),
-                              constrained: false,
-                              child: CustomPaint(
-                                size: size,
-                                painter: AtlasMapPainter(
-                                  kind: widget.kind,
-                                  features: _features,
-                                  revealCode: _revealedCode,
-                                  revealProgress: _revealController.value,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  child: Text(
-                    _answerCorrect
-                        ? (_english
-                              ? 'The correct region is highlighted.'
-                              : 'Doğru bölge haritada yanıp sönüyor.')
-                        : (_english
-                              ? 'It will flash here when you solve the clue.'
-                              : 'Doğru cevabında hedef bölge burada yanıp söner.'),
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      color: StudioVisuals.muted,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          ReferenceCard(
-            padding: 15,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  _english ? 'WRITE YOUR ANSWER' : 'CEVABI YAZ',
-                  style: const TextStyle(
-                    fontFamily: 'Roboto',
-                    color: Color(0xFF60736C),
-                    fontSize: 12,
-                    letterSpacing: .8,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  key: const ValueKey<String>('atlas_answer_input'),
-                  controller: _answerController,
-                  enabled: !_answerLocked,
-                  textCapitalization: TextCapitalization.words,
-                  textInputAction: TextInputAction.done,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  maxLength: 48,
-                  onChanged: (_) => setState(() => _feedback = null),
-                  onSubmitted: (_) => unawaited(_submitAnswer()),
-                  decoration: InputDecoration(
-                    hintText: turkey
-                        ? (_english ? 'Province name' : 'İl adı')
-                        : (_english ? 'Country name' : 'Ülke adı'),
-                    prefixIcon: const Icon(Icons.edit_location_alt_outlined),
-                    filled: true,
-                    fillColor: const Color(0xFFF7F9F7),
-                    counterText: '',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Color(0xFFE0E8E3)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Color(0xFFE0E8E3)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: _accent, width: 1.6),
-                    ),
-                  ),
-                ),
-                if (_feedback != null) ...<Widget>[
-                  const SizedBox(height: 4),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _answerCorrect
-                          ? const Color(0xFFE7F6EF)
-                          : const Color(0xFFFFF0EC),
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: Text(
-                      _feedback!,
-                      key: const ValueKey<String>('atlas_answer_feedback'),
-                      style: TextStyle(
-                        fontFamily: 'Roboto',
-                        color: _answerCorrect
-                            ? const Color(0xFF247455)
-                            : const Color(0xFFAD5745),
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                Row(
+              ),
+              const SizedBox(height: 6),
+              ReferenceCard(
+                padding: 10,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Expanded(
-                      child: AnimatedBuilder(
-                        animation: _hintPulse,
-                        builder: (BuildContext context, Widget? child) {
-                          final bool canHint =
-                              _hintCount < AtlasScorePolicy.maxHintsPerQuestion &&
-                              !_answerLocked;
-                          final double pulse = canHint ? _hintPulse.value : 1;
-                          final Color pulseColor = Color.lerp(
-                            const Color(0xFFE6F5EE),
-                            const Color(0xFFFFD166),
-                            1 - pulse,
-                          )!;
-                          return DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: pulseColor,
-                              borderRadius: BorderRadius.circular(14),
-                              boxShadow: canHint && pulse < .9
-                                  ? <BoxShadow>[
-                                      BoxShadow(
-                                        color: const Color(0xFFFFB300)
-                                            .withValues(alpha: .28),
-                                        blurRadius: 10,
-                                        spreadRadius: 1,
-                                      ),
-                                    ]
-                                  : null,
-                            ),
-                            child: TextButton.icon(
-                              key: const ValueKey<String>('atlas_hint_button'),
-                              onPressed: canHint ? _hint : null,
-                              style: TextButton.styleFrom(
-                                foregroundColor: canHint
-                                    ? _accent
-                                    : const Color(0xFF7C8C85),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 10,
-                                ),
-                              ),
-                              icon: const Icon(
-                                Icons.lightbulb_outline_rounded,
-                              ),
-                              label: Text(
-                                _hintCount >=
-                                        AtlasScorePolicy.maxHintsPerQuestion
-                                    ? (_english
-                                          ? 'Hints complete · $_pointsForCurrentAnswer pts'
-                                          : 'İpuçları tamamlandı · $_pointsForCurrentAnswer puan')
-                                    : (_english
-                                          ? 'Take hint · $_hintCount/${AtlasScorePolicy.maxHintsPerQuestion} · $_pointsForCurrentAnswer pts'
-                                          : 'İpucu Al · $_hintCount/${AtlasScorePolicy.maxHintsPerQuestion} · $_pointsForCurrentAnswer puan'),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     Text(
-                      '${_session.score} ${_english ? 'pts' : 'puan'}',
+                      _english ? 'WRITE YOUR ANSWER' : 'CEVABI YAZ',
                       style: const TextStyle(
                         fontFamily: 'Roboto',
                         color: Color(0xFF60736C),
                         fontSize: 12,
-                        fontWeight: FontWeight.w800,
+                        letterSpacing: .8,
+                        fontWeight: FontWeight.w900,
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      key: const ValueKey<String>('atlas_answer_input'),
+                      controller: _answerController,
+                      enabled: !_answerLocked,
+                      textCapitalization: TextCapitalization.words,
+                      textInputAction: TextInputAction.done,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      maxLength: 48,
+                      onChanged: (_) {
+                        if (_feedback != null) {
+                          setState(() => _feedback = null);
+                        }
+                      },
+                      onSubmitted: (_) => unawaited(_submitAnswer()),
+                      decoration: InputDecoration(
+                        hintText: turkey
+                            ? (_english ? 'Province name' : 'İl adı')
+                            : (_english ? 'Country name' : 'Ülke adı'),
+                        prefixIcon: const Icon(
+                          Icons.edit_location_alt_outlined,
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF7F9F7),
+                        counterText: '',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE0E8E3),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE0E8E3),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(
+                            color: _accent,
+                            width: 1.6,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_feedback != null) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _answerCorrect
+                              ? const Color(0xFFE7F6EF)
+                              : const Color(0xFFFFF0EC),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Text(
+                          _feedback!,
+                          key: const ValueKey<String>('atlas_answer_feedback'),
+                          style: TextStyle(
+                            fontFamily: 'Roboto',
+                            color: _answerCorrect
+                                ? const Color(0xFF247455)
+                                : const Color(0xFFAD5745),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: <Widget>[
+                        Expanded(flex: 6, child: RepaintBoundary(child: AnimatedBuilder(
+                            animation: _hintPulse,
+                            builder: (BuildContext context, Widget? child) {
+                              final bool canHint =
+                                  _hintCount <
+                                      AtlasScorePolicy.maxHintsPerQuestion &&
+                                  !_answerLocked;
+                              final double pulse = canHint
+                                  ? _hintPulse.value
+                                  : 1;
+                              final Color pulseColor = Color.lerp(
+                                const Color(0xFFE6F5EE),
+                                const Color(0xFFFFD166),
+                                1 - pulse,
+                              )!;
+                              return DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: pulseColor,
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: canHint && pulse < .9
+                                      ? <BoxShadow>[
+                                          BoxShadow(
+                                            color: const Color(0xFFFFB300)
+                                                .withValues(alpha: .28),
+                                            blurRadius: 10,
+                                            spreadRadius: 1,
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: TextButton.icon(
+                                  key: const ValueKey<String>(
+                                    'atlas_hint_button',
+                                  ),
+                                  onPressed: canHint ? _hint : null,
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: canHint
+                                        ? _accent
+                                        : const Color(0xFF7C8C85),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 10,
+                                    ),
+                                  ),
+                                  icon: const Icon(
+                                    Icons.lightbulb_outline_rounded,
+                                    size: 19,
+                                  ),
+                                  label: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      _hintCount >=
+                                              AtlasScorePolicy
+                                                  .maxHintsPerQuestion
+                                          ? (_english
+                                                ? 'Hints used (${_pointsForCurrentAnswer}p)'
+                                                : 'İpuçları bitti (${_pointsForCurrentAnswer}p)')
+                                          : (_english
+                                                ? 'Hint · $_hintCount/${AtlasScorePolicy.maxHintsPerQuestion} ($_pointsForCurrentAnswer p)'
+                                                : 'İpucu Al · $_hintCount/${AtlasScorePolicy.maxHintsPerQuestion} ($_pointsForCurrentAnswer p)'),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },),),),
+                        const SizedBox(width: 8),
+                        // Pas Geç / Atla Butonu (Kullanıcı takıldığında veya ipuçları bittiğinde kurtarıcı)
+                        if (!_answerLocked)
+                          Expanded(
+                            flex: 4,
+                            child: OutlinedButton.icon(
+                              onPressed: _skipQuestion,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor:
+                                    _hintCount >=
+                                        AtlasScorePolicy.maxHintsPerQuestion
+                                    ? const Color(0xFFC46D32)
+                                    : const Color(0xFF7C8C85),
+                                side: BorderSide(
+                                  color:
+                                      _hintCount >=
+                                          AtlasScorePolicy.maxHintsPerQuestion
+                                      ? const Color(0xFFC46D32)
+                                            .withValues(alpha: .6)
+                                      : const Color(0xFFD0DCD5),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 10,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              icon: const Icon(
+                                Icons.skip_next_rounded,
+                                size: 20,
+                              ),
+                              label: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  _english ? 'Skip' : 'Pas Geç',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _answerController,
+                      builder:
+                          (
+                            BuildContext context,
+                            TextEditingValue value,
+                            Widget? child,
+                          ) {
+                            if (_answerLocked) {
+                              // Cevap doğru verildiğinde veya pas geçildiğinde aktifleşen ve sonraki soruya geçiren buton
+                              return ReferencePrimaryButton(
+                                label: _english
+                                    ? 'NEXT QUESTION →'
+                                    : 'SONRAKİ SORUYA GEÇ →',
+                                accent: _answerCorrect
+                                    ? const Color(0xFF247455)
+                                    : const Color(0xFFC46D32),
+                                icon: Icons.arrow_forward_rounded,
+                                enabled: true,
+                                onPressed: _proceedToNext,
+                              );
+                            }
+
+                            return ReferencePrimaryButton(
+                              label: _english
+                                  ? 'CHECK ANSWER'
+                                  : 'CEVABI KONTROL ET',
+                              accent: _accent,
+                              icon: Icons.arrow_forward_rounded,
+                              enabled: value.text.trim().isNotEmpty,
+                              onPressed: () => unawaited(_submitAnswer()),
+                            );
+                          },
                     ),
                   ],
                 ),
-                const SizedBox(height: 5),
-                ReferencePrimaryButton(
-                  label: _answerCorrect
-                      ? (_english ? 'Correct answer' : 'Cevap doğru')
-                      : (_english ? 'CHECK ANSWER' : 'CEVABI KONTROL ET'),
-                  accent: _accent,
-                  icon: _answerCorrect
-                      ? Icons.check_circle_outline_rounded
-                      : Icons.arrow_forward_rounded,
-                  enabled:
-                      !_answerLocked &&
-                      _answerController.text.trim().isNotEmpty,
-                  onPressed: () => unawaited(_submitAnswer()),
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(99),
+                child: LinearProgressIndicator(
+                  value: (_question + 1) / _targets.length,
+                  minHeight: 8,
+                  backgroundColor: const Color(0xFFE2EAE5),
+                  color: _accent,
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: (_question + 1) / _targets.length,
-              minHeight: 8,
-              backgroundColor: const Color(0xFFE2EAE5),
-              color: _accent,
-            ),
-          ),
+              ),
             ],
           ),
           if (_showConfetti)

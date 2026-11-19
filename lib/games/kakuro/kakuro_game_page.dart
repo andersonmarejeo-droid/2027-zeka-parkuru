@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../features/catalog/domain/studio_game_catalog.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/game_audio_service.dart';
+import '../../services/zeka_scoring_service.dart';
 import '../../theme/studio_visuals.dart';
 import '../shared/game_audio_profile.dart';
 import '../shared/parkur_game_kit.dart';
@@ -138,7 +139,6 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
   late final StudioGameSession _session;
   late List<int> _entries;
   Set<int> _incorrectCells = <int>{};
-  String? _notice;
   int? _selectedCell;
   bool _english = false;
   bool _finished = false;
@@ -169,17 +169,11 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
       .where((MapEntry<int, KakuroCell> entry) => _entries[entry.key] != 0)
       .length;
 
-  int get _score => math.max(
-    0,
-    3200 -
-        _hints * 220 -
-        _session.mistakes * 145 -
-        math.max(0, _attempts - 1) * 25,
-  );
+  int get _score => ZekaScoringService.calculateScore(1, _hints);
 
   int get _stars {
     if (_hints == 0 && _session.mistakes == 0) return 3;
-    if (_hints <= 2 && _session.mistakes <= 2) return 2;
+    if (_hints <= 1 && _session.mistakes <= 1) return 2;
     return 1;
   }
 
@@ -207,7 +201,6 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
     setState(() {
       _selectedCell = index;
       _incorrectCells = <int>{};
-      _notice = null;
     });
     _audio.hapticSelection();
     unawaited(
@@ -226,7 +219,6 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
     setState(() {
       _entries[selected] = digit;
       _incorrectCells = <int>{};
-      _notice = null;
       _selectedCell = _nextEmptyAfter(selected);
     });
     _audio.hapticLight();
@@ -252,7 +244,6 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
     setState(() {
       _entries[selected] = 0;
       _incorrectCells.remove(selected);
-      _notice = null;
     });
     unawaited(_audio.play(GameSound.uiBack, gain: .22));
   }
@@ -266,9 +257,20 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
         (int index) => snapshot[index] ?? 0,
       );
       _incorrectCells = <int>{};
-      _notice = null;
     });
     unawaited(_audio.play(GameSound.uiBack, gain: .22));
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(milliseconds: 1900),
+        ),
+      );
   }
 
   void _resetBoard() {
@@ -277,7 +279,6 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
       _entries = List<int>.filled(_puzzle.cells.length, 0);
       _incorrectCells = <int>{};
       _undoStack.clear();
-      _notice = null;
       _selectedCell = _puzzle.cells.indexWhere(
         (KakuroCell cell) => cell.isPlayable,
       );
@@ -286,7 +287,7 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
   }
 
   void _showHint() {
-    if (_finished || !_session.canUseHint) return;
+    if (_finished || !_session.canUseHint || _hints >= ZekaScoringService.maxHintsPerGame) return;
     int target = _selectedCell ?? -1;
     if (target < 0 || _entries[target] != 0) {
       target = _puzzle.cells.indexWhere(
@@ -301,24 +302,26 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
       _entries[target] = _puzzle.solution[target];
       _selectedCell = target;
       _incorrectCells = <int>{};
-      _notice = _english
-          ? 'A verified digit is revealed. Use its crossing sums to continue.'
-          : 'Doğrulanmış bir rakam açıldı. Devam etmek için kesişen toplamları kullan.';
     });
-    _session.useHint(pointCost: 220);
+    _session.useHint(pointCost: ZekaScoringService.hintPenalty);
     _audio.hapticSelection();
     unawaited(_audioProfile.play(_audio, GameAudioEvent.hint, gain: .32));
+    _showMessage(
+      _english
+          ? 'A verified digit is revealed.'
+          : 'Doğrulanmış bir rakam açıldı.',
+    );
   }
 
   void _checkBoard() {
     if (_finished || !_session.acceptsInput) return;
     _attempts++;
     if (_filledCount < _puzzle.playableCount) {
-      setState(() {
-        _notice = _english
+      _showMessage(
+        _english
             ? 'Fill every white cell before checking the grid.'
-            : 'Izgarayı kontrol etmeden önce tüm beyaz hücreleri doldur.';
-      });
+            : 'Izgarayı kontrol etmeden önce tüm beyaz hücreleri doldur.',
+      );
       unawaited(_audioProfile.play(_audio, GameAudioEvent.rejected, gain: .22));
       return;
     }
@@ -333,10 +336,12 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
       setState(() {
         _incorrectCells = wrong;
         _selectedCell = wrong.first;
-        _notice = _english
-            ? 'Some entries break a crossing sum or repeat a digit. Recheck the highlighted cells.'
-            : 'Bazı girişler kesişen toplamı bozuyor veya rakamı tekrarlıyor. Vurgulu hücreleri yeniden incele.';
       });
+      _showMessage(
+        _english
+            ? 'Some entries break a crossing sum. Recheck highlighted cells.'
+            : 'Bazı girişler toplamı bozuyor. Vurgulu hücreleri incele.',
+      );
       _audio.hapticLight();
       unawaited(_audioProfile.play(_audio, GameAudioEvent.rejected, gain: .28));
       return;
@@ -394,10 +399,68 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
     );
   }
 
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.help_outline_rounded, color: _accent, size: 24),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _english ? 'HOW TO PLAY KAKURO?' : 'KAKURO NASIL OYNANIR?',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: StudioVisuals.ink,
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _english
+                    ? '• Fill playable cells with digits from 1 to 9.\n• The number in a clue triangle is the sum of the digits in that run:\n  - Upper-right number = Horizontal sum to the right.\n  - Lower-left number = Vertical sum downwards.\n• No digit may repeat within the same run/sum!'
+                    : '• Beyaz hücrelere 1 ile 9 arasında rakamlar yerleştirin.\n• İpucu üçgenindeki sayılar, o dizideki rakamların toplamını belirtir:\n  - Sağ üstteki sayı = Sağa doğru yatay satır toplamı.\n  - Sol alttaki sayı = Aşağıya doğru dikey sütun toplamı.\n• Aynı toplam dizisi içinde hiçbir rakam tekrar edemez!',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 14,
+                  height: 1.5,
+                  color: StudioVisuals.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     _english = context.l10n.isEnglish;
-    final bool compact = MediaQuery.sizeOf(context).width < 380;
     final Set<int> relatedCells = _relatedCells;
     final KakuroRun? across = _selectedCell == null
         ? null
@@ -411,16 +474,40 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
         backgroundColor: StudioVisuals.canvas,
         foregroundColor: StudioVisuals.ink,
         surfaceTintColor: Colors.transparent,
-        titleSpacing: 12,
-        title: Text(
-          _english ? 'KAKURO GRID' : 'KAKURO IZGARASI',
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-          ),
+        titleSpacing: 10,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              _english ? 'KAKURO GRID' : 'KAKURO IZGARASI',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                letterSpacing: .5,
+              ),
+            ),
+            Text(
+              '${_english ? 'PUZZLE' : 'BULMACA'} ${widget.level.number.toString().padLeft(2, '0')} · ${_puzzle.size}×${_puzzle.size}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
         actions: <Widget>[
+          IconButton(
+            tooltip: _english ? 'How to play' : 'Nasıl oynanır',
+            onPressed: _showHowToPlay,
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
           IconButton(
             tooltip: _english ? 'Verified hint' : 'Doğrulanmış ipucu',
             onPressed: _showHint,
@@ -440,146 +527,109 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
           maxContentWidth: 660,
           child: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints limits) {
-              final double side = limits.maxWidth < 380 ? 8 : 18;
-              return ListView(
-                key: const ValueKey<String>('kakuro_scroll'),
-                padding: EdgeInsets.fromLTRB(side, 4, side, 20),
-                children: <Widget>[
-                  _KakuroStatusCard(
-                    level: widget.level.number,
-                    stage: _puzzle.stageInChapter,
-                    chapter: _puzzle.chapter,
-                    score: _score,
-                    bestScore: widget.previousBestScore,
-                    english: _english,
-                  ),
-                  SizedBox(height: compact ? 8 : 12),
-                  _KakuroLegend(
-                    filled: _filledCount,
-                    total: _puzzle.playableCount,
-                    english: _english,
-                  ),
-                  const SizedBox(height: 8),
-                  LayoutBuilder(
-                    builder:
-                        (BuildContext context, BoxConstraints boardLimits) {
-                          final double boardWidth = math.min(
-                            boardLimits.maxWidth,
-                            520,
-                          );
-                          return Center(
-                            child: Container(
-                              width: boardWidth,
-                              padding: const EdgeInsets.all(5),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE4E9ED),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: StudioVisuals.line),
-                                boxShadow: StudioVisuals.softShadow,
-                              ),
-                              child: AspectRatio(
-                                aspectRatio: 1,
-                                child: GridView.builder(
-                                  key: const ValueKey<String>('kakuro_board'),
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  padding: EdgeInsets.zero,
-                                  itemCount: _puzzle.cells.length,
-                                  gridDelegate:
-                                      SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: _puzzle.size,
-                                        crossAxisSpacing: 1.5,
-                                        mainAxisSpacing: 1.5,
-                                      ),
-                                  itemBuilder:
-                                      (BuildContext context, int index) {
-                                        final KakuroCell cell =
-                                            _puzzle.cells[index];
-                                        return _KakuroBoardCell(
-                                          key: ValueKey<String>(
-                                            'kakuro_cell_$index',
-                                          ),
-                                          cell: cell,
-                                          value: _entries[index],
-                                          selected: _selectedCell == index,
-                                          related: relatedCells.contains(index),
-                                          incorrect: _incorrectCells.contains(
-                                            index,
-                                          ),
-                                          english: _english,
-                                          onTap: cell.isPlayable
-                                              ? () => _selectCell(index)
-                                              : null,
-                                        );
-                                      },
-                                ),
-                              ),
+              final double availableWidth = limits.maxWidth;
+              final double availableHeight = limits.maxHeight;
+              final double boardSize = math.min(
+                availableWidth - 20,
+                availableHeight - 165,
+              ).clamp(240.0, 430.0);
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                child: Column(
+                  children: <Widget>[
+                    _KakuroStatusBar(
+                      level: widget.level.number,
+                      filled: _filledCount,
+                      total: _puzzle.playableCount,
+                      score: _score,
+                      bestScore: widget.previousBestScore,
+                      english: _english,
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: Container(
+                          width: boardSize,
+                          height: boardSize,
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE4E9ED),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: StudioVisuals.line),
+                            boxShadow: StudioVisuals.softShadow,
+                          ),
+                          child: GridView.builder(
+                            key: const ValueKey<String>('kakuro_board'),
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: EdgeInsets.zero,
+                            itemCount: _puzzle.cells.length,
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: _puzzle.size,
+                              crossAxisSpacing: 1.5,
+                              mainAxisSpacing: 1.5,
                             ),
-                          );
-                        },
-                  ),
-                  const SizedBox(height: 8),
-                  _KakuroCrossingPanel(
-                    across: across,
-                    down: down,
-                    entries: _entries,
-                    selectedCell: _selectedCell,
-                    english: _english,
-                  ),
-                  const SizedBox(height: 8),
-                  _KakuroNumberPad(
-                    onDigit: _enterDigit,
-                    onClear: _clearSelected,
-                    onUndo: _undo,
-                    canUndo: _undoStack.isNotEmpty,
-                    english: _english,
-                  ),
-                  if (_notice != null) ...<Widget>[
-                    const SizedBox(height: 8),
-                    _KakuroNotice(
-                      message: _notice!,
-                      isError: _incorrectCells.isNotEmpty,
+                            itemBuilder: (BuildContext context, int index) {
+                              final KakuroCell cell = _puzzle.cells[index];
+                              return _KakuroBoardCell(
+                                key: ValueKey<String>('kakuro_cell_$index'),
+                                cell: cell,
+                                value: _entries[index],
+                                selected: _selectedCell == index,
+                                related: relatedCells.contains(index),
+                                incorrect: _incorrectCells.contains(index),
+                                english: _english,
+                                onTap: cell.isPlayable
+                                    ? () => _selectCell(index)
+                                    : null,
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    _KakuroCrossingPanel(
+                      across: across,
+                      down: down,
+                      entries: _entries,
+                      selectedCell: _selectedCell,
+                      english: _english,
+                    ),
+                    const SizedBox(height: 6),
+                    _KakuroNumberPad(
+                      onDigit: _enterDigit,
+                      onClear: _clearSelected,
+                      onUndo: _undo,
+                      canUndo: _undoStack.isNotEmpty,
+                      english: _english,
+                    ),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 44,
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        key: const ValueKey<String>('kakuro_check'),
+                        onPressed: _checkBoard,
+                        icon: const Icon(Icons.fact_check_outlined, size: 18),
+                        label: Text(
+                          _english ? 'CHECK GRID' : 'IZGARAYI KONTROL ET',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: .35,
+                          ),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _accent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 50,
-                    child: FilledButton.icon(
-                      key: const ValueKey<String>('kakuro_check'),
-                      onPressed: _checkBoard,
-                      icon: const Icon(Icons.fact_check_outlined),
-                      label: Text(
-                        _english ? 'CHECK THE GRID' : 'IZGARAYI KONTROL ET',
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: .35,
-                        ),
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _accent,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _english
-                        ? 'A digit may appear only once in each connected run. Both crossing clues must balance.'
-                        : 'Her kesişen dizide rakam yalnızca bir kez bulunabilir. İki yöndeki toplam da tutmalıdır.',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      color: StudioVisuals.muted,
-                      fontSize: 12,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                ),
               );
             },
           ),
@@ -589,158 +639,128 @@ class _KakuroPlayPageState extends State<KakuroPlayPage> {
   }
 }
 
-class _KakuroStatusCard extends StatelessWidget {
-  const _KakuroStatusCard({
+class _KakuroStatusBar extends StatelessWidget {
+  const _KakuroStatusBar({
     required this.level,
-    required this.stage,
-    required this.chapter,
+    required this.filled,
+    required this.total,
     required this.score,
     required this.bestScore,
     required this.english,
   });
 
   final int level;
-  final int stage;
-  final int chapter;
+  final int filled;
+  final int total;
   final int score;
   final int bestScore;
   final bool english;
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
     decoration: BoxDecoration(
       color: StudioVisuals.surface,
-      borderRadius: StudioVisuals.cardRadius,
+      borderRadius: BorderRadius.circular(16),
       border: Border.all(color: StudioVisuals.line),
       boxShadow: StudioVisuals.softShadow,
     ),
     child: Row(
       children: <Widget>[
         Container(
-          width: 38,
-          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
           decoration: BoxDecoration(
-            color: _KakuroPlayPageState._accent.withValues(alpha: .1),
-            borderRadius: BorderRadius.circular(12),
+            color: StudioVisuals.ink,
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(
-            Icons.grid_on_rounded,
-            color: _KakuroPlayPageState._accent,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
+              const Icon(
+                Icons.grid_on_rounded,
+                size: 13,
+                color: Color(0xFFE8C98E),
+              ),
+              const SizedBox(width: 5),
               Text(
-                '${english ? 'LEVEL' : 'BÖLÜM'} $level / ${GameContentPolicy.campaignLevels}',
+                '${english ? 'KAKURO' : 'KAKURO'} ${level.toString().padLeft(2, '0')}',
                 style: const TextStyle(
                   fontFamily: 'Roboto',
-                  color: _KakuroPlayPageState._accentDark,
+                  color: Colors.white,
                   fontSize: 11,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: .4,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                '${english ? 'Kakuro' : 'Kakuro'} ${level.toString().padLeft(2, '0')}',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.ink,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
+                  letterSpacing: .5,
                 ),
               ),
             ],
           ),
         ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: <Widget>[
-            Text(
-              '${english ? 'SCORE' : 'PUAN'} $score',
-              style: const TextStyle(
-                fontFamily: 'Roboto',
-                color: StudioVisuals.ink,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              '${english ? 'BEST' : 'EN İYİ'} $bestScore',
-              style: const TextStyle(
-                fontFamily: 'Roboto',
-                color: StudioVisuals.muted,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+        const Spacer(),
+        _CompactKakuroMetric(
+          icon: Icons.edit_outlined,
+          label: english ? 'FILLED' : 'DOLU',
+          value: '$filled/$total',
         ),
+        const SizedBox(width: 6),
+        _CompactKakuroMetric(
+          icon: Icons.bolt_outlined,
+          label: english ? 'SCORE' : 'PUAN',
+          value: '$score',
+        ),
+        if (bestScore > 0) ...<Widget>[
+          const SizedBox(width: 6),
+          _CompactKakuroMetric(
+            icon: Icons.emoji_events_outlined,
+            label: english ? 'BEST' : 'REKOR',
+            value: '$bestScore',
+            color: const Color(0xFFB58A58),
+          ),
+        ],
       ],
     ),
   );
 }
 
-class _KakuroLegend extends StatelessWidget {
-  const _KakuroLegend({
-    required this.filled,
-    required this.total,
-    required this.english,
+class _CompactKakuroMetric extends StatelessWidget {
+  const _CompactKakuroMetric({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.color,
   });
 
-  final int filled;
-  final int total;
-  final bool english;
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? color;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF0F5F5),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: _KakuroPlayPageState._accent.withValues(alpha: .14),
+  Widget build(BuildContext context) {
+    final Color textColor = color ?? StudioVisuals.ink;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F3),
+        borderRadius: BorderRadius.circular(8),
       ),
-    ),
-    child: Row(
-      children: <Widget>[
-        const Icon(
-          Icons.info_outline_rounded,
-          size: 17,
-          color: _KakuroPlayPageState._accent,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            english
-                ? 'Across clue: upper-right · Down clue: lower-left'
-                : 'Yatay ipucu: sağ üst · Dikey ipucu: sol alt',
-            style: const TextStyle(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 12, color: StudioVisuals.muted),
+          const SizedBox(width: 4),
+          Text(
+            '$label $value',
+            style: TextStyle(
               fontFamily: 'Roboto',
-              color: StudioVisuals.ink,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: textColor,
             ),
           ),
-        ),
-        Text(
-          '$filled/$total',
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            color: _KakuroPlayPageState._accentDark,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class _KakuroBoardCell extends StatelessWidget {
@@ -1105,50 +1125,4 @@ class _KakuroNumberPad extends StatelessWidget {
       ),
     ],
   );
-}
-
-class _KakuroNotice extends StatelessWidget {
-  const _KakuroNotice({required this.message, required this.isError});
-
-  final String message;
-  final bool isError;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color color = isError
-        ? const Color(0xFFAE4034)
-        : _KakuroPlayPageState._accentDark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: .2)),
-      ),
-      child: Row(
-        children: <Widget>[
-          Icon(
-            isError
-                ? Icons.error_outline_rounded
-                : Icons.tips_and_updates_outlined,
-            size: 18,
-            color: color,
-          ),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                fontFamily: 'Roboto',
-                color: color,
-                fontSize: 12,
-                height: 1.3,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

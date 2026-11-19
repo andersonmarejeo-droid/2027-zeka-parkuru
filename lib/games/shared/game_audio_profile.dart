@@ -38,7 +38,9 @@ class GameAudioProfile {
     double gain = 1,
     int? levelNumber,
   }) {
-    final double safeGain = gain.clamp(0.0, maximumGain).toDouble();
+    final double safeGain = event == GameAudioEvent.levelComplete
+        ? maximumGain
+        : gain.clamp(0.0, maximumGain).toDouble();
     if (event == GameAudioEvent.levelComplete && levelNumber != null) {
       return audio.playLevelComplete(levelNumber: levelNumber, gain: safeGain);
     }

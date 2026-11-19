@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 /// A crop from the shared premium game-object sheets.
 ///
@@ -22,11 +22,11 @@ class RealisticGameObject extends StatelessWidget {
 
   String get _asset => switch (sheet) {
     RealisticObjectSheet.memory =>
-      'assets/game_visuals/memory_objects_sheet.png',
+      'assets/game_visuals/memory_objects_sheet.webp',
     RealisticObjectSheet.weights =>
-      'assets/game_visuals/weight_objects_sheet.png',
+      'assets/game_visuals/weight_objects_sheet.webp',
     RealisticObjectSheet.tokens =>
-      'assets/game_visuals/realistic_tokens_sheet.png',
+      'assets/game_visuals/realistic_tokens_sheet.webp',
   };
 
   int get _columns => switch (sheet) {

@@ -107,8 +107,10 @@ class DailyChallengeService {
 
   final SharedPreferencesAsync _prefs = SharedPreferencesAsync();
 
-  static final List<String> _gameIds = List<String>.unmodifiable(
-    StudioGameCatalog.playable.map((GameDefinition game) => game.id),
+  static List<String> get _gameIds => List<String>.unmodifiable(
+    StudioGameCatalog.playable
+        .where((game) => !StudioGameCatalog.isGameRetired(game.id))
+        .map((GameDefinition game) => game.id),
   );
 
   static const Map<String, String> gameLabels = <String, String>{
@@ -123,13 +125,11 @@ class DailyChallengeService {
     'hanoi': 'Hanoi Kulesi',
     'word_hunt': 'Kelime Avı',
     'meaning_match': 'Anlam Eşleştir',
-    'proverb_finish': 'Atasözü Tamamla',
     'sentence_builder': 'Cümle Kur',
     'near_meaning': 'Yakın Anlam',
     'letter_maze': 'Harf Labirenti',
     'language_detective': 'Dil Dedektifi',
     'story_order': 'Hikâye Sırası',
-    'picture_iq': 'Görsel IQ',
     'candy_sort': 'Şeker Sıralama',
     'number_sort': '15 Taş Ustası',
     'shape_puzzle': 'Şekil Birleştir',

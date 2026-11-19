@@ -37,6 +37,10 @@ class ThemedCourseDefinition {
     required this.maxLevel,
   });
 
+  List<String> get playableGames => games
+      .where((g) => StudioGameCatalog.isAvailable(g) && !StudioGameCatalog.isGameRetired(g))
+      .toList(growable: false);
+
   String title({required bool english}) => english ? titleEn : titleTr;
   String subtitle({required bool english}) =>
       english ? subtitleEn : subtitleTr;
@@ -62,7 +66,7 @@ abstract final class ThemedCourseCatalog {
         'focus_filter',
         'rhythm_memory',
         'attention_tunnel',
-        'picture_iq',
+        'shape_puzzle',
       ],
       minLevel: 4,
       maxLevel: 12,
@@ -103,7 +107,7 @@ abstract final class ThemedCourseCatalog {
         'number_sort',
         'hanoi',
         'meaning_match',
-        'picture_iq',
+        'candy_sort',
         'attention_tunnel',
       ],
       minLevel: 13,
@@ -122,7 +126,6 @@ abstract final class ThemedCourseCatalog {
       games: <String>[
         'word_hunt',
         'meaning_match',
-        'proverb_finish',
         'sentence_builder',
         'near_meaning',
         'letter_maze',
@@ -163,7 +166,7 @@ abstract final class ThemedCourseCatalog {
   }
 
   static bool isPlayable(ThemedCourseDefinition definition) {
-    return definition.games.every(StudioGameCatalog.isAvailable);
+    return definition.playableGames.length >= 3;
   }
 }
 
@@ -224,10 +227,6 @@ class ThemedCourseService {
   Future<ThemedCourseData> load(String courseId) async {
     final ThemedCourseDefinition definition =
         ThemedCourseCatalog.byId(courseId);
-    if (!ThemedCourseCatalog.isPlayable(definition)) {
-      throw StateError('Tematik parkurda oynanamayan oyun var: $courseId');
-    }
-
     final _ThemedCourseState state = await _loadState(definition);
     return _dataFromState(definition, state);
   }
@@ -368,7 +367,8 @@ class ThemedCourseService {
     int totalStars = 0;
     int totalScore = 0;
 
-    for (final String gameId in definition.games) {
+    final List<String> activeGames = definition.playableGames;
+    for (final String gameId in activeGames) {
       final _ThemedStageRecord? record = state.records[gameId];
       if (record == null) continue;
       completed.add(gameId);
@@ -389,7 +389,7 @@ class ThemedCourseService {
     return ThemedCourseData(
       definition: definition,
       round: state.round,
-      games: List<String>.unmodifiable(definition.games),
+      games: List<String>.unmodifiable(activeGames),
       completedGames: Set<String>.unmodifiable(completed),
       successfulGames: Set<String>.unmodifiable(successful),
       failedGames: Set<String>.unmodifiable(failed),

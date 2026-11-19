@@ -889,7 +889,10 @@ class _WarehouseControls extends StatelessWidget {
                     key: const ValueKey<String>('warehouse_undo_control'),
                     onPressed: canUndo ? onUndo : null,
                     icon: const Icon(Icons.undo_rounded, size: 15),
-                    label: Text(english ? 'UNDO' : 'GERİ'),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(english ? 'UNDO' : 'GERİ'),
+                    ),
                     style: _secondaryButtonStyle,
                   ),
                 ),
@@ -899,7 +902,10 @@ class _WarehouseControls extends StatelessWidget {
                     key: const ValueKey<String>('warehouse_restart_control'),
                     onPressed: onRestart,
                     icon: const Icon(Icons.restart_alt_rounded, size: 15),
-                    label: Text(english ? 'RESET' : 'SIFIRLA'),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(english ? 'RESET' : 'SIFIRLA'),
+                    ),
                     style: _secondaryButtonStyle,
                   ),
                 ),

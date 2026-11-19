@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../../l10n/app_localizations.dart';
 import '../shared/content_seed.dart';
 
 enum FocusFilterRule {
@@ -178,13 +179,15 @@ class FocusFilterScenario {
     'Navy',
   ];
 
-  String _shapeName(int index) =>
-      (english ? _shapeNamesEn : _shapeNamesTr)[index % shapeCount]
-          .toUpperCase();
+  String _shapeName(int index) => uppercaseUiText(
+    (english ? _shapeNamesEn : _shapeNamesTr)[index % shapeCount],
+    english: english,
+  );
 
-  String _colorName(int index) =>
-      (english ? _colorNamesEn : _colorNamesTr)[index % colorCount]
-          .toUpperCase();
+  String _colorName(int index) => uppercaseUiText(
+    (english ? _colorNamesEn : _colorNamesTr)[index % colorCount],
+    english: english,
+  );
 
   static FocusFilterScenario forCampaignLevel(
     int level, {

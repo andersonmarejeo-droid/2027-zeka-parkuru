@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_visual_theme.dart';
 import '../theme/studio_visuals.dart';
 import '../features/catalog/domain/studio_game_catalog.dart';
@@ -294,7 +295,7 @@ class _ArenaPageState extends State<ArenaPage> {
                         icon: Icons.bolt_rounded,
                         color: StudioVisuals.teal,
                         imageAsset:
-                            'assets/branding/studio_parkur_one_to_one_duel.png',
+                            'assets/branding/studio_parkur_one_to_one_duel.webp',
                         title: 'BİREBİR DÜELLO',
                         subtitle:
                             'Arkadaşına veya dünyadan bir oyuncuya meydan oku.',
@@ -314,7 +315,7 @@ class _ArenaPageState extends State<ArenaPage> {
                         icon: Icons.group_add_rounded,
                         color: StudioVisuals.amber,
                         imageAsset:
-                            'assets/branding/studio_parkur_group_arena.png',
+                            'assets/branding/studio_parkur_group_arena.webp',
                         title: 'GRUP OLUŞTUR',
                         subtitle: 'Arkadaşlarınla aynı parkurda yarış.',
                         trailing: 'OLUŞTUR',
@@ -328,7 +329,7 @@ class _ArenaPageState extends State<ArenaPage> {
                         icon: Icons.login_rounded,
                         color: StudioVisuals.teal,
                         imageAsset:
-                            'assets/branding/studio_parkur_join_code.png',
+                            'assets/branding/studio_parkur_join_code.webp',
                         title: 'KODLA KATIL',
                         subtitle: 'Davet kodunla mevcut bir gruba katıl.',
                         trailing: 'KATIL',
@@ -512,7 +513,7 @@ class _ArenaGroupPageState extends State<ArenaGroupPage> {
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             title: Text(
-              group?.name.toUpperCase() ?? 'GRUP YÜKLENİYOR',
+              context.l10n.uppercaseLabel(group?.name ?? 'GRUP YÜKLENİYOR'),
               style: const TextStyle(
                 color: StudioVisuals.ink,
                 fontWeight: FontWeight.w900,
@@ -1332,7 +1333,7 @@ class _ArenaEventPageState extends State<ArenaEventPage> {
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             title: Text(
-              event.title.toUpperCase(),
+              context.l10n.uppercaseLabel(event.title),
               style: const TextStyle(
                 color: StudioVisuals.ink,
                 fontWeight: FontWeight.w900,
@@ -1759,13 +1760,6 @@ class _ArenaGameInfo {
 
 const List<_ArenaGameInfo> _gameCatalog = <_ArenaGameInfo>[
   _ArenaGameInfo(
-    id: 'logic',
-    name: 'Mantık Labirenti',
-    subtitle: 'Rotayı çöz',
-    icon: Icons.extension_rounded,
-    color: Color(0xFF8A4FFF),
-  ),
-  _ArenaGameInfo(
     id: 'numbers',
     name: 'Sayı Ustası',
     subtitle: 'Sayı kuralını bul',
@@ -1836,13 +1830,6 @@ const List<_ArenaGameInfo> _gameCatalog = <_ArenaGameInfo>[
     color: Color(0xFF5B88C8),
   ),
   _ArenaGameInfo(
-    id: 'proverb_finish',
-    name: 'Atasözü Tamamla',
-    subtitle: 'Sözü ve anlamını tamamla',
-    icon: Icons.menu_book_rounded,
-    color: Color(0xFF648B72),
-  ),
-  _ArenaGameInfo(
     id: 'sentence_builder',
     name: 'Cümle Kur',
     subtitle: 'Bağlaç ve cümle yapısını çöz',
@@ -1876,13 +1863,6 @@ const List<_ArenaGameInfo> _gameCatalog = <_ArenaGameInfo>[
     subtitle: 'Olayları kanıta göre sırala',
     icon: Icons.timeline_rounded,
     color: Color(0xFF5B88C8),
-  ),
-  _ArenaGameInfo(
-    id: 'picture_iq',
-    name: 'Görsel IQ',
-    subtitle: 'Görsel kuralı çöz',
-    icon: Icons.auto_awesome_mosaic_rounded,
-    color: Color(0xFFFF4FA3),
   ),
   _ArenaGameInfo(
     id: 'number_sort',
@@ -1989,7 +1969,7 @@ class _ArenaHero extends StatelessWidget {
               width: double.infinity,
               height: 132,
               child: Image.asset(
-                'assets/branding/studio_parkur_group_arena.png',
+                'assets/branding/studio_parkur_group_arena.webp',
                 fit: BoxFit.cover,
                 semanticLabel: 'Grup arenası görseli',
               ),
@@ -2188,7 +2168,7 @@ class _GroupCard extends StatelessWidget {
     return _ArenaActionCard(
       icon: _groupIdentityIcon(group),
       color: group.isOwner(currentUid) ? StudioVisuals.amber : identityColor,
-      title: group.name.toUpperCase(),
+      title: context.l10n.uppercaseLabel(group.name),
       subtitle:
           '${_groupIdentityProfile(group)} • '
           '${group.memberIds.length}/30 oyuncu • Kod: ${group.joinCode}',
@@ -2487,7 +2467,7 @@ class _EventCard extends StatelessWidget {
     return _ArenaActionCard(
       icon: open ? Icons.play_circle_fill_rounded : Icons.emoji_events_rounded,
       color: open ? StudioVisuals.teal : StudioVisuals.amber,
-      title: event.title.toUpperCase(),
+      title: context.l10n.uppercaseLabel(event.title),
       subtitle:
           '${event.gameIds.length} oyun • ${event.participantIds.length} yarışmacı • Doğrudan sıralama',
       trailing: open ? 'AKTİF' : 'SONUÇ',

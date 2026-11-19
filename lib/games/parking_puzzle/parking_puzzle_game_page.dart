@@ -95,7 +95,6 @@ class _ParkingPuzzlePlayPageState extends State<ParkingPuzzlePlayPage> {
   static const Color _ink = StudioVisuals.ink;
   static const Color _muted = StudioVisuals.muted;
   static const Color _canvas = StudioVisuals.canvas;
-  static const Color _surface = StudioVisuals.surface;
   static const Color _target = Color(0xFFD07F52);
   static const List<Color> _carColors = <Color>[
     Color(0xFFD58C61),
@@ -366,6 +365,82 @@ class _ParkingPuzzlePlayPageState extends State<ParkingPuzzlePlayPage> {
     );
   }
 
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD4DDD8),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Icon(Icons.directions_car_filled_rounded, color: _target, size: 24),
+                    const SizedBox(width: 8),
+                    Text(
+                      _english ? 'How to Play' : 'Nasıl Oynanır?',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: _ink,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _english
+                      ? '• Your goal is to guide the red car out through the exit on the right.\n• Cars slide only forward and backward along their lanes.\n• Move the blocking vehicles out of the way to clear a path.\n• Finish in as few moves as possible to earn 3 stars!'
+                      : '• Hedefiniz kırmızı aracı sağ taraftaki çıkış kapısına ulaştırmaktır.\n• Araçlar sadece kendi doğrultularında (ileri-geri veya yukarı-aşağı) kaydırılabilir.\n• Kırmızı aracın önünü açmak için diğer araçları uygun boşluklara kaydırın.\n• En az hamleyle bitirerek 3 yıldızı kapın!',
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    height: 1.5,
+                    color: _ink,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _target,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      _english ? 'Got it' : 'Anladım',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     _english = context.l10n.isEnglish;
@@ -376,7 +451,7 @@ class _ParkingPuzzlePlayPageState extends State<ParkingPuzzlePlayPage> {
         backgroundColor: _canvas,
         foregroundColor: _ink,
         surfaceTintColor: Colors.transparent,
-        titleSpacing: 10,
+        titleSpacing: 12,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -386,34 +461,27 @@ class _ParkingPuzzlePlayPageState extends State<ParkingPuzzlePlayPage> {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontFamily: 'Roboto',
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: FontWeight.w900,
                 letterSpacing: .8,
               ),
             ),
             Text(
-              '${_english ? 'ROUTE' : 'PARKUR'} ${widget.level.number.toString().padLeft(3, '0')}  ·  ${_english ? 'CH' : 'PAKET'} ${chapter.toString().padLeft(2, '0')}',
+              '${_english ? 'ROUTE' : 'BÖLÜM'} ${widget.level.number} / ${GameContentPolicy.campaignLevels}',
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 color: _muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
         ),
         actions: <Widget>[
           IconButton(
-            onPressed: _hint,
-            tooltip: _english
-                ? 'Show one useful move'
-                : 'Yararlı bir hamle göster',
-            icon: const Icon(Icons.lightbulb_outline_rounded),
-          ),
-          IconButton(
-            onPressed: _reset,
-            tooltip: _english ? 'Reset puzzle' : 'Bulmacayı sıfırla',
-            icon: const Icon(Icons.restart_alt_rounded),
+            onPressed: _showHowToPlay,
+            tooltip: _english ? 'How to play' : 'Nasıl Oynanır?',
+            icon: const Icon(Icons.help_outline_rounded),
           ),
         ],
       ),
@@ -422,80 +490,130 @@ class _ParkingPuzzlePlayPageState extends State<ParkingPuzzlePlayPage> {
         child: ResponsiveGameFrame(
           maxContentWidth: 620,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                _ParkingHeader(
-                  chapter: chapter,
-                  level: widget.level.number,
-                  optimum: _puzzle.optimalMoves,
-                  bestScore: widget.previousBestScore,
-                  english: _english,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: _RuleChip(
-                        icon: Icons.swap_horiz_rounded,
-                        text: _english
-                            ? 'Slide along each lane'
-                            : 'Her araç kendi rayında',
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE3E6E1)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x0A25343D),
+                        blurRadius: 10,
+                        offset: Offset(0, 3),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    _MoveChip(moves: _moves, english: _english),
-                  ],
+                    ],
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFAECE5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${_english ? 'PACK' : 'PAKET'} $chapter',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: _target,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${_english ? 'MOVES' : 'HAMLE'}: ',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          color: _muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        '$_moves',
+                        style: TextStyle(
+                          fontFamily: 'Roboto',
+                          color: _moves <= _puzzle.optimalMoves ? const Color(0xFF176D62) : const Color(0xFFC46D32),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        ' / ${_puzzle.optimalMoves}',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          color: _muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (widget.previousBestScore > 0) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '•  🏆 ${widget.previousBestScore}',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: _target,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Expanded(
                   child: Center(
                     child: LayoutBuilder(
-                      builder:
-                          (BuildContext context, BoxConstraints constraints) {
-                            final double extent = math.min(
-                              math.min(
-                                constraints.maxWidth,
-                                constraints.maxHeight,
-                              ),
-                              560,
-                            );
-                            return SizedBox.square(
-                              dimension: extent,
-                              child: _ParkingBoard(
-                                key: _boardKey,
-                                puzzle: _puzzle,
-                                offsets: _offsets,
-                                selectedVehicle: _selectedVehicle,
-                                draggingVehicle: _draggingVehicle,
-                                previewOffset: _previewOffset,
-                                hintedVehicle: _hintedVehicle,
-                                colors: _carColors,
-                                english: _english,
-                                onTapVehicle: (int index) {
-                                  setState(() {
-                                    _selectedVehicle = index;
-                                    _hintedVehicle = null;
-                                  });
-                                  unawaited(
-                                    _audioProfile.play(
-                                      _audio,
-                                      GameAudioEvent.menu,
-                                      gain: .24,
-                                    ),
-                                  );
-                                },
-                                onDragStart: _startDrag,
-                                onDragUpdate: _updateDrag,
-                                onDragEnd: _finishDrag,
-                                onAccessibleMove: _moveVehicle,
-                              ),
-                            );
-                          },
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final double extent = math.min(
+                          math.min(constraints.maxWidth, constraints.maxHeight),
+                          560,
+                        );
+                        return SizedBox.square(
+                          dimension: extent,
+                          child: _ParkingBoard(
+                            key: _boardKey,
+                            puzzle: _puzzle,
+                            offsets: _offsets,
+                            selectedVehicle: _selectedVehicle,
+                            draggingVehicle: _draggingVehicle,
+                            previewOffset: _previewOffset,
+                            hintedVehicle: _hintedVehicle,
+                            colors: _carColors,
+                            english: _english,
+                            onTapVehicle: (int index) {
+                              setState(() {
+                                _selectedVehicle = index;
+                                _hintedVehicle = null;
+                              });
+                              unawaited(
+                                _audioProfile.play(
+                                  _audio,
+                                  GameAudioEvent.menu,
+                                  gain: .24,
+                                ),
+                              );
+                            },
+                            onDragStart: _startDrag,
+                            onDragUpdate: _updateDrag,
+                            onDragEnd: _finishDrag,
+                            onAccessibleMove: _moveVehicle,
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Row(
                   children: <Widget>[
                     Expanded(
@@ -526,7 +644,6 @@ class _ParkingPuzzlePlayPageState extends State<ParkingPuzzlePlayPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
               ],
             ),
           ),
@@ -536,119 +653,7 @@ class _ParkingPuzzlePlayPageState extends State<ParkingPuzzlePlayPage> {
   }
 }
 
-class _ParkingHeader extends StatelessWidget {
-  const _ParkingHeader({
-    required this.chapter,
-    required this.level,
-    required this.optimum,
-    required this.bestScore,
-    required this.english,
-  });
 
-  final int chapter;
-  final int level;
-  final int optimum;
-  final int bestScore;
-  final bool english;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: _ParkingPuzzlePlayPageState._surface,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFE3E6E1)),
-      boxShadow: const <BoxShadow>[
-        BoxShadow(
-          color: Color(0x0A25343D),
-          blurRadius: 18,
-          offset: Offset(0, 7),
-        ),
-      ],
-    ),
-    child: Row(
-      children: <Widget>[
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFAECE5),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: const Icon(
-            Icons.directions_car_filled_rounded,
-            color: _ParkingPuzzlePlayPageState._target,
-            size: 25,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                english ? 'TRAFFIC PLAN' : 'TRAFİK PLANI',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: _ParkingPuzzlePlayPageState._muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                english ? 'Clear the right lane' : 'Sağ şeridi boşalt',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: _ParkingPuzzlePlayPageState._ink,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 7),
-              Wrap(
-                spacing: 8,
-                runSpacing: 3,
-                children: <Widget>[
-                  _Metric(text: '${english ? 'PACK' : 'PAKET'} $chapter'),
-                  _Metric(
-                    text:
-                        '${english ? 'LEVEL' : 'BÖLÜM'} $level/${GameContentPolicy.campaignLevels}',
-                  ),
-                  _Metric(text: '${english ? 'PAR' : 'EN AZ'} $optimum'),
-                ],
-              ),
-            ],
-          ),
-        ),
-        if (bestScore > 0) ...<Widget>[
-          const SizedBox(width: 8),
-          Column(
-            children: <Widget>[
-              const Icon(
-                Icons.emoji_events_rounded,
-                color: Color(0xFFD7A74D),
-                size: 17,
-              ),
-              Text(
-                '$bestScore',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: _ParkingPuzzlePlayPageState._ink,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ],
-    ),
-  );
-}
 
 class _ParkingBoard extends StatelessWidget {
   const _ParkingBoard({
@@ -1128,86 +1133,7 @@ class _CarPainter extends CustomPainter {
 Color _shade(Color color, double factor) =>
     Color.lerp(color, Colors.black, 1 - factor) ?? color;
 
-class _RuleChip extends StatelessWidget {
-  const _RuleChip({required this.icon, required this.text});
 
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(minHeight: 38),
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFAECE5),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Row(
-      children: <Widget>[
-        Icon(icon, color: _ParkingPuzzlePlayPageState._target, size: 17),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              color: _ParkingPuzzlePlayPageState._ink,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _MoveChip extends StatelessWidget {
-  const _MoveChip({required this.moves, required this.english});
-
-  final int moves;
-  final bool english;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(minHeight: 38),
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      border: Border.all(color: const Color(0xFFE3E6E1)),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Text(
-      '${english ? 'MOVES' : 'HAMLE'} $moves',
-      style: const TextStyle(
-        fontFamily: 'Roboto',
-        color: _ParkingPuzzlePlayPageState._ink,
-        fontSize: 12,
-        fontWeight: FontWeight.w900,
-      ),
-    ),
-  );
-}
-
-class _Metric extends StatelessWidget {
-  const _Metric({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Text(
-    text,
-    style: const TextStyle(
-      fontFamily: 'Roboto',
-      color: _ParkingPuzzlePlayPageState._muted,
-      fontSize: 11,
-      fontWeight: FontWeight.w900,
-      letterSpacing: .25,
-    ),
-  );
-}
 
 class _ToolAction extends StatelessWidget {
   const _ToolAction({

@@ -432,6 +432,168 @@ class _BalanceScalePlayPageState extends State<BalanceScalePlayPage> {
     );
   }
 
+  void _showLedgerClues() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.menu_book_rounded, color: _brass, size: 24),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _english ? 'LEDGER CLUES' : 'DEFTER İPUÇLARI',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: _ink,
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const Divider(color: Color(0xFFEAE7DF)),
+              const SizedBox(height: 8),
+              if (_puzzle.extraClues.isEmpty)
+                Text(
+                  _english
+                      ? 'No extra clues for this level.'
+                      : 'Bu bölüm için ek defter ipucu yok.',
+                  style: const TextStyle(fontFamily: 'Roboto', color: _muted),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _puzzle.extraClues.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (BuildContext context, int index) {
+                      final BalanceGlobalClue clue = _puzzle.extraClues[index];
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Container(
+                            width: 24,
+                            height: 24,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF1EEE5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                fontFamily: 'Roboto',
+                                color: _brass,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              clue.text(english: _english),
+                              style: const TextStyle(
+                                fontFamily: 'Roboto',
+                                fontSize: 13,
+                                color: _ink,
+                                fontWeight: FontWeight.w600,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.help_outline_rounded, color: _accent, size: 24),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _english ? 'HOW TO PLAY?' : 'NASIL OYNANIR?',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: _ink,
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _english
+                    ? '• Choose weights from the bottom tray and tap a left or right pan on a scale.\n• Each scale shows the target difference between its two pans.\n• Follow the ledger clues to determine which materials belong where.\n• When all scales are balanced, tap "CHECK"!'
+                    : '• Alttaki tepsiden bir ağırlık seçin ve terazideki sol veya sağ kefeye dokunarak yerleştirin.\n• Her terazi, iki kefesi arasındaki hedef kütle farkını gösterir.\n• Hangi ağırlığın nereye geleceğini bulmak için defter ipuçlarını takip edin.\n• Tüm kefeler dolduğunda "KONTROL ET" butonuna dokunun!',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 14,
+                  height: 1.5,
+                  color: _ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     _english = context.l10n.isEnglish;
@@ -451,9 +613,9 @@ class _BalanceScalePlayPageState extends State<BalanceScalePlayPage> {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontFamily: 'Roboto',
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: FontWeight.w900,
-                letterSpacing: .7,
+                letterSpacing: .6,
               ),
             ),
             Text(
@@ -463,19 +625,23 @@ class _BalanceScalePlayPageState extends State<BalanceScalePlayPage> {
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 color: _muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
         ),
         actions: <Widget>[
+          if (_puzzle.extraClues.isNotEmpty)
+            IconButton(
+              onPressed: _showLedgerClues,
+              tooltip: _english ? 'Ledger clues' : 'Defter ipuçları',
+              icon: const Icon(Icons.menu_book_rounded),
+            ),
           IconButton(
-            onPressed: _hint,
-            tooltip: _english
-                ? 'Place a correct weight'
-                : 'Doğru bir ağırlık yerleştir',
-            icon: const Icon(Icons.lightbulb_outline_rounded),
+            onPressed: _showHowToPlay,
+            tooltip: _english ? 'How to play' : 'Nasıl oynanır',
+            icon: const Icon(Icons.help_outline_rounded),
           ),
           IconButton(
             onPressed: _reset,
@@ -487,148 +653,165 @@ class _BalanceScalePlayPageState extends State<BalanceScalePlayPage> {
       body: SafeArea(
         top: false,
         child: ResponsiveGameFrame(
-          maxContentWidth: 680,
-          child: ListView(
-            key: const ValueKey<String>('balance_scale_scroll'),
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 28),
-            children: <Widget>[
-              _BalanceHero(
-                level: widget.level.number,
-                stationCount: _puzzle.stationCount,
-                moveCount: _moves,
-                hintCount: _hints,
-                bestScore: widget.previousBestScore,
-                stage: _puzzle.localStage,
-                english: _english,
-              ),
-              const SizedBox(height: 13),
-              _SectionHeading(
-                title: _english ? 'BALANCE READINGS' : 'TERAZİ ÖLÇÜMLERİ',
-                detail: _english
-                    ? 'Match the indicated difference and material type.'
-                    : 'Belirtilen kütle farkını ve malzeme türünü eşleştir.',
-              ),
-              const SizedBox(height: 7),
-              for (
-                int index = 0;
-                index < _puzzle.stationCount;
-                index++
-              ) ...<Widget>[
-                _BalanceStationCard(
-                  station: _puzzle.stations[index],
-                  placement: _placements[index],
-                  valid:
-                      _placements[index] != null &&
-                      _puzzleStationMatches(index, _placements[index]!),
-                  weights: _puzzle.weights,
-                  stationIndex: index,
+          maxContentWidth: 640,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                _BalanceStatusBar(
+                  level: widget.level.number,
+                  stationCount: _puzzle.stationCount,
+                  moves: _moves,
+                  hints: _hints,
+                  bestScore: widget.previousBestScore,
                   english: _english,
-                  onPanTap: (bool leftSide) => _placeWeight(index, leftSide),
+                  extraCluesCount: _puzzle.extraClues.length,
+                  onOpenClues: _showLedgerClues,
                 ),
-                if (index < _puzzle.stationCount - 1) const SizedBox(height: 7),
-              ],
-              if (_puzzle.extraClues.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 14),
-                _SectionHeading(
-                  title: _english ? 'LEDGER CLUES' : 'DEFTER İPUÇLARI',
-                  detail: _english
-                      ? 'Use these clues across the whole set of balances.'
-                      : 'Bu ipuçlarını tüm teraziler birlikteyken değerlendir.',
+                const SizedBox(height: 6),
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          for (
+                            int index = 0;
+                            index < _puzzle.stationCount;
+                            index++
+                          ) ...<Widget>[
+                            if (index > 0) const SizedBox(height: 6),
+                            _BalanceStationCard(
+                              station: _puzzle.stations[index],
+                              placement: _placements[index],
+                              valid:
+                                  _placements[index] != null &&
+                                  _puzzleStationMatches(
+                                    index,
+                                    _placements[index]!,
+                                  ),
+                              weights: _puzzle.weights,
+                              stationIndex: index,
+                              english: _english,
+                              onPanTap: (bool leftSide) =>
+                                  _placeWeight(index, leftSide),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 7),
-                _GlobalClueBoard(
-                  clues: _puzzle.extraClues,
-                  weights: _puzzle.weights,
-                  placements: _completePlacements,
-                  completed: _boardFull,
-                  english: _english,
-                ),
-              ],
-              const SizedBox(height: 14),
-              _SectionHeading(
-                title: _english ? 'WEIGHT TRAY' : 'AĞIRLIK TEPSİSİ',
-                detail: _english
-                    ? _hasSelectedWeight
-                          ? 'Now choose a left or right pan.'
-                          : 'Select a piece, then tap the pan where it belongs.'
-                    : _hasSelectedWeight
-                    ? 'Şimdi sol veya sağ kefeyi seç.'
-                    : 'Bir ağırlık seç, ardından ait olduğu kefeye dokun.',
-              ),
-              const SizedBox(height: 7),
-              _WeightTray(
-                weights: _puzzle.weights,
-                isPlaced: _weightIsPlaced,
-                selectedWeight: _selectedWeight,
-                english: _english,
-                onSelect: _selectWeight,
-              ),
-              const SizedBox(height: 7),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                alignment: WrapAlignment.spaceBetween,
-                children: <Widget>[
-                  _SmallAction(
-                    key: const ValueKey<String>('balance_scale_undo'),
-                    icon: Icons.undo_rounded,
-                    label: _english ? 'UNDO' : 'GERİ AL',
-                    onPressed: _undo.isEmpty ? null : _undoMove,
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
                   ),
-                  _SmallAction(
-                    icon: Icons.lightbulb_outline_rounded,
-                    label: _english ? 'HINT' : 'İPUCU',
-                    onPressed: _hint,
-                  ),
-                  _SmallAction(
-                    icon: Icons.restart_alt_rounded,
-                    label: _english ? 'RESET' : 'SIFIRLA',
-                    onPressed: _reset,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              FilledButton.icon(
-                key: const ValueKey<String>('balance_scale_check'),
-                onPressed: _checkBalance,
-                icon: const Icon(Icons.fact_check_outlined),
-                label: Text(
-                  _english ? 'CHECK THE BALANCE' : 'DENGEYİ KONTROL ET',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _accent,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(
-                    GameInputPolicy.minimumTargetSize + 8,
-                  ),
-                  shape: RoundedRectangleBorder(
+                  decoration: BoxDecoration(
+                    color: _surface,
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E7E4)),
                   ),
-                  textStyle: const TextStyle(
-                    fontFamily: 'Roboto',
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: .35,
+                  child: Column(
+                    children: <Widget>[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          Text(
+                            _english ? 'WEIGHT TRAY' : 'AĞIRLIK TEPSİSİ',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: _muted,
+                              letterSpacing: .5,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _hasSelectedWeight
+                                  ? (_english
+                                        ? 'Tap a pan to place'
+                                        : 'Yerleştirmek için kefeye dokun')
+                                  : (_english
+                                        ? 'Select a weight'
+                                        : 'Bir ağırlık seç'),
+                              textAlign: TextAlign.end,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'Roboto',
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: _hasSelectedWeight ? _accent : _muted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      _WeightTray(
+                        weights: _puzzle.weights,
+                        isPlaced: _weightIsPlaced,
+                        selectedWeight: _selectedWeight,
+                        english: _english,
+                        onSelect: _selectWeight,
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 7),
-              Center(
-                child: Text(
-                  _english
-                      ? '${_puzzle.stationCount} precision balances · ${_puzzle.difficultyTier}'
-                      : '${_puzzle.stationCount} hassas terazi · ${_puzzle.difficultyTier}',
-                  style: const TextStyle(
-                    fontFamily: 'Roboto',
-                    color: _muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: .5,
-                  ),
+                const SizedBox(height: 6),
+                Row(
+                  children: <Widget>[
+                    _SmallAction(
+                      key: const ValueKey<String>('balance_scale_undo'),
+                      icon: Icons.undo_rounded,
+                      label: _english ? 'UNDO' : 'GERİ AL',
+                      onPressed: _undo.isEmpty ? null : _undoMove,
+                    ),
+                    const SizedBox(width: 8),
+                    _SmallAction(
+                      icon: Icons.lightbulb_outline_rounded,
+                      label: _english ? 'HINT' : 'İPUCU',
+                      onPressed: _hint,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.icon(
+                        key: const ValueKey<String>('balance_scale_check'),
+                        onPressed: _checkBalance,
+                        icon: const Icon(Icons.fact_check_outlined, size: 18),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _english ? 'CHECK' : 'KONTROL ET',
+                            maxLines: 1,
+                          ),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          minimumSize: const Size.fromHeight(44),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Roboto',
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: .3,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -636,214 +819,175 @@ class _BalanceScalePlayPageState extends State<BalanceScalePlayPage> {
   }
 }
 
-class _BalanceHero extends StatelessWidget {
-  const _BalanceHero({
+class _BalanceStatusBar extends StatelessWidget {
+  const _BalanceStatusBar({
     required this.level,
     required this.stationCount,
-    required this.moveCount,
-    required this.hintCount,
+    required this.moves,
+    required this.hints,
     required this.bestScore,
-    required this.stage,
     required this.english,
+    required this.extraCluesCount,
+    required this.onOpenClues,
   });
 
   final int level;
   final int stationCount;
-  final int moveCount;
-  final int hintCount;
+  final int moves;
+  final int hints;
   final int bestScore;
-  final int stage;
   final bool english;
+  final int extraCluesCount;
+  final VoidCallback onOpenClues;
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
     decoration: BoxDecoration(
       color: _BalanceScalePlayPageState._surface,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(16),
       border: Border.all(color: const Color(0xFFE2E6E3)),
       boxShadow: const <BoxShadow>[
         BoxShadow(
-          color: Color(0x0B283640),
-          blurRadius: 20,
-          offset: Offset(0, 8),
+          color: Color(0x06283640),
+          blurRadius: 10,
+          offset: Offset(0, 3),
         ),
       ],
     ),
-    child: Row(
-      children: <Widget>[
-        SizedBox(
-          width: 92,
-          height: 76,
-          child: CustomPaint(painter: _BalanceScalePainter(stage: stage)),
-        ),
-        const SizedBox(width: 13),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                english ? 'CALIBRATION ROOM' : 'HASSASİYET ATÖLYESİ',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: _BalanceScalePlayPageState._muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: .8,
+    child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(
+              color: _BalanceScalePlayPageState._ink,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(
+                  Icons.balance_rounded,
+                  size: 13,
+                  color: Color(0xFFE8C98E),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                english ? 'Every gram matters.' : 'Her gramın önemi var.',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: _BalanceScalePlayPageState._ink,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: <Widget>[
-                  _MetricPill(
-                    text: '${english ? 'SCALES' : 'TERAZİ'} $stationCount',
-                  ),
-                  _MetricPill(
-                    text: '${english ? 'MOVES' : 'HAMLE'} $moveCount',
-                  ),
-                  _MetricPill(
-                    text: '${english ? 'HINTS' : 'İPUCU'} $hintCount',
-                  ),
-                ],
-              ),
-              if (bestScore > 0) ...<Widget>[
-                const SizedBox(height: 4),
+                const SizedBox(width: 5),
                 Text(
-                  '${english ? 'BEST' : 'REKOR'} $bestScore · ${english ? 'LEVEL' : 'BÖLÜM'} $level',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  '${english ? 'SCALE' : 'TERAZİ'} $level',
                   style: const TextStyle(
                     fontFamily: 'Roboto',
-                    color: _BalanceScalePlayPageState._success,
-                    fontSize: 12,
+                    color: Colors.white,
+                    fontSize: 11,
                     fontWeight: FontWeight.w900,
+                    letterSpacing: .5,
                   ),
                 ),
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          if (extraCluesCount > 0) ...<Widget>[
+            InkWell(
+              onTap: onOpenClues,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4EEE4),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Icon(
+                      Icons.menu_book_rounded,
+                      size: 12,
+                      color: _BalanceScalePlayPageState._brass,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${english ? 'CLUES' : 'İPUCU'} $extraCluesCount',
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: _BalanceScalePlayPageState._brass,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
+          _CompactBalanceMetric(
+            icon: Icons.layers_outlined,
+            label: english ? 'PANS' : 'KEFE',
+            value: '$stationCount',
+          ),
+          const SizedBox(width: 6),
+          _CompactBalanceMetric(
+            icon: Icons.touch_app_outlined,
+            label: english ? 'MOVE' : 'HAMLE',
+            value: '$moves',
+          ),
+          if (bestScore > 0) ...<Widget>[
+            const SizedBox(width: 6),
+            _CompactBalanceMetric(
+              icon: Icons.emoji_events_outlined,
+              label: english ? 'BEST' : 'REKOR',
+              value: '$bestScore',
+              color: _BalanceScalePlayPageState._brass,
+            ),
+          ],
+        ],
+      ),
     ),
   );
 }
 
-class _BalanceScalePainter extends CustomPainter {
-  const _BalanceScalePainter({required this.stage});
+class _CompactBalanceMetric extends StatelessWidget {
+  const _CompactBalanceMetric({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.color,
+  });
 
-  final int stage;
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? color;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final Rect bounds = Offset.zero & size;
-    final RRect plate = RRect.fromRectAndRadius(
-      bounds.deflate(2),
-      const Radius.circular(18),
+  Widget build(BuildContext context) {
+    final Color textColor = color ?? _BalanceScalePlayPageState._ink;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 12, color: _BalanceScalePlayPageState._muted),
+          const SizedBox(width: 4),
+          Text(
+            '$label $value',
+            style: TextStyle(
+              fontFamily: 'Roboto',
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
     );
-    canvas.drawRRect(
-      plate,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[Color(0xFFFAFCFB), Color(0xFFE8EFEC)],
-        ).createShader(bounds),
-    );
-    canvas.drawRRect(
-      plate,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..color = const Color(0xFFD3DEDA),
-    );
-    final double centerX = size.width / 2;
-    final double beamY = size.height * .36;
-    final Paint metal = Paint()
-      ..color = _BalanceScalePlayPageState._accent
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(centerX, size.height * .29),
-      Offset(centerX, size.height * .77),
-      metal,
-    );
-    canvas.drawLine(
-      Offset(centerX - size.width * .31, beamY),
-      Offset(centerX + size.width * .31, beamY),
-      metal,
-    );
-    final Paint fineLine = Paint()
-      ..color = const Color(0xFF9AAEAA)
-      ..strokeWidth = 1.6
-      ..strokeCap = StrokeCap.round;
-    for (final double direction in <double>[-1, 1]) {
-      final double panX = centerX + size.width * .31 * direction;
-      canvas.drawLine(
-        Offset(panX, beamY + 2),
-        Offset(panX, size.height * .58),
-        fineLine,
-      );
-      canvas.drawLine(
-        Offset(panX - 11, size.height * .59),
-        Offset(panX + 11, size.height * .59),
-        metal..strokeWidth = 2.4,
-      );
-      canvas.drawArc(
-        Rect.fromCenter(
-          center: Offset(panX, size.height * .575),
-          width: 22,
-          height: 11,
-        ),
-        0,
-        math.pi,
-        false,
-        Paint()
-          ..color = _BalanceScalePlayPageState._brass
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.3,
-      );
-    }
-    final Path base = Path()
-      ..moveTo(centerX - 16, size.height * .8)
-      ..lineTo(centerX, size.height * .69)
-      ..lineTo(centerX + 16, size.height * .8)
-      ..close();
-    canvas.drawPath(base, Paint()..color = const Color(0xFFD5E0DC));
-    canvas.drawLine(
-      Offset(centerX - 23, size.height * .81),
-      Offset(centerX + 23, size.height * .81),
-      metal..strokeWidth = 3,
-    );
-    final double marker = 3 + stage % 4;
-    for (int index = 0; index < marker; index++) {
-      canvas.drawCircle(
-        Offset(size.width * .2 + index * 7, size.height * .91),
-        1.5,
-        Paint()
-          ..color = _BalanceScalePlayPageState._brass.withValues(alpha: .55),
-      );
-    }
   }
-
-  @override
-  bool shouldRepaint(_BalanceScalePainter oldDelegate) =>
-      stage != oldDelegate.stage;
 }
 
 class _BalanceStationCard extends StatelessWidget {
@@ -1038,98 +1182,6 @@ class _PanTarget extends StatelessWidget {
   }
 }
 
-class _GlobalClueBoard extends StatelessWidget {
-  const _GlobalClueBoard({
-    required this.clues,
-    required this.weights,
-    required this.placements,
-    required this.completed,
-    required this.english,
-  });
-
-  final List<BalanceGlobalClue> clues;
-  final List<BalanceWeight> weights;
-  final List<BalancePlacement> placements;
-  final bool completed;
-  final bool english;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF9FAF8),
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFE1E6E3)),
-    ),
-    child: Column(
-      children: <Widget>[
-        for (int index = 0; index < clues.length; index++) ...<Widget>[
-          if (index > 0) const SizedBox(height: 5),
-          _GlobalClueRow(
-            clue: clues[index],
-            weights: weights,
-            placements: placements,
-            completed: completed,
-            english: english,
-          ),
-        ],
-      ],
-    ),
-  );
-}
-
-class _GlobalClueRow extends StatelessWidget {
-  const _GlobalClueRow({
-    required this.clue,
-    required this.weights,
-    required this.placements,
-    required this.completed,
-    required this.english,
-  });
-
-  final BalanceGlobalClue clue;
-  final List<BalanceWeight> weights;
-  final List<BalancePlacement> placements;
-  final bool completed;
-  final bool english;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool valid = completed && clue.matches(weights, placements);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(11),
-      ),
-      child: Row(
-        children: <Widget>[
-          Icon(
-            valid ? Icons.check_circle_rounded : Icons.receipt_long_rounded,
-            size: 16,
-            color: valid
-                ? _BalanceScalePlayPageState._success
-                : _BalanceScalePlayPageState._brass,
-          ),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Text(
-              clue.text(english: english),
-              style: const TextStyle(
-                fontFamily: 'Roboto',
-                color: _BalanceScalePlayPageState._ink,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                height: 1.3,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _WeightTray extends StatelessWidget {
   const _WeightTray({
     required this.weights,
@@ -1292,68 +1344,6 @@ class _WeightChip extends StatelessWidget {
   }
 }
 
-class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({required this.title, required this.detail});
-
-  final String title;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      Text(
-        title,
-        style: const TextStyle(
-          fontFamily: 'Roboto',
-          color: _BalanceScalePlayPageState._ink,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-          letterSpacing: .7,
-        ),
-      ),
-      const SizedBox(height: 2),
-      Text(
-        detail,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontFamily: 'Roboto',
-          color: _BalanceScalePlayPageState._muted,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          height: 1.3,
-        ),
-      ),
-    ],
-  );
-}
-
-class _MetricPill extends StatelessWidget {
-  const _MetricPill({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF0F4F2),
-      borderRadius: BorderRadius.circular(9),
-    ),
-    child: Text(
-      text,
-      style: const TextStyle(
-        fontFamily: 'Roboto',
-        color: _BalanceScalePlayPageState._muted,
-        fontSize: 10,
-        fontWeight: FontWeight.w900,
-        letterSpacing: .35,
-      ),
-    ),
-  );
-}
-
 class _SmallAction extends StatelessWidget {
   const _SmallAction({
     super.key,
@@ -1370,14 +1360,16 @@ class _SmallAction extends StatelessWidget {
   Widget build(BuildContext context) => TextButton.icon(
     onPressed: onPressed,
     icon: Icon(icon, size: 17),
-    label: Text(
-      label,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
-        fontFamily: 'Roboto',
-        fontSize: 11,
-        fontWeight: FontWeight.w900,
+    label: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        label,
+        maxLines: 1,
+        style: const TextStyle(
+          fontFamily: 'Roboto',
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
       ),
     ),
     style: TextButton.styleFrom(

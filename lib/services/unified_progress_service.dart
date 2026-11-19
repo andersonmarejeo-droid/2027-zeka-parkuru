@@ -202,6 +202,7 @@ class UnifiedProgressService {
           'hanoi': hanoi,
           'word_hunt': yeniParkurlar[0],
           'picture_iq': yeniParkurlar[1],
+          'candy_sort': yeniParkurlar[2],
           'number_sort': yeniParkurlar[3],
           'shape_puzzle': yeniParkurlar[4],
           'reflex': yeniParkurlar[5],

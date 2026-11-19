@@ -115,10 +115,6 @@ import 'package:zeka_parkuru/games/letter_maze/letter_maze_game_page.dart';
 import 'package:zeka_parkuru/games/language_detective/language_detective_game_page.dart';
 import 'package:zeka_parkuru/games/story_order/story_order_game_page.dart';
 import 'package:zeka_parkuru/l10n/app_localizations.dart';
-import 'package:zeka_parkuru/mind_tools/vocabulary_notebook/vocabulary_notebook_page.dart';
-import 'package:zeka_parkuru/mind_tools/smart_list/smart_list_page.dart';
-import 'package:zeka_parkuru/mind_tools/read_listen_recall/read_listen_recall_page.dart';
-import 'package:zeka_parkuru/mind_tools/daily_dialogues/daily_dialogues_page.dart';
 import 'package:zeka_parkuru/pages/animated_splash_page.dart';
 import 'package:zeka_parkuru/pages/arena_page.dart';
 import 'package:zeka_parkuru/pages/challenge_center_page.dart';
@@ -2894,46 +2890,6 @@ class _AnaSayfaState extends State<AnaSayfa> {
     await anaSayfayiYenile();
   }
 
-  Future<void> kelimeDefteriniAc() async {
-    unawaited(_audio.play(GameSound.uiClick));
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const VocabularyNotebookPage(),
-        settings: const RouteSettings(name: '/mind-tools/vocabulary-notebook'),
-      ),
-    );
-  }
-
-  Future<void> listeleriAc() async {
-    unawaited(_audio.play(GameSound.uiClick));
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const SmartListsPage(),
-        settings: const RouteSettings(name: '/mind-tools/smart-lists'),
-      ),
-    );
-  }
-
-  Future<void> okumaCalismasiniAc() async {
-    unawaited(_audio.play(GameSound.uiClick));
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const ReadListenRecallPage(),
-        settings: const RouteSettings(name: '/mind-tools/read-listen-recall'),
-      ),
-    );
-  }
-
-  Future<void> konusmaGorevleriniAc() async {
-    unawaited(_audio.play(GameSound.uiClick));
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const DailyDialoguesPage(),
-        settings: const RouteSettings(name: '/mind-tools/daily-dialogues'),
-      ),
-    );
-  }
-
   Future<void> profiliAc() async {
     unawaited(_analytics.logScreen('profile'));
 
@@ -3750,44 +3706,6 @@ class _AnaSayfaState extends State<AnaSayfa> {
 
                       const SizedBox(height: 26),
 
-                      _StudioSectionHeading(
-                        title: context.l10n.isEnglish
-                            ? 'Mind tools'
-                            : 'Zihin araçları',
-                        subtitle: context.l10n.isEnglish
-                            ? 'Useful, personal tools alongside the games.'
-                            : 'Oyunların yanında günlük hayatta da işe yarayan araçlar.',
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      VocabularyNotebookHomeCard(
-                        isEnglish: context.l10n.isEnglish,
-                        onTap: kelimeDefteriniAc,
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      SmartListHomeCard(
-                        isEnglish: context.l10n.isEnglish,
-                        onTap: listeleriAc,
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      ReadListenRecallHomeCard(
-                        isEnglish: context.l10n.isEnglish,
-                        onTap: okumaCalismasiniAc,
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      DailyDialoguesHomeCard(
-                        isEnglish: context.l10n.isEnglish,
-                        onTap: konusmaGorevleriniAc,
-                      ),
-
-                      const SizedBox(height: 30),
                     ],
                   ),
                 ),

@@ -128,7 +128,6 @@ class _ReversiPlayPageState extends State<ReversiPlayPage> {
   static const Color _feltDeep = Color(0xFF155848);
   static const Color _feltLight = Color(0xFF257966);
   static const Color _chalk = Color(0xFFE8F2D5);
-  static const Color _ink = StudioVisuals.ink;
 
   final GameAudioService _audio = GameAudioService.instance;
   final GameAudioProfile _audioProfile = GameAudioProfile.forClass(
@@ -409,13 +408,109 @@ class _ReversiPlayPageState extends State<ReversiPlayPage> {
     );
   }
 
+  void _showHowToPlay(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: StudioVisuals.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _accent.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.circle_outlined, color: _accent, size: 22),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            _english ? 'Reversi Arena Rules' : 'Reversi Arenası Kuralları',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                          Text(
+                            _english ? 'Strategy & Flips' : 'Hamle ve Taş Çevirme Kuralları',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 12,
+                              color: StudioVisuals.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surfaceSoft,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _accent.withValues(alpha: 0.20)),
+                  ),
+                  child: Text(
+                    _english
+                        ? 'Place a stone on a legal empty square so that opponent discs are trapped in a straight line between your discs. All trapped discs flip to your color! Finish the match with more discs than your opponent.'
+                        : 'Boş kareye taş koy. Rakibin taşlarını aynı düz çizgide (yatay, dikey veya çapraz) kendi taşlarının arasında bırakırsan hepsi senin rengine döner. Oyun bittiğinde tahtada en çok taşa sahip olan kazanır!',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 13,
+                      height: 1.4,
+                      color: StudioVisuals.ink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accent,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    _english ? 'UNDERSTOOD' : 'ANLADIM, BAŞLA',
+                    style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     _english = context.l10n.isEnglish;
-    final double width = MediaQuery.sizeOf(context).width;
-    final double boardSize = math.min(width - (width < 360 ? 24 : 36), 520);
-    final bool playerTurn =
-        !_aiThinking && !_finished && _position.toMove == ReversiStone.dark;
+    final bool playerTurn = !_aiThinking && _position.toMove == ReversiStone.dark;
     final String turnLabel = _finished
         ? (_english ? 'MATCH COMPLETE' : 'KARŞILAŞMA TAMAMLANDI')
         : _aiThinking || _position.toMove == ReversiStone.light
@@ -428,406 +523,199 @@ class _ReversiPlayPageState extends State<ReversiPlayPage> {
         backgroundColor: StudioVisuals.canvas,
         foregroundColor: StudioVisuals.ink,
         surfaceTintColor: Colors.transparent,
+        elevation: 0,
         titleSpacing: 12,
-        title: Text(
-          _english ? 'REVERSI ARENA' : 'REVERSI ARENASI',
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        actions: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                '${widget.level.number.toString().padLeft(2, '0')} / ${GameContentPolicy.campaignLevels}',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: .6,
-                ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              _english ? 'REVERSI ARENA' : 'REVERSİ ARENASI',
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.6,
               ),
             ),
+            Text(
+              '${_english ? 'Level' : 'Bölüm'} ${widget.level.number} • ${widget.level.title(_english)}',
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          IconButton(
+            tooltip: _english ? 'How to Play' : 'Nasıl Oynanır',
+            icon: const Icon(Icons.help_outline_rounded, size: 22),
+            onPressed: () => _showHowToPlay(context),
           ),
         ],
       ),
       body: SafeArea(
         top: false,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            width < 360 ? 12 : 18,
-            6,
-            width < 360 ? 12 : 18,
-            22,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 590),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  _RoundHeading(
-                    chapter: _scenario.chapter,
-                    stage: _scenario.stageInChapter,
-                    occupied: _position.occupiedCount,
-                    text: _english
-                        ? 'Place on a legal empty square to trap opponent discs in a straight line between your discs; trapped discs flip to your color. Finish with more discs than your opponent.'
-                        : 'Boş kareye taş koy. Rakibin taşlarını aynı çizgide kendi taşlarının arasında bırakırsan hepsi senin rengine döner. Oyun sonunda rakibinden fazla taşa sahip ol.',
-                    english: _english,
-                  ),
-                  const SizedBox(height: 13),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: _ScorePanel(
-                          label: _english ? 'YOU · DARK' : 'SEN · KOYU',
-                          count: _position.darkCount,
-                          dark: true,
-                          active: playerTurn,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _ScorePanel(
-                          label: _english ? 'OPPONENT · LIGHT' : 'RAKİP · AÇIK',
-                          count: _position.lightCount,
-                          dark: false,
-                          active:
-                              _aiThinking ||
-                              _position.toMove == ReversiStone.light,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  _TurnBanner(
-                    label: turnLabel,
-                    playerTurn: playerTurn,
-                    thinking: _aiThinking,
-                    legalCount: _legalMoves.length,
-                    english: _english,
-                  ),
-                  if (_notice != null) ...<Widget>[
-                    const SizedBox(height: 8),
-                    _NoticeBanner(text: _notice!),
-                  ],
-                  const SizedBox(height: 13),
-                  SizedBox(
-                    width: boardSize,
-                    child: _ReversiBoard(
-                      position: _position,
-                      legalMoves: _legalMoves,
-                      lastMove: _lastMove,
-                      hintMove: _hintMove,
-                      enabled: playerTurn,
-                      onTap: _playCell,
-                      english: _english,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _BoardLegend(english: _english),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: _ActionButton(
-                          icon: Icons.auto_awesome_rounded,
-                          label: _english ? 'HINT' : 'ÖNERİ',
-                          onPressed: playerTurn ? _hint : null,
-                          emphasis: true,
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: _ActionButton(
-                          icon: Icons.undo_rounded,
-                          label: _english ? 'UNDO' : 'GERİ AL',
-                          onPressed: !_aiThinking && _undoStack.isNotEmpty
-                              ? _undo
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: _ActionButton(
-                          icon: Icons.refresh_rounded,
-                          label: _english ? 'RESTART' : 'YENİDEN',
-                          onPressed: !_aiThinking ? _restart : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _english
-                        ? 'Only the marked empty squares are legal. You may capture stones horizontally, vertically, or diagonally.'
-                        : 'Yalnızca işaretli boş karelere oynayabilirsin. Rakip taşlarını yatay, dikey veya çapraz yönde çevirebilirsin.',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      color: StudioVisuals.muted,
-                      fontSize: 11,
-                      height: 1.45,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RoundHeading extends StatelessWidget {
-  const _RoundHeading({
-    required this.chapter,
-    required this.stage,
-    required this.occupied,
-    required this.text,
-    required this.english,
-  });
-
-  final int chapter;
-  final int stage;
-  final int occupied;
-  final String text;
-  final bool english;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(15, 12, 15, 13),
-      decoration: BoxDecoration(
-        color: StudioVisuals.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: StudioVisuals.line),
-        boxShadow: StudioVisuals.softShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE7F2ED),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: const Icon(
-                  Icons.change_circle_outlined,
-                  color: _ReversiPlayPageState._accent,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  english
-                      ? 'CHAPTER $chapter · MATCH ${stage.toString().padLeft(2, '0')}'
-                      : 'BÖLÜM $chapter · KARŞILAŞMA ${stage.toString().padLeft(2, '0')}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: 'Roboto',
-                    color: _ReversiPlayPageState._ink,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: .55,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              _TinyPill(
-                label: '$occupied / 64',
-                color: const Color(0xFFEDF2EE),
-                ink: const Color(0xFF586A63),
-              ),
-            ],
-          ),
-          const SizedBox(height: 9),
-          Text(
-            text,
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              color: StudioVisuals.muted,
-              fontSize: 11,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ScorePanel extends StatelessWidget {
-  const _ScorePanel({
-    required this.label,
-    required this.count,
-    required this.dark,
-    required this.active,
-  });
-
-  final String label;
-  final int count;
-  final bool dark;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color disc = dark ? const Color(0xFF24333B) : const Color(0xFFFFFEF5);
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: active ? const Color(0xFFE9F3ED) : StudioVisuals.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: active ? _ReversiPlayPageState._accent : StudioVisuals.line,
-          width: active ? 1.5 : 1,
-        ),
-      ),
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 25,
-            height: 25,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: disc,
-              border: Border.all(
-                color: dark ? const Color(0xFF566871) : const Color(0xFFD2DCD4),
-                width: 1,
-              ),
-              boxShadow: const <BoxShadow>[
-                BoxShadow(
-                  color: Color(0x180C2520),
-                  blurRadius: 4,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
+        child: ResponsiveGameFrame(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: 'Roboto',
-                    color: StudioVisuals.muted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: .35,
+                // Kompakt Tek Satır Skor ve Durum Barı
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      // Sen (Koyu)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Container(
+                            width: 14,
+                            height: 14,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFF24333B),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${_english ? 'YOU' : 'SEN'}: ${_position.darkCount}',
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: playerTurn ? FontWeight.w900 : FontWeight.w700,
+                              color: playerTurn ? _accent : StudioVisuals.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 12),
+                      // Rakip (Açık)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Container(
+                            width: 14,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFFFFFEF5),
+                              border: Border.all(color: StudioVisuals.line),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${_english ? 'CPU' : 'RAKİP'}: ${_position.lightCount}',
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: !playerTurn ? FontWeight.w900 : FontWeight.w700,
+                              color: !playerTurn ? _accent : StudioVisuals.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: (playerTurn ? StudioVisuals.teal : StudioVisuals.amber).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                turnLabel,
+                                maxLines: 1,
+                                softWrap: false,
+                                style: TextStyle(
+                                  fontFamily: 'Roboto',
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  color: playerTurn ? StudioVisuals.teal : StudioVisuals.amber,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 1),
-                Text(
-                  '$count',
-                  style: const TextStyle(
-                    fontFamily: 'Roboto',
-                    color: _ReversiPlayPageState._ink,
-                    fontSize: 20,
-                    height: 1.05,
-                    fontWeight: FontWeight.w900,
-                    fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+                // Genişletilmiş Reversi Tahtası (Kaydırmasız - Expanded)
+                Expanded(
+                  child: Center(
+                    child: LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final double size = math.min(constraints.maxWidth, constraints.maxHeight);
+                        return SizedBox(
+                          width: size,
+                          height: size,
+                          child: _ReversiBoard(
+                            position: _position,
+                            legalMoves: _legalMoves,
+                            lastMove: _lastMove,
+                            hintMove: _hintMove,
+                            enabled: playerTurn,
+                            onTap: _playCell,
+                            english: _english,
+                          ),
+                        );
+                      },
+                    ),
                   ),
+                ),
+                if (_notice != null) ...<Widget>[
+                  const SizedBox(height: 4),
+                  _NoticeBanner(text: _notice!),
+                ],
+                const SizedBox(height: 6),
+                // Alt Kontrol Butonları
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: _ActionButton(
+                        icon: Icons.auto_awesome_rounded,
+                        label: _english ? 'HINT' : 'ÖNERİ',
+                        onPressed: playerTurn ? _hint : null,
+                        emphasis: true,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _ActionButton(
+                        icon: Icons.undo_rounded,
+                        label: _english ? 'UNDO' : 'GERİ AL',
+                        onPressed: !_aiThinking && _undoStack.isNotEmpty ? _undo : null,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _ActionButton(
+                        icon: Icons.refresh_rounded,
+                        label: _english ? 'RESTART' : 'YENİDEN',
+                        onPressed: !_aiThinking ? _restart : null,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TurnBanner extends StatelessWidget {
-  const _TurnBanner({
-    required this.label,
-    required this.playerTurn,
-    required this.thinking,
-    required this.legalCount,
-    required this.english,
-  });
-
-  final String label;
-  final bool playerTurn;
-  final bool thinking;
-  final int legalCount;
-  final bool english;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color accent = playerTurn
-        ? _ReversiPlayPageState._accent
-        : const Color(0xFF74818A);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F4F1),
-        borderRadius: BorderRadius.circular(13),
-      ),
-      child: Row(
-        children: <Widget>[
-          if (thinking)
-            SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2, color: accent),
-            )
-          else
-            Icon(
-              playerTurn ? Icons.touch_app_rounded : Icons.psychology_rounded,
-              size: 16,
-              color: accent,
-            ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: 'Roboto',
-                color: accent,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-                letterSpacing: .55,
-              ),
-            ),
-          ),
-          Text(
-            playerTurn
-                ? (english ? '$legalCount moves' : '$legalCount yasal hamle')
-                : (english ? '8 × 8 BOARD' : '8 × 8 TAHTA'),
-            maxLines: 1,
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              color: StudioVisuals.muted,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1096,41 +984,6 @@ class _Disc extends StatelessWidget {
   }
 }
 
-class _BoardLegend extends StatelessWidget {
-  const _BoardLegend({required this.english});
-
-  final bool english;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: _ReversiPlayPageState._chalk,
-            border: Border.all(color: const Color(0xFF8EB59F)),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          english ? 'LEGAL SQUARES' : 'YASAL HAMLE NOKTALARI',
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            color: StudioVisuals.muted,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            letterSpacing: .6,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _ActionButton extends StatelessWidget {
   const _ActionButton({
     required this.icon,
@@ -1183,35 +1036,4 @@ class _ActionButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _TinyPill extends StatelessWidget {
-  const _TinyPill({
-    required this.label,
-    required this.color,
-    required this.ink,
-  });
-
-  final String label;
-  final Color color;
-  final Color ink;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(99),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(
-        fontFamily: 'Roboto',
-        color: ink,
-        fontSize: 11,
-        fontWeight: FontWeight.w900,
-        fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-      ),
-    ),
-  );
 }

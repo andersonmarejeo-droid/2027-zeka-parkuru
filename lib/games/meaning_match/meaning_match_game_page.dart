@@ -269,6 +269,8 @@ class _MeaningMatchPlayPageState extends State<MeaningMatchPlayPage> {
 
   bool _languageIsEnglish = false;
 
+  int get _targetGroupSize => _scenario.wordsPerCategory;
+
   void _toggleTile(int index) {
     if (_completed || _session.phase != StudioGamePhase.playing) return;
     final MeaningTile tile = _scenario.tiles[index];
@@ -276,7 +278,7 @@ class _MeaningMatchPlayPageState extends State<MeaningMatchPlayPage> {
     setState(() {
       if (!_selectedTiles.add(index)) {
         _selectedTiles.remove(index);
-      } else if (_selectedTiles.length > 4) {
+      } else if (_selectedTiles.length > _targetGroupSize) {
         _selectedTiles.remove(_selectedTiles.first);
       }
       _message = null;
@@ -288,7 +290,7 @@ class _MeaningMatchPlayPageState extends State<MeaningMatchPlayPage> {
   }
 
   void _checkGroup() {
-    if (_selectedTiles.length != 4 || _completed) return;
+    if (_selectedTiles.length != _targetGroupSize || _completed) return;
     final List<MeaningTile> selected = _selectedTiles
         .map((int index) => _scenario.tiles[index])
         .toList(growable: false);
@@ -327,8 +329,8 @@ class _MeaningMatchPlayPageState extends State<MeaningMatchPlayPage> {
     final int left = math.max(0, _mistakeLimit - _session.mistakes).toInt();
     setState(() {
       _message = _languageIsEnglish
-          ? 'Those four do not share one exact group. $left ${left == 1 ? 'mistake' : 'mistakes'} left.'
-          : 'Bu dört sözcük tek bir kümeye ait değil. $left hata hakkı kaldı.';
+          ? 'Those $_targetGroupSize do not share one exact group. $left ${left == 1 ? 'mistake' : 'mistakes'} left.'
+          : 'Bu $_targetGroupSize sözcük tek bir kümeye ait değil. $left hata hakkı kaldı.';
     });
     if (left == 0 && !_failureDialogOpen) {
       unawaited(_showFailure());
@@ -439,14 +441,97 @@ class _MeaningMatchPlayPageState extends State<MeaningMatchPlayPage> {
     if (mounted) Navigator.of(context).pop(result.toParkurResult());
   }
 
-  Color _tileColor(MeaningTile tile, bool selected) {
+  Color _tileColor(MeaningTile tile, bool selected, StudioGameSkin skin) {
     if (selected) {
-      final int index = _scenario.categories.indexWhere(
-        (MeaningCategory category) => category.id == tile.categoryId,
-      );
-      return _groupColors[index % _groupColors.length].withValues(alpha: .15);
+      // Renklerin kategori hakkında ipucu vermemesi için nötr tema rengi kullanılır.
+      return skin.accent.withValues(alpha: .14);
     }
     return StudioVisuals.surface;
+  }
+
+  void _showHowToPlay(bool english) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        final StudioGameSkin skin = StudioGameSkin.forId('meaning_match');
+        return Container(
+          decoration: const BoxDecoration(
+            color: StudioVisuals.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Icon(Icons.help_outline_rounded, color: skin.accent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    english ? 'How to Play?' : 'Nasıl Oynanır?',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: StudioVisuals.ink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                english
+                    ? '• Group the 16 words into four exact 4-word connection categories.\n'
+                      '• Select 4 related words and tap "LOCK GROUP" to confirm.\n'
+                      '• Be mindful of crossover words that could fit multiple categories.\n'
+                      '• Solve all four groups without exhausting your mistake limit!'
+                    : '• 16 sözcüğü birbiriyle bağlantılı dörderli 4 gruba ayır.\n'
+                      '• Ortak bir bağı olan 4 sözcüğü seç ve "KÜMEYİ KİLİTLE" butonuna bas.\n'
+                      '• Birden fazla kategoriye uyabilecek kelimelere dikkat et.\n'
+                      '• Hata hakkın bitmeden 4 kümenin tamamını çözerek seviyeyi tamamla!',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 13,
+                  height: 1.5,
+                  color: StudioVisuals.ink,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: skin.accent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    english ? 'GOT IT' : 'ANLADIM',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -472,174 +557,205 @@ class _MeaningMatchPlayPageState extends State<MeaningMatchPlayPage> {
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 fontWeight: FontWeight.w900,
-                fontSize: 18,
+                fontSize: 16,
               ),
             ),
             Text(
               widget.practiceRound == null
                   ? (english
-                        ? 'CAMPAIGN  •  ${widget.level.number} / ${GameContentPolicy.campaignLevels}'
-                        : 'KAMPANYA  •  ${widget.level.number} / ${GameContentPolicy.campaignLevels}')
+                        ? 'LEVEL ${widget.level.number} / ${GameContentPolicy.campaignLevels}'
+                        : 'BÖLÜM ${widget.level.number} / ${GameContentPolicy.campaignLevels}')
                   : (english
                         ? 'PRACTICE  •  ${widget.practiceRound} / 300'
                         : 'PRATİK  •  ${widget.practiceRound} / 300'),
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 color: StudioVisuals.muted,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: .5,
               ),
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: english ? 'How to play' : 'Nasıl Oynanır?',
+            onPressed: () => _showHowToPlay(english),
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
         child: ResponsiveGameFrame(
+          maxContentWidth: 620,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             child: Column(
               children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        english
-                            ? 'Group the 16 words into four exact connections.'
-                            : '16 sözcüğü dört doğru anlam kümesine ayır.',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
-                          color: StudioVisuals.ink,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
+                // Kompakt durum çubuğu (38px)
+                Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          '${english ? 'Groups' : 'Küme'}: ${_solvedCategories.length}/${_scenario.categories.length}',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: StudioVisuals.ink,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '•  ${english ? 'Selected' : 'Seçili'}: ${_selectedTiles.length}/$_targetGroupSize',
+                          style: TextStyle(
+                            fontFamily: 'Roboto',
+                            color: skin.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '•  ❤️ $errorsLeft/$_mistakeLimit',
+                          style: TextStyle(
+                            fontFamily: 'Roboto',
+                            color: errorsLeft <= 1 ? StudioVisuals.danger : skin.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 50,
+                          height: 6,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: _scenario.categories.isEmpty
+                                  ? 0
+                                  : _solvedCategories.length /
+                                      _scenario.categories.length,
+                              minHeight: 6,
+                              color: skin.accent,
+                              backgroundColor: skin.accentSoft,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    _SmallStat(
-                      icon: Icons.favorite_outline_rounded,
-                      label: '$errorsLeft/$_mistakeLimit',
-                      accent: errorsLeft <= 1
-                          ? StudioVisuals.danger
-                          : skin.accent,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
-                  child: LinearProgressIndicator(
-                    value: _solvedCategories.length / 4,
-                    minHeight: 5,
-                    color: skin.accent,
-                    backgroundColor: skin.accentSoft,
                   ),
                 ),
-                const SizedBox(height: 9),
+                const SizedBox(height: 6),
+
+                // Sözcük Izgarası (Bölüm 1-3: 3x3, Bölüm 4+: 4x4, Expanded ile Kaydırmasız)
                 Expanded(
                   child: LayoutBuilder(
-                    builder:
-                        (BuildContext context, BoxConstraints constraints) {
-                          final double cellHeight = math
-                              .max(46.0, (constraints.maxHeight - 18) / 4)
-                              .toDouble();
-                          return GridView.builder(
-                            padding: EdgeInsets.zero,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _scenario.tiles.length,
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 4,
-                                  crossAxisSpacing: 6,
-                                  mainAxisSpacing: 6,
-                                  mainAxisExtent: cellHeight,
-                                ),
-                            itemBuilder: (BuildContext context, int index) {
-                              final MeaningTile tile = _scenario.tiles[index];
-                              final bool selected = _selectedTiles.contains(
-                                index,
-                              );
-                              final bool solved = _solvedCategories.contains(
-                                tile.categoryId,
-                              );
-                              final int categoryIndex = _scenario.categories
-                                  .indexWhere(
-                                    (MeaningCategory category) =>
-                                        category.id == tile.categoryId,
-                                  );
-                              final Color accent =
-                                  _groupColors[categoryIndex %
-                                      _groupColors.length];
-                              return Semantics(
-                                button: !solved,
-                                selected: selected,
-                                label: tile.word,
-                                child: Material(
-                                  color: _tileColor(tile, selected),
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: InkWell(
-                                    onTap: solved
-                                        ? null
-                                        : () => _toggleTile(index),
+                    builder: (BuildContext context, BoxConstraints constraints) {
+                      final int columns = _scenario.categories.length;
+                      final int rows = (_scenario.tiles.length / columns).ceil();
+                      final double cellHeight = math
+                          .max(42.0, (constraints.maxHeight - 20) / rows)
+                          .toDouble();
+                      return GridView.builder(
+                        padding: EdgeInsets.zero,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _scenario.tiles.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          crossAxisSpacing: 6,
+                          mainAxisSpacing: 6,
+                          mainAxisExtent: cellHeight,
+                        ),
+                        itemBuilder: (BuildContext context, int index) {
+                          final MeaningTile tile = _scenario.tiles[index];
+                          final bool selected = _selectedTiles.contains(index);
+                          final bool solved = _solvedCategories.contains(tile.categoryId);
+                          final int categoryIndex = _scenario.categories.indexWhere(
+                            (MeaningCategory category) => category.id == tile.categoryId,
+                          );
+                          final Color categoryColor =
+                              _groupColors[categoryIndex % _groupColors.length];
+                          // Seçimde renklerin ipucu vermemesi için nötr tema rengi kullanılır.
+                          final Color borderAccent = selected
+                              ? skin.accent.withValues(alpha: .75)
+                              : (solved
+                                  ? categoryColor.withValues(alpha: .55)
+                                  : StudioVisuals.line);
+                          final Color textColor = selected
+                              ? skin.accent
+                              : (solved
+                                  ? categoryColor
+                                  : StudioVisuals.ink);
+                          return Semantics(
+                            button: !solved,
+                            selected: selected,
+                            label: tile.word,
+                            child: Material(
+                              color: _tileColor(tile, selected, skin),
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                onTap: solved ? null : () => _toggleTile(index),
+                                borderRadius: BorderRadius.circular(12),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 140),
+                                  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+                                  decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(
-                                        milliseconds: 140,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 3,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: selected
-                                              ? accent.withValues(alpha: .55)
-                                              : StudioVisuals.line,
-                                          width: selected ? 1.5 : 1,
-                                        ),
-                                        boxShadow: selected || solved
-                                            ? const <BoxShadow>[]
-                                            : StudioVisuals.softShadow,
-                                      ),
-                                      child: Center(
-                                        child: solved
-                                            ? Icon(
-                                                Icons.check_rounded,
-                                                size: 18,
-                                                color: accent.withValues(
-                                                  alpha: .65,
-                                                ),
-                                              )
-                                            : Text(
-                                                tile.word,
-                                                textAlign: TextAlign.center,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  fontFamily: 'Roboto',
-                                                  color: selected
-                                                      ? accent
-                                                      : StudioVisuals.ink,
-                                                  fontSize: 11,
-                                                  height: 1.08,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-                                      ),
+                                    border: Border.all(
+                                      color: borderAccent,
+                                      width: selected ? 1.5 : 1,
                                     ),
+                                    boxShadow: selected || solved
+                                        ? const <BoxShadow>[]
+                                        : StudioVisuals.softShadow,
+                                  ),
+                                  child: Center(
+                                    child: solved
+                                        ? Icon(
+                                            Icons.check_rounded,
+                                            size: 18,
+                                            color: categoryColor.withValues(alpha: .65),
+                                          )
+                                        : Text(
+                                            tile.word,
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontFamily: 'Roboto',
+                                              color: textColor,
+                                              fontSize: 11,
+                                              height: 1.08,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
                                   ),
                                 ),
-                              );
-                            },
+                              ),
+                            ),
                           );
                         },
+                      );
+                    },
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
+
+                // Çözülen Kümeler
                 _SolvedGroups(
                   scenario: _scenario,
                   solved: _solvedCategories,
@@ -647,74 +763,75 @@ class _MeaningMatchPlayPageState extends State<MeaningMatchPlayPage> {
                   colors: _groupColors,
                   english: english,
                 ),
-                const SizedBox(height: 6),
-                SizedBox(
-                  height: 30,
-                  width: double.infinity,
-                  child: Text(
-                    _message ??
-                        (english
-                            ? '${_selectedTiles.length} / 4 selected  •  ${_solvedCategories.length} / 4 groups'
-                            : '${_selectedTiles.length} / 4 seçili  •  ${_solvedCategories.length} / 4 küme'),
+                if (_message != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _message!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontFamily: 'Roboto',
-                      color: _message == null
-                          ? StudioVisuals.muted
-                          : StudioVisuals.ink,
+                      color: StudioVisuals.ink,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
+                ],
+                const SizedBox(height: 6),
+
+                // Alt Butonlar (42px)
                 Row(
                   children: <Widget>[
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: _completed ? null : _useHint,
-                        icon: const Icon(
-                          Icons.lightbulb_outline_rounded,
-                          size: 17,
-                        ),
-                        label: Text(
-                          english ? 'CLUE' : 'İPUCU',
-                          maxLines: 1,
-                          softWrap: false,
-                          overflow: TextOverflow.ellipsis,
+                        icon: const Icon(Icons.lightbulb_outline_rounded, size: 16),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            english ? 'CLUE' : 'İPUCU',
+                            maxLines: 1,
+                          ),
                         ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: skin.accent,
-                          padding: const EdgeInsets.symmetric(horizontal: 5),
-                          minimumSize: const Size.fromHeight(46),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                           textStyle: const TextStyle(
                             fontFamily: 'Roboto',
                             fontSize: 11,
                             fontWeight: FontWeight.w900,
                           ),
-                          side: BorderSide(
-                            color: skin.accent.withValues(alpha: .4),
-                          ),
+                          side: BorderSide(color: skin.accent.withValues(alpha: .4)),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 9),
+                    const SizedBox(width: 8),
                     Expanded(
                       flex: 2,
                       child: FilledButton.icon(
-                        onPressed: _selectedTiles.length == 4 && !_completed
-                            ? _checkGroup
-                            : null,
-                        icon: const Icon(Icons.fact_check_outlined, size: 18),
-                        label: Text(english ? 'LOCK GROUP' : 'KÜMEYİ KİLİTLE'),
+                        onPressed: _selectedTiles.length == _targetGroupSize && !_completed ? _checkGroup : null,
+                        icon: const Icon(Icons.fact_check_outlined, size: 16),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(english ? 'LOCK GROUP' : 'KÜMEYİ KİLİTLE'),
+                        ),
                         style: FilledButton.styleFrom(
                           backgroundColor: skin.accent,
                           foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(46),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                           textStyle: const TextStyle(
                             fontFamily: 'Roboto',
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
@@ -731,46 +848,7 @@ class _MeaningMatchPlayPageState extends State<MeaningMatchPlayPage> {
   }
 }
 
-class _SmallStat extends StatelessWidget {
-  const _SmallStat({
-    required this.icon,
-    required this.label,
-    required this.accent,
-  });
 
-  final IconData icon;
-  final String label;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: .09),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(icon, size: 14, color: accent),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Roboto',
-                color: accent,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _SolvedGroups extends StatelessWidget {
   const _SolvedGroups({
@@ -789,15 +867,16 @@ class _SolvedGroups extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final int count = scenario.categories.length;
     return Row(
-      children: List<Widget>.generate(4, (int index) {
+      children: List<Widget>.generate(count, (int index) {
         final MeaningCategory category = scenario.categories[index];
         final bool isSolved = solved.contains(category.id);
         final bool isHinted = hintedCategory == category.id;
         final Color accent = colors[index % colors.length];
         return Expanded(
           child: Padding(
-            padding: EdgeInsets.only(right: index == 3 ? 0 : 5),
+            padding: EdgeInsets.only(right: index == count - 1 ? 0 : 5),
             child: Container(
               height: 38,
               alignment: Alignment.center,

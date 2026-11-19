@@ -415,31 +415,34 @@ class _LogicGamePageState extends State<LogicGamePage> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final bool darEkran = constraints.maxWidth < 360;
+              final bool isLandscape = constraints.maxWidth > constraints.maxHeight;
               final double yatayBosluk = darEkran ? 12 : 18;
               final double izgaraBoslugu = darEkran ? 10 : 14;
 
-              return Column(
-                children: [
-                  Padding(
-                    padding: EdgeInsets.all(yatayBosluk),
-                    child: _IlerlemePaneli(
-                      acikSeviye: acikSeviye,
-                      toplamYildiz: toplamYildiz,
-                      toplamPuan: toplamPuan,
-                      darEkran: darEkran,
+              return CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(yatayBosluk),
+                      child: _IlerlemePaneli(
+                        acikSeviye: acikSeviye,
+                        toplamYildiz: toplamYildiz,
+                        toplamPuan: toplamPuan,
+                        darEkran: darEkran,
+                      ),
                     ),
                   ),
-                  Expanded(
-                    child: GridView.builder(
-                      padding: EdgeInsets.fromLTRB(
-                        yatayBosluk,
-                        0,
-                        yatayBosluk,
-                        30,
-                      ),
-                      itemCount: seviyeler.length,
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      yatayBosluk,
+                      0,
+                      yatayBosluk,
+                      30,
+                    ),
+                    sliver: SliverGrid(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
+                        crossAxisCount: isLandscape ? 3 : 2,
                         crossAxisSpacing: izgaraBoslugu,
                         mainAxisSpacing: izgaraBoslugu,
                         mainAxisExtent:
@@ -448,19 +451,22 @@ class _LogicGamePageState extends State<LogicGamePage> {
                                 .scale(1)
                                 .clamp(1.0, 1.6),
                       ),
-                      itemBuilder: (context, index) {
-                        final bool acik = index + 1 <= acikSeviye;
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final bool acik = index + 1 <= acikSeviye;
 
-                        return _SeviyeKarti(
-                          seviye: seviyeler[index],
-                          acik: acik,
-                          yildiz: kazanilanYildizlar[index],
-                          enIyiPuan: enIyiPuanlar[index],
-                          onTap: () {
-                            seviyeAc(index);
-                          },
-                        );
-                      },
+                          return _SeviyeKarti(
+                            seviye: seviyeler[index],
+                            acik: acik,
+                            yildiz: kazanilanYildizlar[index],
+                            enIyiPuan: enIyiPuanlar[index],
+                            onTap: () {
+                              seviyeAc(index);
+                            },
+                          );
+                        },
+                        childCount: seviyeler.length,
+                      ),
                     ),
                   ),
                 ],
@@ -1500,7 +1506,7 @@ class _LabirentOyunEkraniState extends State<LabirentOyunEkrani> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LText(
-              widget.seviye.baslik.toUpperCase(),
+              context.l10n.uppercaseLabel(widget.seviye.baslik),
               style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
             ),
             LText(

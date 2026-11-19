@@ -2,7 +2,7 @@ name: zeka_parkuru
 description: "Zeka Parkuru - mantÄ±k, sayÄ±, blok, hafÄ±za ve strateji oyunlarÄ±."
 publish_to: 'none'
 
-version: 1.8.10+26
+version: 1.8.10+2027
 environment:
   sdk: ^3.13.0
 
@@ -33,6 +33,7 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0
+  image: ^4.10.1
   shared_preferences_platform_interface: ^2.4.2
 
 flutter:

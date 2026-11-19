@@ -266,7 +266,7 @@ class _CafeShiftPlayPageState extends State<CafeShiftPlayPage>
                 : 'FİŞ HAZIR · BU MÜŞTERİYE SERVİS ET')
           : (_english
                 ? 'NEXT · ${_stationName(ticket.nextStation!, true).toUpperCase()}'
-                : 'SIRADA · ${_stationName(ticket.nextStation!, false).toUpperCase()}');
+                : 'SIRADA · ${context.l10n.uppercaseLabel(_stationName(ticket.nextStation!, false))}');
     });
     unawaited(_audioProfile.play(_audio, GameAudioEvent.menu, gain: .14));
   }
@@ -281,7 +281,7 @@ class _CafeShiftPlayPageState extends State<CafeShiftPlayPage>
         () => _feedback = wrongStation
             ? (_english
                   ? 'THIS TICKET NEEDS ${_stationName(ticket.nextStation!, true).toUpperCase()}'
-                  : 'BU FİŞTE SIRADAKİ İSTASYON: ${_stationName(ticket.nextStation!, false).toUpperCase()}')
+                  : 'BU FİŞTE SIRADAKİ İSTASYON: ${context.l10n.uppercaseLabel(_stationName(ticket.nextStation!, false))}')
             : (_english
                   ? 'STATION BUSY OR INGREDIENT STOCK LOW'
                   : 'İSTASYON MEŞGUL VEYA MALZEME STOKU DÜŞÜK'),
@@ -293,7 +293,7 @@ class _CafeShiftPlayPageState extends State<CafeShiftPlayPage>
     setState(
       () => _feedback = _english
           ? '${_stationName(station, true).toUpperCase()} RUNNING · SWITCH TICKETS TO KEEP THE BAR MOVING'
-          : '${_stationName(station, false).toUpperCase()} ÇALIŞIYOR · PARALEL HAZIRLIK İÇİN DİĞER FİŞİ SEÇ',
+          : '${context.l10n.uppercaseLabel(_stationName(station, false))} ÇALIŞIYOR · PARALEL HAZIRLIK İÇİN DİĞER FİŞİ SEÇ',
     );
     unawaited(
       _audioProfile.play(_audio, GameAudioEvent.primaryAction, gain: .18),

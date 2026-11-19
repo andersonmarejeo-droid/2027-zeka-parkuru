@@ -12,7 +12,7 @@ void main() {
       ]);
     });
 
-    for (final String locale in <String>['tr', 'en']) {
+    for (final String locale in <String>['tr', 'en', 'ar']) {
       test('$locale campaign has 20 stable, distinct, buildable wheels', () {
         final Set<String> signatures = <String>{};
         for (int level = 1; level <= WordWheelPuzzle.maximumLevels; level++) {
@@ -49,7 +49,7 @@ void main() {
     }
 
     test('second chapter adds decoy letters and the last stage is expert', () {
-      for (final String locale in <String>['tr', 'en']) {
+      for (final String locale in <String>['tr', 'en', 'ar']) {
         final WordWheelPuzzle first = WordWheelPuzzle.forLevel(
           1,
           languageCode: locale,
@@ -138,7 +138,7 @@ void main() {
     });
 
     test('700-round pool is unique and grows harder without cycling', () {
-      for (final String locale in <String>['tr', 'en']) {
+      for (final String locale in <String>['tr', 'en', 'ar']) {
         final Set<String> signatures = <String>{};
         int previousStage = 0;
         int previousTargets = 0;
@@ -155,8 +155,9 @@ void main() {
           expect(puzzle.stageInChapter, greaterThanOrEqualTo(previousStage));
           expect(puzzle.targetCount, greaterThanOrEqualTo(previousTargets));
           expect(
-            puzzle.answers.every((String word) => word.runes.length >= 2),
+            puzzle.answers.every((String word) => word.runes.length >= 4),
             isTrue,
+            reason: 'All answers must have at least 4 letters',
           );
           previousStage = puzzle.stageInChapter;
           previousTargets = puzzle.targetCount;

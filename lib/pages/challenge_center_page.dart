@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/studio_visuals.dart';
 
 import 'package:flutter/services.dart';
@@ -1698,7 +1699,7 @@ class ChallengeDuelHero extends StatelessWidget {
         ? '${challenge.gameIds.length} OYUNLUK MEYDAN OKUMA'
         : legacyReflex
         ? 'REFLEKS AVI • KLASİK'
-        : '${game.name.toUpperCase()} • BÖLÜM ${challenge.level}';
+        : '${context.l10n.uppercaseLabel(game.name)} • BÖLÜM ${challenge.level}';
 
     final String detail = challenge.isSeries
         ? '${challenge.gameIds.length} farklı oyun • Puan öncelikli • Eşitlikte süre'

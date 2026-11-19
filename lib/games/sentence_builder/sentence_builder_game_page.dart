@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../shared/game_visual_design.dart';
+
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -446,6 +446,91 @@ class _SentenceBuilderPlayPageState extends State<SentenceBuilderPlayPage> {
     return true;
   }
 
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        final StudioGameSkin skin = StudioGameSkin.forId('sentence_builder');
+        return Container(
+          decoration: const BoxDecoration(
+            color: StudioVisuals.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Icon(Icons.help_outline_rounded, color: skin.accent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    _english ? 'How to Play?' : 'Nasıl Oynanır?',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: StudioVisuals.ink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _english
+                    ? '• Rebuild the complete sentence from meaningful clause blocks.\n'
+                      '• Follow the contextual cues, conjunctions, and grammar markers.\n'
+                      '• Tap blocks to place them in order, or tap placed blocks to remove.\n'
+                      '• Watch your mistake limit and use hints when needed!'
+                    : '• Parçalanmış cümle bloklarını anlamlı ve kurallı bir cümle olacak şekilde sırayla birleştir.\n'
+                      '• Bağlaçları, noktalama ve gramer ipuçlarını takip et.\n'
+                      '• Bloklara dokunarak yerleştir, yerleşen bloğa dokunarak geri al.\n'
+                      '• Hata hakkın bitmeden tüm cümleleri tamamla!',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 13,
+                  height: 1.5,
+                  color: StudioVisuals.ink,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: skin.accent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    _english ? 'GOT IT' : 'ANLADIM',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final StudioGameSkin skin = StudioGameSkin.forId('sentence_builder');
@@ -467,7 +552,7 @@ class _SentenceBuilderPlayPageState extends State<SentenceBuilderPlayPage> {
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 fontWeight: FontWeight.w900,
-                fontSize: 18,
+                fontSize: 16,
               ),
             ),
             Text(
@@ -476,208 +561,216 @@ class _SentenceBuilderPlayPageState extends State<SentenceBuilderPlayPage> {
                         ? 'PRACTICE  •  ${widget.practiceRound} / 300'
                         : 'PRATİK  •  ${widget.practiceRound} / 300')
                   : (_english
-                        ? 'CAMPAIGN  •  ${widget.level.number} / ${GameContentPolicy.campaignLevels}'
-                        : 'KAMPANYA  •  ${widget.level.number} / ${GameContentPolicy.campaignLevels}'),
+                        ? 'LEVEL ${widget.level.number} / ${GameContentPolicy.campaignLevels}'
+                        : 'BÖLÜM ${widget.level.number} / ${GameContentPolicy.campaignLevels}'),
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 color: StudioVisuals.muted,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: .5,
               ),
             ),
           ],
         ),
+        actions: <Widget>[
+          IconButton(
+            tooltip: _english ? 'How to play' : 'Nasıl Oynanır?',
+            onPressed: _showHowToPlay,
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
         child: ResponsiveGameFrame(
+          maxContentWidth: 620,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
+                // Kompakt durum çubuğu (38px)
+                Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          '${_english ? 'Sentence' : 'Cümle'} ${_question + 1}/${_scenario.cards.length}',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: StudioVisuals.ink,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '•  ❤️ $errorsLeft/$_mistakeLimit',
+                          style: TextStyle(
+                            fontFamily: 'Roboto',
+                            color: errorsLeft <= 1 ? StudioVisuals.danger : skin.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 50,
+                          height: 6,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: (_question + (_solved ? 1 : 0)) / _scenario.cards.length,
+                              color: skin.accent,
+                              backgroundColor: skin.accentSoft,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Ana Oyun Alanı: Taşma Korumalı & Kaydırılabilir
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        _SentencePrompt(
+                          card: _card.sentence,
+                          question: _question + 1,
+                          total: _scenario.cards.length,
+                          english: _english,
+                          accent: skin.accent,
+                        ),
+                        const SizedBox(height: 6),
+                        _SentenceAssembly(
+                          assembled: _assembled
+                              .map((int index) => _scrambled[index])
+                              .toList(growable: false),
+                          solved: _solved,
+                          targetLength: _target.length,
+                          accent: skin.accent,
+                          onUndo: _undoPart,
+                          onClear: _clearParts,
+                          english: _english,
+                        ),
+                        const SizedBox(height: 6),
+                        _solved
+                            ? _SentenceNote(
+                                sentence: _target.join(' '),
+                                note: _revealedNote!,
+                                english: _english,
+                                accent: skin.accent,
+                              )
+                            : _ClauseChoices(
+                                parts: _scrambled,
+                                selectedIndices: _assembled.toSet(),
+                                accent: skin.accent,
+                                onSelect: _addPart,
+                              ),
+                        if (_feedback != null) ...<Widget>[
+                          const SizedBox(height: 6),
+                          _SentenceFeedback(
+                            message: _feedback!,
+                            accent: _feedback!.startsWith(
+                              _english ? 'Structure clue:' : 'Yapı ipucu:',
+                            )
+                                ? skin.accent
+                                : StudioVisuals.danger,
+                          ),
+                        ],
+                        const SizedBox(height: 4),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Alt Aksiyon Butonları (44px)
                 Row(
                   children: <Widget>[
                     Expanded(
-                      child: Text(
-                        _english
-                            ? 'Rebuild the sentence from meaningful clauses. Follow its context and connector cues.'
-                            : 'Anlamlı cümle bloklarını yeniden kur. Bağlamı ve bağlaç ipuçlarını izle.',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
-                          color: StudioVisuals.ink,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
+                      flex: 1,
+                      child: OutlinedButton.icon(
+                        onPressed: _solved ? null : _useHint,
+                        icon: const Icon(Icons.lightbulb_outline_rounded, size: 16),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(_english ? 'CLUE' : 'İPUCU'),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: skin.accent,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Roboto',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _SentenceStat(
-                      icon: Icons.favorite_outline_rounded,
-                      label: '$errorsLeft/$_mistakeLimit',
-                      accent: errorsLeft <= 1
-                          ? StudioVisuals.danger
-                          : skin.accent,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
-                  child: LinearProgressIndicator(
-                    value:
-                        (_question + (_solved ? 1 : 0)) /
-                        _scenario.cards.length,
-                    minHeight: 5,
-                    color: skin.accent,
-                    backgroundColor: skin.accentSoft,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (BuildContext context, BoxConstraints limits) =>
-                        SingleChildScrollView(
-                          key: const ValueKey<String>(
-                            'sentence_builder_scroll',
-                          ),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minHeight: limits.maxHeight,
-                            ),
-                            child: Column(
-                              children: <Widget>[
-                                _SentencePrompt(
-                                  card: _card.sentence,
-                                  question: _question + 1,
-                                  total: _scenario.cards.length,
-                                  english: _english,
-                                  accent: skin.accent,
-                                ),
-                                const SizedBox(height: 10),
-                                _SentenceAssembly(
-                                  assembled: _assembled
-                                      .map((int index) => _scrambled[index])
-                                      .toList(growable: false),
-                                  solved: _solved,
-                                  targetLength: _target.length,
-                                  accent: skin.accent,
-                                  onUndo: _undoPart,
-                                  onClear: _clearParts,
-                                  english: _english,
-                                ),
-                                const SizedBox(height: 10),
-                                if (_solved)
-                                  _SentenceNote(
-                                    sentence: _target.join(' '),
-                                    note: _revealedNote!,
-                                    english: _english,
-                                    accent: skin.accent,
-                                  )
-                                else
-                                  _ClauseChoices(
-                                    parts: _scrambled,
-                                    selectedIndices: _assembled.toSet(),
-                                    accent: skin.accent,
-                                    onSelect: _addPart,
-                                  ),
-                                if (_feedback != null) ...<Widget>[
-                                  const SizedBox(height: 8),
-                                  _SentenceFeedback(
-                                    message: _feedback!,
-                                    accent:
-                                        _feedback!.startsWith(
-                                          _english
-                                              ? 'Structure clue:'
-                                              : 'Yapı ipucu:',
-                                        )
-                                        ? skin.accent
-                                        : StudioVisuals.danger,
-                                  ),
-                                ],
-                                const SizedBox(height: 12),
-                                StudioGameActions(
-                                  children: <Widget>[
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: _solved ? null : _useHint,
-                                        icon: const Icon(
-                                          Icons.lightbulb_outline_rounded,
-                                          size: 17,
-                                        ),
-                                        label: Text(
-                                          _english ? 'CLUE' : 'İPUCU',
-                                        ),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: skin.accent,
-                                          minimumSize: const Size.fromHeight(
-                                            46,
-                                          ),
-                                          textStyle: const TextStyle(
-                                            fontFamily: 'Roboto',
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 9),
-                                    Expanded(
-                                      flex: 2,
-                                      child: FilledButton.icon(
-                                        key: const ValueKey<String>(
-                                          'sentence_builder_submit',
-                                        ),
-                                        onPressed: _solved
-                                            ? _continue
-                                            : _assembled.length ==
-                                                  _target.length
-                                            ? _checkOrder
-                                            : null,
-                                        icon: Icon(
-                                          _solved
-                                              ? Icons.arrow_forward_rounded
-                                              : Icons.fact_check_outlined,
-                                          size: 18,
-                                        ),
-                                        label: Text(
-                                          _solved
-                                              ? _question ==
-                                                        _scenario.cards.length -
-                                                            1
-                                                    ? (_english
-                                                          ? 'FINISH BOARD'
-                                                          : 'TAHTAYI TAMAMLA')
-                                                    : (_english
-                                                          ? 'NEXT SENTENCE'
-                                                          : 'SONRAKİ CÜMLE')
-                                              : (_english
-                                                    ? 'CHECK ORDER'
-                                                    : 'SIRAYI KONTROL ET'),
-                                        ),
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor: skin.accent,
-                                          foregroundColor: Colors.white,
-                                          minimumSize: const Size.fromHeight(
-                                            46,
-                                          ),
-                                          textStyle: const TextStyle(
-                                            fontFamily: 'Roboto',
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton.icon(
+                        key: const ValueKey<String>('sentence_builder_submit'),
+                        onPressed: _solved
+                            ? _continue
+                            : _assembled.length == _target.length
+                                ? _checkOrder
+                                : null,
+                        icon: Icon(
+                          _solved ? Icons.arrow_forward_rounded : Icons.fact_check_outlined,
+                          size: 16,
+                        ),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _solved
+                                ? _question == _scenario.cards.length - 1
+                                    ? (_english ? 'FINISH BOARD' : 'TAHTAYI TAMAMLA')
+                                    : (_english ? 'NEXT SENTENCE' : 'SONRAKİ CÜMLE')
+                                : (_english ? 'CHECK ORDER' : 'SIRAYI KONTROL ET'),
                           ),
                         ),
-                  ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: skin.accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Roboto',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -708,10 +801,10 @@ class _SentencePrompt extends StatelessWidget {
     return Container(
       key: const ValueKey<String>('sentence_builder_prompt'),
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(15, 13, 15, 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       decoration: BoxDecoration(
         color: StudioVisuals.surface,
-        borderRadius: BorderRadius.circular(19),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accent.withValues(alpha: .2)),
         boxShadow: StudioVisuals.softShadow,
       ),
@@ -720,8 +813,8 @@ class _SentencePrompt extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(Icons.short_text_rounded, color: accent, size: 21),
-              const SizedBox(width: 7),
+              Icon(Icons.short_text_rounded, color: accent, size: 19),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   english
@@ -730,7 +823,7 @@ class _SentencePrompt extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: 'Roboto',
                     color: accent,
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w900,
                     letterSpacing: .5,
                   ),
@@ -739,7 +832,7 @@ class _SentencePrompt extends StatelessWidget {
               const Icon(
                 Icons.language_rounded,
                 color: StudioVisuals.muted,
-                size: 16,
+                size: 15,
               ),
               const SizedBox(width: 4),
               Text(
@@ -747,33 +840,37 @@ class _SentencePrompt extends StatelessWidget {
                 style: const TextStyle(
                   fontFamily: 'Roboto',
                   color: StudioVisuals.muted,
-                  fontSize: 12,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Text(
             english ? card.contextEn : card.contextTr,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontFamily: 'Roboto',
               color: StudioVisuals.ink,
-              fontSize: 13,
-              height: 1.35,
+              fontSize: 12.5,
+              height: 1.25,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 3),
           Text(
             english
-                ? 'Order the clause blocks so the meaning and punctuation fit.'
+                ? 'Order the clause blocks to build the target sentence.'
                 : 'Anlam ve noktalama ipuçlarına uyan cümle bloklarını sırala.',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontFamily: 'Roboto',
               color: StudioVisuals.muted,
-              fontSize: 11,
-              height: 1.3,
+              fontSize: 10.5,
+              height: 1.2,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -807,74 +904,130 @@ class _SentenceAssembly extends StatelessWidget {
     return Container(
       key: const ValueKey<String>('sentence_builder_assembly'),
       width: double.infinity,
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: .055),
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: accent.withValues(alpha: .18)),
+        color: solved
+            ? const Color(0xFFE8F5EC)
+            : accent.withValues(alpha: .085),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: solved ? const Color(0xFF388E3C) : accent,
+          width: 2.0,
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: (solved ? const Color(0xFF388E3C) : accent).withValues(alpha: .14),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
             children: <Widget>[
+              Icon(
+                Icons.edit_note_rounded,
+                color: solved ? const Color(0xFF388E3C) : accent,
+                size: 18,
+              ),
+              const SizedBox(width: 5),
               Expanded(
                 child: Text(
-                  english ? 'YOUR SENTENCE' : 'KURDUĞUN CÜMLE',
+                  english ? 'YOUR SENTENCE (TARGET)' : 'KURDUĞUN CÜMLE',
                   style: TextStyle(
                     fontFamily: 'Roboto',
-                    color: accent,
+                    color: solved ? const Color(0xFF2E7D32) : accent,
                     fontSize: 12,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: .5,
+                    letterSpacing: .4,
                   ),
                 ),
               ),
-              Text(
-                '${assembled.length}/$targetLength',
-                style: TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.muted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: (solved ? const Color(0xFF388E3C) : accent)
+                      .withValues(alpha: .15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${assembled.length}/$targetLength',
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: solved ? const Color(0xFF2E7D32) : accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
               if (assembled.isNotEmpty && !solved) ...<Widget>[
-                const SizedBox(width: 5),
+                const SizedBox(width: 4),
                 IconButton(
                   key: const ValueKey<String>('sentence_builder_undo'),
                   tooltip: english ? 'Undo last block' : 'Son bloğu geri al',
                   visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   onPressed: onUndo,
-                  icon: const Icon(Icons.undo_rounded, size: 19),
+                  icon: const Icon(Icons.undo_rounded, size: 18),
                 ),
                 IconButton(
                   key: const ValueKey<String>('sentence_builder_clear'),
                   tooltip: english ? 'Clear sentence' : 'Cümleyi temizle',
                   visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   onPressed: onClear,
-                  icon: const Icon(Icons.restart_alt_rounded, size: 19),
+                  icon: const Icon(Icons.restart_alt_rounded, size: 18),
                 ),
               ],
             ],
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 6),
           if (assembled.isEmpty)
-            Text(
-              english
-                  ? 'Tap a clause block below to place it here.'
-                  : 'Bir cümle bloğunu buraya eklemek için aşağıdan dokun.',
-              style: const TextStyle(
-                fontFamily: 'Roboto',
-                color: StudioVisuals.muted,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(
+                  color: accent.withValues(alpha: .25),
+                ),
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(
+                      Icons.touch_app_outlined,
+                      size: 15,
+                      color: accent.withValues(alpha: .8),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      english
+                          ? 'Tap clause blocks below to place here'
+                          : 'Aşağıdaki bloklara dokunarak cümleni kur',
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        color: accent.withValues(alpha: .85),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           else
             Wrap(
-              spacing: 6,
-              runSpacing: 6,
+              spacing: 5,
+              runSpacing: 5,
               children: <Widget>[
                 for (final String part in assembled)
                   ConstrainedBox(
@@ -882,25 +1035,28 @@ class _SentenceAssembly extends StatelessWidget {
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         color: solved
-                            ? const Color(0xFFE8F5EC)
+                            ? Colors.white
                             : StudioVisuals.surface,
-                        borderRadius: BorderRadius.circular(11),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: solved ? const Color(0xFF73A980) : accent,
+                          color: solved
+                              ? const Color(0xFF388E3C)
+                              : accent.withValues(alpha: .7),
+                          width: 1.2,
                         ),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
+                          horizontal: 9,
+                          vertical: 6,
                         ),
                         child: Text(
                           part,
                           style: const TextStyle(
                             fontFamily: 'Roboto',
                             color: StudioVisuals.ink,
-                            fontSize: 12,
-                            height: 1.2,
+                            fontSize: 11.5,
+                            height: 1.18,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -930,36 +1086,39 @@ class _ClauseChoices extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey<String>('sentence_builder_choices'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(left: 3, bottom: 7),
-          child: Text(
-            context.l10n.isEnglish
-                ? 'AVAILABLE CLAUSE BLOCKS'
-                : 'CÜMLE BLOKLARI',
-            style: TextStyle(
-              fontFamily: 'Roboto',
-              color: accent,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              letterSpacing: .5,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        key: const ValueKey<String>('sentence_builder_choices'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(left: 3, bottom: 5),
+            child: Text(
+              context.l10n.isEnglish
+                  ? 'AVAILABLE CLAUSE BLOCKS'
+                  : 'CÜMLE BLOKLARI',
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: accent,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: .5,
+              ),
             ),
           ),
-        ),
-        for (int index = 0; index < parts.length; index++) ...<Widget>[
-          if (index > 0) const SizedBox(height: 6),
-          _ClauseChoice(
-            index: index,
-            text: parts[index],
-            selected: selectedIndices.contains(index),
-            accent: accent,
-            onTap: () => onSelect(index),
-          ),
+          for (int index = 0; index < parts.length; index++) ...<Widget>[
+            if (index > 0) const SizedBox(height: 5),
+            _ClauseChoice(
+              index: index,
+              text: parts[index],
+              selected: selectedIndices.contains(index),
+              accent: accent,
+              onTap: () => onSelect(index),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -983,16 +1142,16 @@ class _ClauseChoice extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: selected ? accent.withValues(alpha: .07) : StudioVisuals.surface,
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
         key: ValueKey<String>('sentence_builder_part_$index'),
         onTap: selected ? null : onTap,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected
                   ? accent.withValues(alpha: .32)
@@ -1002,24 +1161,24 @@ class _ClauseChoice extends StatelessWidget {
           child: Row(
             children: <Widget>[
               Container(
-                width: 24,
-                height: 24,
+                width: 22,
+                height: 22,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: .1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(7),
                 ),
                 child: Text(
                   '${index + 1}',
                   style: TextStyle(
                     fontFamily: 'Roboto',
                     color: accent,
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   text,
@@ -1028,19 +1187,19 @@ class _ClauseChoice extends StatelessWidget {
                   style: const TextStyle(
                     fontFamily: 'Roboto',
                     color: StudioVisuals.ink,
-                    fontSize: 12,
-                    height: 1.25,
+                    fontSize: 11.5,
+                    height: 1.2,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const SizedBox(width: 7),
+              const SizedBox(width: 6),
               Icon(
                 selected
                     ? Icons.check_circle_rounded
                     : Icons.add_circle_outline_rounded,
                 color: selected ? accent : StudioVisuals.muted,
-                size: 18,
+                size: 17,
               ),
             ],
           ),
@@ -1068,54 +1227,58 @@ class _SentenceNote extends StatelessWidget {
     return Container(
       key: const ValueKey<String>('sentence_builder_note'),
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: .07),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accent.withValues(alpha: .2)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Icon(Icons.rule_rounded, size: 17, color: accent),
-              const SizedBox(width: 7),
-              Text(
-                english ? 'SENTENCE LOGIC' : 'CÜMLE MANTIĞI',
-                style: TextStyle(
-                  fontFamily: 'Roboto',
-                  color: accent,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: .5,
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(Icons.rule_rounded, size: 16, color: accent),
+                const SizedBox(width: 6),
+                Text(
+                  english ? 'SENTENCE LOGIC' : 'CÜMLE MANTIĞI',
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: accent,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .5,
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              sentence,
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.ink,
+                fontSize: 13,
+                height: 1.25,
+                fontWeight: FontWeight.w900,
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            sentence,
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              color: StudioVisuals.ink,
-              fontSize: 14,
-              height: 1.3,
-              fontWeight: FontWeight.w900,
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            note,
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              color: StudioVisuals.muted,
-              fontSize: 11,
-              height: 1.4,
-              fontWeight: FontWeight.w700,
+            const SizedBox(height: 5),
+            Text(
+              note,
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 10.5,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1151,43 +1314,4 @@ class _SentenceFeedback extends StatelessWidget {
   }
 }
 
-class _SentenceStat extends StatelessWidget {
-  const _SentenceStat({
-    required this.icon,
-    required this.label,
-    required this.accent,
-  });
 
-  final IconData icon;
-  final String label;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: .09),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(icon, size: 14, color: accent),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Roboto',
-                color: accent,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

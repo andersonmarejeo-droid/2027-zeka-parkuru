@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../shared/game_visual_design.dart';
+
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -411,12 +411,98 @@ class _NearMeaningPlayPageState extends State<NearMeaningPlayPage> {
     if (mounted) Navigator.of(context).pop(result.toParkurResult());
   }
 
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        final StudioGameSkin skin = StudioGameSkin.forId('near_meaning');
+        return Container(
+          decoration: const BoxDecoration(
+            color: StudioVisuals.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Icon(Icons.help_outline_rounded, color: skin.accent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    _english ? 'How to Play?' : 'Nasıl Oynanır?',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: StudioVisuals.ink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _english
+                    ? '• Choose the closest nuance that fits the sentence context—not just dictionary synonyms.\n'
+                      '• Tap an option and press "CHECK MEANING" to lock your answer.\n'
+                      '• Review subtle shades of meaning in the post-answer explanation note.\n'
+                      '• Clear all cards before exceeding your mistake limit!'
+                    : '• Yalnızca sözlük anlamı değil, cümlenin bağlamına en uygun düşen yakın anlamı seç.\n'
+                      '• Seçeneğe dokun ve "ANLAMI KONTROL ET" butonuyla cevabını onayla.\n'
+                      '• Doğru cevabın ardından kelimenin inceliklerini ve kullanım nüansını öğren.\n'
+                      '• Hata hakkın tükenmeden parkurdaki tüm kelimeleri tamamla!',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 13,
+                  height: 1.5,
+                  color: StudioVisuals.ink,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: skin.accent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    _english ? 'GOT IT' : 'ANLADIM',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final StudioGameSkin skin = StudioGameSkin.forId('near_meaning');
     final int errorsLeft = math
         .max(0, _mistakeLimit - _session.mistakes)
         .toInt();
+
     return Scaffold(
       backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
@@ -432,7 +518,7 @@ class _NearMeaningPlayPageState extends State<NearMeaningPlayPage> {
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 fontWeight: FontWeight.w900,
-                fontSize: 18,
+                fontSize: 16,
               ),
             ),
             Text(
@@ -441,196 +527,206 @@ class _NearMeaningPlayPageState extends State<NearMeaningPlayPage> {
                         ? 'PRACTICE  •  ${widget.practiceRound} / 300'
                         : 'PRATİK  •  ${widget.practiceRound} / 300')
                   : (_english
-                        ? 'CAMPAIGN  •  ${widget.level.number} / ${GameContentPolicy.campaignLevels}'
-                        : 'KAMPANYA  •  ${widget.level.number} / ${GameContentPolicy.campaignLevels}'),
+                        ? 'LEVEL ${widget.level.number} / ${GameContentPolicy.campaignLevels}'
+                        : 'BÖLÜM ${widget.level.number} / ${GameContentPolicy.campaignLevels}'),
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 color: StudioVisuals.muted,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: .5,
               ),
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: _english ? 'How to play' : 'Nasıl Oynanır?',
+            onPressed: _showHowToPlay,
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
         child: ResponsiveGameFrame(
+          maxContentWidth: 620,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             child: Column(
               children: <Widget>[
+                // Kompakt durum çubuğu (38px)
+                Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          '${_english ? 'Word' : 'Sözcük'} ${_question + 1}/${_scenario.cards.length}',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: StudioVisuals.ink,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '•  ❤️ $errorsLeft/$_mistakeLimit',
+                          style: TextStyle(
+                            fontFamily: 'Roboto',
+                            color: errorsLeft <= 1 ? StudioVisuals.danger : skin.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 50,
+                          height: 6,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: (_question + (_solved ? 1 : 0)) / _scenario.cards.length,
+                              minHeight: 6,
+                              color: skin.accent,
+                              backgroundColor: skin.accentSoft,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Ana Oyun Alanı: Kaydırmasız (Zero-Scroll)
+                Expanded(
+                  child: Column(
+                    children: <Widget>[
+                      _NuancePrompt(
+                        card: _card,
+                        question: _question + 1,
+                        total: _scenario.cards.length,
+                        english: _english,
+                        accent: skin.accent,
+                        prefix: _prefix(),
+                        target: _targetWord(),
+                        suffix: _suffix(),
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: Center(
+                          child: !_solved
+                              ? _MeaningOptions(
+                                  optionOrder: _boardCard.optionOrder,
+                                  options: _options,
+                                  selected: _selectedOption,
+                                  accent: skin.accent,
+                                  onSelect: _selectOption,
+                                )
+                              : _NuanceExplanation(
+                                  card: _card,
+                                  english: _english,
+                                  accent: skin.accent,
+                                ),
+                        ),
+                      ),
+                      if (_feedback != null) ...<Widget>[
+                        const SizedBox(height: 6),
+                        _NuanceFeedback(
+                          message: _feedback!,
+                          accent: _feedback!.startsWith(
+                            _english ? 'Near-word clue:' : 'Yakın sözcük ipucu:',
+                          )
+                              ? skin.accent
+                              : StudioVisuals.danger,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Alt Aksiyon Butonları (42px)
                 Row(
                   children: <Widget>[
                     Expanded(
-                      child: Text(
-                        _english
-                            ? 'Pick the closest meaning that fits the sentence—not just a dictionary synonym.'
-                            : 'Sözlük ezberine değil, cümlenin bağlamına uyan en yakın anlama odaklan.',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
-                          color: StudioVisuals.ink,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
+                      child: OutlinedButton.icon(
+                        onPressed: _solved ? null : _useHint,
+                        icon: const Icon(Icons.lightbulb_outline_rounded, size: 16),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(_english ? 'CLUE' : 'İPUCU'),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: skin.accent,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Roboto',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                          side: BorderSide(color: skin.accent.withValues(alpha: .4)),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _NuanceStat(
-                      icon: Icons.favorite_outline_rounded,
-                      label: '$errorsLeft/$_mistakeLimit',
-                      accent: errorsLeft <= 1
-                          ? StudioVisuals.danger
-                          : skin.accent,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
-                  child: LinearProgressIndicator(
-                    value:
-                        (_question + (_solved ? 1 : 0)) /
-                        _scenario.cards.length,
-                    minHeight: 5,
-                    color: skin.accent,
-                    backgroundColor: skin.accentSoft,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (BuildContext context, BoxConstraints limits) =>
-                        SingleChildScrollView(
-                          key: const ValueKey<String>('near_meaning_scroll'),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minHeight: limits.maxHeight,
-                            ),
-                            child: Column(
-                              children: <Widget>[
-                                _NuancePrompt(
-                                  card: _card,
-                                  question: _question + 1,
-                                  total: _scenario.cards.length,
-                                  english: _english,
-                                  accent: skin.accent,
-                                  prefix: _prefix(),
-                                  target: _targetWord(),
-                                  suffix: _suffix(),
-                                ),
-                                const SizedBox(height: 11),
-                                if (!_solved)
-                                  _MeaningOptions(
-                                    optionOrder: _boardCard.optionOrder,
-                                    options: _options,
-                                    selected: _selectedOption,
-                                    accent: skin.accent,
-                                    onSelect: _selectOption,
-                                  )
-                                else
-                                  _NuanceExplanation(
-                                    card: _card,
-                                    english: _english,
-                                    accent: skin.accent,
-                                  ),
-                                if (_feedback != null) ...<Widget>[
-                                  const SizedBox(height: 8),
-                                  _NuanceFeedback(
-                                    message: _feedback!,
-                                    accent:
-                                        _feedback!.startsWith(
-                                          _english
-                                              ? 'Near-word clue:'
-                                              : 'Yakın sözcük ipucu:',
-                                        )
-                                        ? skin.accent
-                                        : StudioVisuals.danger,
-                                  ),
-                                ],
-                                const SizedBox(height: 12),
-                                StudioGameActions(
-                                  children: <Widget>[
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: _solved ? null : _useHint,
-                                        icon: const Icon(
-                                          Icons.lightbulb_outline_rounded,
-                                          size: 17,
-                                        ),
-                                        label: Text(
-                                          _english ? 'CLUE' : 'İPUCU',
-                                        ),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: skin.accent,
-                                          minimumSize: const Size.fromHeight(
-                                            46,
-                                          ),
-                                          textStyle: const TextStyle(
-                                            fontFamily: 'Roboto',
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 9),
-                                    Expanded(
-                                      flex: 2,
-                                      child: FilledButton.icon(
-                                        key: const ValueKey<String>(
-                                          'near_meaning_submit',
-                                        ),
-                                        onPressed: _solved
-                                            ? _continue
-                                            : _selectedOption == null
-                                            ? null
-                                            : _checkAnswer,
-                                        icon: Icon(
-                                          _solved
-                                              ? Icons.arrow_forward_rounded
-                                              : Icons.fact_check_outlined,
-                                          size: 18,
-                                        ),
-                                        label: Text(
-                                          _solved
-                                              ? _question ==
-                                                        _scenario.cards.length -
-                                                            1
-                                                    ? (_english
-                                                          ? 'FINISH BOARD'
-                                                          : 'TAHTAYI TAMAMLA')
-                                                    : (_english
-                                                          ? 'NEXT WORD'
-                                                          : 'SONRAKİ SÖZCÜK')
-                                              : (_english
-                                                    ? 'CHECK MEANING'
-                                                    : 'ANLAMI KONTROL ET'),
-                                        ),
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor: skin.accent,
-                                          foregroundColor: Colors.white,
-                                          minimumSize: const Size.fromHeight(
-                                            46,
-                                          ),
-                                          textStyle: const TextStyle(
-                                            fontFamily: 'Roboto',
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton.icon(
+                        key: const ValueKey<String>('near_meaning_submit'),
+                        onPressed: _solved
+                            ? _continue
+                            : _selectedOption == null
+                                ? null
+                                : _checkAnswer,
+                        icon: Icon(
+                          _solved ? Icons.arrow_forward_rounded : Icons.fact_check_outlined,
+                          size: 16,
+                        ),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _solved
+                                ? _question == _scenario.cards.length - 1
+                                    ? (_english ? 'FINISH BOARD' : 'TAHTAYI TAMAMLA')
+                                    : (_english ? 'NEXT WORD' : 'SONRAKİ SÖZCÜK')
+                                : (_english ? 'CHECK MEANING' : 'ANLAMI KONTROL ET'),
                           ),
                         ),
-                  ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: skin.accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Roboto',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -667,10 +763,10 @@ class _NuancePrompt extends StatelessWidget {
     return Container(
       key: const ValueKey<String>('near_meaning_prompt'),
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
       decoration: BoxDecoration(
         color: StudioVisuals.surface,
-        borderRadius: BorderRadius.circular(19),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accent.withValues(alpha: .2)),
         boxShadow: StudioVisuals.softShadow,
       ),
@@ -679,8 +775,8 @@ class _NuancePrompt extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(Icons.manage_search_rounded, color: accent, size: 19),
-              const SizedBox(width: 7),
+              Icon(Icons.manage_search_rounded, color: accent, size: 18),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   english
@@ -689,7 +785,7 @@ class _NuancePrompt extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: 'Roboto',
                     color: accent,
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w900,
                     letterSpacing: .55,
                   ),
@@ -698,7 +794,7 @@ class _NuancePrompt extends StatelessWidget {
               Icon(
                 Icons.language_rounded,
                 color: StudioVisuals.muted,
-                size: 16,
+                size: 15,
               ),
               const SizedBox(width: 4),
               Text(
@@ -706,62 +802,85 @@ class _NuancePrompt extends StatelessWidget {
                 style: const TextStyle(
                   fontFamily: 'Roboto',
                   color: StudioVisuals.muted,
-                  fontSize: 12,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 9),
+          const SizedBox(height: 6),
           Text(
             english ? card.contextEn : card.contextTr,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontFamily: 'Roboto',
               color: StudioVisuals.muted,
               fontSize: 11,
-              height: 1.35,
+              height: 1.25,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 10),
-          RichText(
-            key: const ValueKey<String>('near_meaning_sentence'),
-            text: TextSpan(
-              style: const TextStyle(
-                fontFamily: 'Roboto',
-                color: StudioVisuals.ink,
-                fontSize: 17,
-                height: 1.35,
-                fontWeight: FontWeight.w700,
+          const SizedBox(height: 7),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: .085),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(
+                color: accent,
+                width: 2.0,
               ),
-              children: <InlineSpan>[
-                TextSpan(text: prefix),
-                TextSpan(
-                  text: target,
-                  style: TextStyle(
-                    fontFamily: 'Roboto',
-                    color: accent,
-                    fontWeight: FontWeight.w900,
-                    backgroundColor: accent.withValues(alpha: .1),
-                    decoration: TextDecoration.underline,
-                    decorationColor: accent.withValues(alpha: .55),
-                    decorationThickness: 2,
-                  ),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: accent.withValues(alpha: .12),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
                 ),
-                TextSpan(text: suffix),
               ],
             ),
+            child: RichText(
+              key: const ValueKey<String>('near_meaning_sentence'),
+              text: TextSpan(
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  color: StudioVisuals.ink,
+                  fontSize: 15.5,
+                  height: 1.3,
+                  fontWeight: FontWeight.w700,
+                ),
+                children: <InlineSpan>[
+                  TextSpan(text: prefix),
+                  TextSpan(
+                    text: target,
+                    style: TextStyle(
+                      fontFamily: 'Roboto',
+                      color: accent,
+                      fontWeight: FontWeight.w900,
+                      backgroundColor: accent.withValues(alpha: .18),
+                      decoration: TextDecoration.underline,
+                      decorationColor: accent,
+                      decorationThickness: 2.5,
+                    ),
+                  ),
+                  TextSpan(text: suffix),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             english
                 ? 'Which definition best preserves the highlighted word’s meaning here?'
                 : 'Vurgulu sözcüğün bu cümledeki anlamını en iyi hangi açıklama koruyor?',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontFamily: 'Roboto',
               color: accent,
-              fontSize: 11,
-              height: 1.3,
+              fontSize: 10.5,
+              height: 1.2,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -788,40 +907,43 @@ class _MeaningOptions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey<String>('near_meaning_options'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(left: 3, bottom: 7),
-          child: Text(
-            context.l10n.isEnglish
-                ? 'CLOSE MEANINGS'
-                : 'YAKIN ANLAM AÇIKLAMALARI',
-            style: TextStyle(
-              fontFamily: 'Roboto',
-              color: accent,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              letterSpacing: .5,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        key: const ValueKey<String>('near_meaning_options'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(left: 3, bottom: 6),
+            child: Text(
+              context.l10n.isEnglish
+                  ? 'CLOSE MEANINGS'
+                  : 'YAKIN ANLAM AÇIKLAMALARI',
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: accent,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: .5,
+              ),
             ),
           ),
-        ),
-        for (
-          int viewIndex = 0;
-          viewIndex < optionOrder.length;
-          viewIndex++
-        ) ...<Widget>[
-          if (viewIndex > 0) const SizedBox(height: 7),
-          _MeaningOptionCard(
-            viewIndex: viewIndex,
-            text: options[optionOrder[viewIndex]],
-            selected: selected == viewIndex,
-            accent: accent,
-            onTap: () => onSelect(viewIndex),
-          ),
+          for (
+            int viewIndex = 0;
+            viewIndex < optionOrder.length;
+            viewIndex++
+          ) ...<Widget>[
+            if (viewIndex > 0) const SizedBox(height: 6),
+            _MeaningOptionCard(
+              viewIndex: viewIndex,
+              text: options[optionOrder[viewIndex]],
+              selected: selected == viewIndex,
+              accent: accent,
+              onTap: () => onSelect(viewIndex),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -929,54 +1051,58 @@ class _NuanceExplanation extends StatelessWidget {
     return Container(
       key: const ValueKey<String>('near_meaning_explanation'),
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: .07),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accent.withValues(alpha: .2)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Icon(Icons.lightbulb_outline_rounded, size: 17, color: accent),
-              const SizedBox(width: 7),
-              Text(
-                english ? 'WHY IT FITS' : 'NEDEN UYUYOR?',
-                style: TextStyle(
-                  fontFamily: 'Roboto',
-                  color: accent,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: .5,
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(Icons.lightbulb_outline_rounded, size: 16, color: accent),
+                const SizedBox(width: 6),
+                Text(
+                  english ? 'WHY IT FITS' : 'NEDEN UYUYOR?',
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: accent,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .5,
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              english ? card.explanationEn : card.explanationTr,
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.ink,
+                fontSize: 12,
+                height: 1.3,
+                fontWeight: FontWeight.w800,
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            english ? card.explanationEn : card.explanationTr,
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              color: StudioVisuals.ink,
-              fontSize: 12,
-              height: 1.4,
-              fontWeight: FontWeight.w800,
             ),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            '${english ? 'Nearby words' : 'Yakın sözcükler'}: ${nearWords.join(' • ')}',
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              color: StudioVisuals.muted,
-              fontSize: 11,
-              height: 1.35,
-              fontWeight: FontWeight.w700,
+            const SizedBox(height: 6),
+            Text(
+              '${english ? 'Nearby words' : 'Yakın sözcükler'}: ${nearWords.join(' • ')}',
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 10.5,
+                height: 1.3,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1012,43 +1138,4 @@ class _NuanceFeedback extends StatelessWidget {
   }
 }
 
-class _NuanceStat extends StatelessWidget {
-  const _NuanceStat({
-    required this.icon,
-    required this.label,
-    required this.accent,
-  });
 
-  final IconData icon;
-  final String label;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: .09),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(icon, size: 14, color: accent),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Roboto',
-                color: accent,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

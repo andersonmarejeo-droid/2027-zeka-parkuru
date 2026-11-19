@@ -403,6 +403,105 @@ class _ChessMatePlayPageState extends State<ChessMatePlayPage> {
     );
   }
 
+  void _showHowToPlay(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: StudioVisuals.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _accent.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.castle_rounded, color: _accent, size: 22),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            _english ? 'Chess Tactics Rules' : 'Satranç Taktiği Kuralları',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                          Text(
+                            _english ? 'Mate in one tactical puzzle' : 'Tek hamlede mat bulmacası',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 12,
+                              color: StudioVisuals.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surfaceSoft,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _accent.withValues(alpha: 0.20)),
+                  ),
+                  child: Text(
+                    _english
+                        ? 'White to move. Select a white piece, then tap its legal destination square. Find the single decisive move that leaves the black king in check with zero legal escapes (checkmate)!'
+                        : 'Beyaz oynar. Hamle yapmak için önce beyaz bir taşa, ardından gideceği yeşil noktalı hedef kareye dokun. Siyah şaha hiçbir yasal kaçış bırakmayan tek mat hamlesini bul!',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 13,
+                      height: 1.4,
+                      color: StudioVisuals.ink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accent,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    _english ? 'UNDERSTOOD' : 'ANLADIM, BAŞLA',
+                    style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     _english = context.l10n.isEnglish;
@@ -413,261 +512,202 @@ class _ChessMatePlayPageState extends State<ChessMatePlayPage> {
           backgroundColor: StudioVisuals.canvas,
           foregroundColor: StudioVisuals.ink,
           surfaceTintColor: Colors.transparent,
-          title: Text(_english ? 'CHESS MATE' : 'SATRANÇ MATI'),
+          elevation: 0,
+          title: Text(
+            _english ? 'CHESS MATE' : 'SATRANÇ MATI',
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
         ),
         body: const Center(child: CircularProgressIndicator(color: _accent)),
       );
     }
     final Set<int> targetSquares = _targetSquares;
+
     return Scaffold(
       backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
         backgroundColor: StudioVisuals.canvas,
         foregroundColor: StudioVisuals.ink,
         surfaceTintColor: Colors.transparent,
-        titleSpacing: 14,
-        title: Text(
-          _english ? 'CHESS MATE' : 'SATRANÇ MATI',
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-          ),
+        elevation: 0,
+        titleSpacing: 12,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              _english ? 'CHESS MATE' : 'SATRANÇ MATI',
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.6,
+              ),
+            ),
+            Text(
+              '${_english ? 'Level' : 'Bölüm'} ${widget.level.number} • ${_puzzle.difficultyTier}',
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
         actions: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(right: 15),
-            child: Center(child: _ChessLevelPill(level: widget.level.number)),
+          IconButton(
+            tooltip: _english ? 'How to Play' : 'Nasıl Oynanır',
+            icon: const Icon(Icons.help_outline_rounded, size: 22),
+            onPressed: () => _showHowToPlay(context),
           ),
         ],
       ),
       body: SafeArea(
         top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(14, 3, 14, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _ChessStatus(
-                level: widget.level.number,
-                tier: _puzzle.difficultyTier,
-                mistakes: _mistakes,
-                english: _english,
-              ),
-              const SizedBox(height: 11),
-              LayoutBuilder(
-                builder: (BuildContext context, BoxConstraints constraints) {
-                  final double boardSize = math.min(
-                    500.0,
-                    constraints.maxWidth - 4,
-                  );
-                  final double cellSize = boardSize / 8;
-                  return Center(
-                    child: Container(
-                      key: const ValueKey<String>('chess_mate_board'),
-                      width: boardSize,
-                      height: boardSize,
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE0D7C9),
-                        borderRadius: BorderRadius.circular(19),
-                        border: Border.all(color: const Color(0xFFD0C5B5)),
-                        boxShadow: StudioVisuals.softShadow,
+        child: ResponsiveGameFrame(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                // Kompakt Tek Satır Durum Çubuğu
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: StudioVisuals.teal.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _english ? 'WHITE TO MOVE' : 'BEYAZ OYNAR',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: StudioVisuals.teal,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: GridView.builder(
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: EdgeInsets.zero,
-                          itemCount: 64,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
+                      const SizedBox(width: 8),
+                      Text(
+                        _puzzle.difficultyTier,
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          color: StudioVisuals.muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            Icons.error_outline_rounded,
+                            size: 14,
+                            color: _mistakes > 0 ? StudioVisuals.danger : StudioVisuals.muted,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '$_mistakes',
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: _mistakes > 0 ? StudioVisuals.danger : StudioVisuals.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Genişletilmiş Satranç Tahtası (Kaydırmasız - Expanded)
+                Expanded(
+                  child: Center(
+                    child: LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final double boardSize = math.min(constraints.maxWidth, constraints.maxHeight);
+                        final double cellSize = (boardSize - 10) / 8;
+                        return Container(
+                          key: const ValueKey<String>('chess_mate_board'),
+                          width: boardSize,
+                          height: boardSize,
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE0D7C9),
+                            borderRadius: BorderRadius.circular(19),
+                            border: Border.all(color: const Color(0xFFD0C5B5)),
+                            boxShadow: StudioVisuals.softShadow,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: GridView.builder(
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: EdgeInsets.zero,
+                              itemCount: 64,
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 8,
                                 mainAxisSpacing: 0,
                                 crossAxisSpacing: 0,
                               ),
-                          itemBuilder: (BuildContext context, int index) {
-                            final int file = index % 8;
-                            final int rank = 7 - index ~/ 8;
-                            final int square = ChessSquare.index(file, rank);
-                            return _ChessSquare(
-                              key: ValueKey<String>(
-                                'chess-square-${ChessSquare.name(square)}',
-                              ),
-                              square: square,
-                              piece: _position.board[square],
-                              cellSize: cellSize,
-                              selected: square == _selectedSquare,
-                              target: targetSquares.contains(square),
-                              lastMove:
-                                  square == _lastFrom || square == _lastTo,
-                              hinted: square == _hintTarget,
-                              english: _english,
-                              onTap: () => _tapSquare(square),
-                            );
-                          },
-                        ),
-                      ),
+                              itemBuilder: (BuildContext context, int index) {
+                                final int file = index % 8;
+                                final int rank = 7 - index ~/ 8;
+                                final int square = ChessSquare.index(file, rank);
+                                return _ChessSquare(
+                                  key: ValueKey<String>('chess-square-${ChessSquare.name(square)}'),
+                                  square: square,
+                                  piece: _position.board[square],
+                                  cellSize: cellSize,
+                                  selected: square == _selectedSquare,
+                                  target: targetSquares.contains(square),
+                                  lastMove: square == _lastFrom || square == _lastTo,
+                                  hinted: square == _hintTarget,
+                                  english: _english,
+                                  onTap: () => _tapSquare(square),
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
-              const SizedBox(height: 11),
-              _ChessActions(
-                canUndo: _selectedSquare != null,
-                busy: _finished,
-                english: _english,
-                onUndo: _undoSelection,
-                onHint: _showHint,
-                onReset: _confirmReset,
-              ),
-              if (_notice != null) ...<Widget>[
-                const SizedBox(height: 9),
-                _ChessNotice(
-                  text: _notice!,
-                  warning: _notice!.contains(
-                    _english ? 'not mate' : 'mat değil',
                   ),
                 ),
-              ],
-              const SizedBox(height: 8),
-              Text(
-                _english
-                    ? 'White to move. Select a white piece, then its legal destination. Find the single move that leaves the black king no legal escape.'
-                    : 'Beyaz oynar. Beyaz bir taş, ardından yasal hedef karesi seç. Siyah şaha hiçbir yasal kaçış bırakmayan tek hamleyi bul.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.muted,
-                  fontSize: 12,
-                  height: 1.38,
+                if (_notice != null) ...<Widget>[
+                  const SizedBox(height: 4),
+                  _ChessNotice(
+                    text: _notice!,
+                    warning: _notice!.contains(_english ? 'not mate' : 'mat değil'),
+                  ),
+                ],
+                const SizedBox(height: 6),
+                // Alt Kontrol Butonları
+                _ChessActions(
+                  canUndo: _selectedSquare != null,
+                  busy: _finished,
+                  english: _english,
+                  onUndo: _undoSelection,
+                  onHint: _showHint,
+                  onReset: _confirmReset,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-}
-
-class _ChessLevelPill extends StatelessWidget {
-  const _ChessLevelPill({required this.level});
-  final int level;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-    decoration: BoxDecoration(
-      color: StudioVisuals.surface,
-      borderRadius: BorderRadius.circular(99),
-      border: Border.all(color: StudioVisuals.line),
-    ),
-    child: Text(
-      context.l10n.levelOutOf(level, ChessMateGamePage.totalCases),
-      style: const TextStyle(
-        fontFamily: 'Roboto',
-        color: StudioVisuals.ink,
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
-      ),
-    ),
-  );
-}
-
-class _ChessStatus extends StatelessWidget {
-  const _ChessStatus({
-    required this.level,
-    required this.tier,
-    required this.mistakes,
-    required this.english,
-  });
-
-  final int level;
-  final String tier;
-  final int mistakes;
-  final bool english;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-    decoration: BoxDecoration(
-      color: StudioVisuals.surface,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: StudioVisuals.line),
-      boxShadow: StudioVisuals.softShadow,
-    ),
-    child: Row(
-      children: <Widget>[
-        Container(
-          width: 8,
-          height: 8,
-          decoration: const BoxDecoration(
-            color: _ChessMatePlayPageState._accent,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                english ? 'MATE IN ONE' : 'TEK HAMLEDE MAT',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.ink,
-                  fontSize: 12,
-                  letterSpacing: .45,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              Text(
-                '${english ? 'STUDY' : 'ETÜT'} ${level.toString().padLeft(2, '0')} · ${tier == 'ADVANCED'
-                    ? (english ? 'ADVANCED' : 'İLERİ')
-                    : tier == 'EXPERT'
-                    ? (english ? 'EXPERT' : 'UZMAN')
-                    : tier == 'MASTER'
-                    ? (english ? 'MASTER' : 'USTA')
-                    : (english ? 'FOUNDATION' : 'USTALAŞMA')}',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.muted,
-                  fontSize: 10,
-                  letterSpacing: .45,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: <Widget>[
-            Text(
-              '$mistakes',
-              style: const TextStyle(
-                fontFamily: 'Roboto',
-                color: StudioVisuals.ink,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            Text(
-              english ? 'MISSES' : 'HATA',
-              style: const TextStyle(
-                fontFamily: 'Roboto',
-                color: StudioVisuals.muted,
-                fontSize: 10,
-                letterSpacing: .4,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
 }
 
 class _ChessSquare extends StatelessWidget {

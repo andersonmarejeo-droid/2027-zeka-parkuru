@@ -69,12 +69,6 @@ class ChallengeGameDefinition {
 const List<ChallengeGameDefinition> challengeGameDefinitions =
     <ChallengeGameDefinition>[
       ChallengeGameDefinition(
-        id: 'logic',
-        name: 'Mantık',
-        icon: Icons.account_tree_outlined,
-        color: Color(0xFF665AA2),
-      ),
-      ChallengeGameDefinition(
         id: 'numbers',
         name: 'Sayı Arenası',
         icon: Icons.calculate_rounded,
@@ -141,12 +135,6 @@ const List<ChallengeGameDefinition> challengeGameDefinitions =
         color: Color(0xFF5B88C8),
       ),
       ChallengeGameDefinition(
-        id: 'proverb_finish',
-        name: 'Atasözü Tamamla',
-        icon: Icons.menu_book_rounded,
-        color: Color(0xFF648B72),
-      ),
-      ChallengeGameDefinition(
         id: 'sentence_builder',
         name: 'Cümle Kur',
         icon: Icons.format_align_left_rounded,
@@ -175,12 +163,6 @@ const List<ChallengeGameDefinition> challengeGameDefinitions =
         name: 'Hikâye Sırası',
         icon: Icons.timeline_rounded,
         color: Color(0xFF5B88C8),
-      ),
-      ChallengeGameDefinition(
-        id: 'picture_iq',
-        name: 'Görsel IQ',
-        icon: Icons.auto_awesome_mosaic_rounded,
-        color: Color(0xFFFF4FA3),
       ),
       ChallengeGameDefinition(
         id: 'number_sort',
@@ -550,6 +532,10 @@ class _ChallengeGamePickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final List<ChallengeGameDefinition> activeGames = challengeGameDefinitions
+        .where((d) => !StudioGameCatalog.isGameRetired(d.id))
+        .toList(growable: false);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 20),
       child: Column(
@@ -584,7 +570,7 @@ class _ChallengeGamePickerSheet extends StatelessWidget {
           const SizedBox(height: 18),
           Expanded(
             child: GridView.builder(
-              itemCount: challengeGameDefinitions.length,
+              itemCount: activeGames.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 crossAxisSpacing: 12,
@@ -593,7 +579,7 @@ class _ChallengeGamePickerSheet extends StatelessWidget {
               ),
               itemBuilder: (BuildContext context, int index) {
                 final ChallengeGameDefinition definition =
-                    challengeGameDefinitions[index];
+                    activeGames[index];
 
                 return Material(
                   color: Colors.transparent,

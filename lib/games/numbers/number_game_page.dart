@@ -308,36 +308,56 @@ class _NumberGamePageState extends State<NumberGamePage> {
     ),
   ];
 
-  late final List<SayiSeviyesi> seviyeler = List.generate(
-    GameContentPolicy.campaignLevels,
-    (index) {
-      final chapter = index + 1;
-      final base = _nativeLevels[GameContentPolicy.nativeLevel(chapter) - 1];
-      return SayiSeviyesi(
-        numara: chapter,
-        sourceNumber: base.numara,
-        challengeLevel: chapter,
-        zorluk: GameContentPolicy.difficulty(chapter),
-        baslik: base.baslik,
-        tur: base.tur,
-        oturumSoruSayisi: min(12, base.oturumSoruSayisi + (chapter - 1) ~/ 8),
-        sorular: base.sorular,
-        sudokuBoyutu: base.sudokuBoyutu,
-        sudokuBoslukSayisi: base.sudokuBoslukSayisi,
-      );
-    },
-    growable: false,
-  );
+  final ScrollController _scrollController = ScrollController();
+  late List<SayiSeviyesi> seviyeler;
+
+  List<SayiSeviyesi> _generateLevels(int targetLevel) {
+    final int count = targetLevel >= 26
+        ? max(GameContentPolicy.campaignLevels, targetLevel + 5)
+        : GameContentPolicy.campaignLevels;
+    final stages = _nativeLevels.length;
+    return List.generate(
+      count,
+      (index) {
+        final chapter = index + 1;
+        final source = GameContentPolicy.nativeLevel(chapter, stages: stages);
+        final base = _nativeLevels[(source - 1).clamp(0, stages - 1)];
+        final int extraChapters = max(0, chapter - GameContentPolicy.campaignLevels);
+        return SayiSeviyesi(
+          numara: chapter,
+          sourceNumber: base.numara,
+          challengeLevel: chapter,
+          zorluk: GameContentPolicy.difficulty(chapter),
+          baslik: extraChapters > 0
+              ? '${base.baslik} • Faz $extraChapters'
+              : base.baslik,
+          tur: base.tur,
+          oturumSoruSayisi: min(14, base.oturumSoruSayisi + (chapter - 1) ~/ 8),
+          sorular: base.sorular,
+          sudokuBoyutu: base.sudokuBoyutu,
+          sudokuBoslukSayisi: base.sudokuBoslukSayisi,
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
     super.initState();
+    seviyeler = _generateLevels(acikSeviye);
 
     final ParkurProgressData? initial = widget.initialProgress;
     if (initial != null) {
       acikSeviye = initial.acikSeviye;
       yildizlar = List<int>.from(initial.yildizlar);
       enIyiPuanlar = List<int>.from(initial.enIyiPuanlar);
+      seviyeler = _generateLevels(acikSeviye);
+      while (yildizlar.length < seviyeler.length) {
+        yildizlar.add(0);
+      }
+      while (enIyiPuanlar.length < seviyeler.length) {
+        enIyiPuanlar.add(0);
+      }
       yukleniyor = false;
     }
 
@@ -353,6 +373,7 @@ class _NumberGamePageState extends State<NumberGamePage> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     unawaited(_audio.stopMusic());
     super.dispose();
   }
@@ -363,14 +384,37 @@ class _NumberGamePageState extends State<NumberGamePage> {
 
     if (!mounted) return;
 
+    final nextLevels = _generateLevels(veri.acikSeviye);
+    final nextStars = List<int>.from(veri.yildizlar);
+    final nextScores = List<int>.from(veri.enIyiPuanlar);
+    while (nextStars.length < nextLevels.length) {
+      nextStars.add(0);
+    }
+    while (nextScores.length < nextLevels.length) {
+      nextScores.add(0);
+    }
+
     setState(() {
       acikSeviye = veri.acikSeviye;
-      yildizlar = List<int>.from(veri.yildizlar);
-      enIyiPuanlar = List<int>.from(veri.enIyiPuanlar);
+      seviyeler = nextLevels;
+      yildizlar = nextStars;
+      enIyiPuanlar = nextScores;
       yukleniyor = false;
     });
 
     _openCompetitionLevelIfNeeded();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      if (acikSeviye > 2) {
+        final double targetOffset = (acikSeviye - 2) * 110.0;
+        _scrollController.animateTo(
+          targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
   }
 
   void _openCompetitionLevelIfNeeded() {
@@ -476,8 +520,17 @@ class _NumberGamePageState extends State<NumberGamePage> {
         enIyiPuanlar[index] = completedResult.puan;
       }
 
-      if (index + 1 == acikSeviye && acikSeviye < seviyeler.length) {
+      if (index + 1 == acikSeviye) {
         acikSeviye++;
+        if (acikSeviye + 3 >= seviyeler.length) {
+          seviyeler = _generateLevels(acikSeviye);
+          while (yildizlar.length < seviyeler.length) {
+            yildizlar.add(0);
+          }
+          while (enIyiPuanlar.length < seviyeler.length) {
+            enIyiPuanlar.add(0);
+          }
+        }
       }
     });
 
@@ -496,10 +549,22 @@ class _NumberGamePageState extends State<NumberGamePage> {
       score: commonPoints,
     );
 
-    if (completedResult.sonrakiSeviye && index + 1 < seviyeler.length) {
+    if (completedResult.sonrakiSeviye) {
       await Future.delayed(const Duration(milliseconds: 180));
 
       if (!mounted) return;
+
+      if (index + 1 >= seviyeler.length) {
+        setState(() {
+          seviyeler = _generateLevels(index + 2);
+          while (yildizlar.length < seviyeler.length) {
+            yildizlar.add(0);
+          }
+          while (enIyiPuanlar.length < seviyeler.length) {
+            enIyiPuanlar.add(0);
+          }
+        });
+      }
 
       seviyeAc(index + 1);
     }
@@ -550,36 +615,52 @@ class _NumberGamePageState extends State<NumberGamePage> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final bool darEkran = constraints.maxWidth < 360;
+              final bool isLandscape = constraints.maxWidth > constraints.maxHeight;
               final double yatayBosluk = darEkran ? 12 : 18;
               final double izgaraBoslugu = darEkran ? 10 : 14;
 
-              return Column(
-                children: [
-                  Padding(
-                    padding: EdgeInsets.all(yatayBosluk),
-                    child: _SayiIlerlemePaneli(
-                      toplamPuan: toplamPuan,
-                      toplamYildiz: toplamYildiz,
-                      acikSeviye: acikSeviye,
-                      darEkran: darEkran,
+              return CustomScrollView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+                          child: _SayiIlerlemePaneli(
+                            toplamPuan: toplamPuan,
+                            toplamYildiz: toplamYildiz,
+                            acikSeviye: acikSeviye,
+                            darEkran: darEkran,
+                          ),
+                        ),
+                        if (acikSeviye <= seviyeler.length)
+                          _SayiQuickResumeCard(
+                            levelNumber: acikSeviye,
+                            levelTitle: seviyeler[acikSeviye - 1].baslik,
+                            difficulty: seviyeler[acikSeviye - 1].zorluk,
+                            onPlay: () => seviyeAc(acikSeviye - 1),
+                          ),
+                        GameInstructionCard(
+                          gameId: 'numbers',
+                          english: context.l10n.isEnglish,
+                          initiallyExpanded: false,
+                        ),
+                      ],
                     ),
                   ),
-                  GameInstructionCard(
-                    gameId: 'numbers',
-                    english: context.l10n.isEnglish,
-                    initiallyExpanded: MediaQuery.sizeOf(context).height >= 650,
-                  ),
-                  Expanded(
-                    child: GridView.builder(
-                      padding: EdgeInsets.fromLTRB(
-                        yatayBosluk,
-                        0,
-                        yatayBosluk,
-                        30,
-                      ),
-                      itemCount: seviyeler.length,
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      yatayBosluk,
+                      0,
+                      yatayBosluk,
+                      30,
+                    ),
+                    sliver: SliverGrid(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 1,
+                        crossAxisCount: isLandscape ? 2 : 1,
                         crossAxisSpacing: izgaraBoslugu,
                         mainAxisSpacing: izgaraBoslugu,
                         mainAxisExtent:
@@ -588,17 +669,20 @@ class _NumberGamePageState extends State<NumberGamePage> {
                                 .scale(1)
                                 .clamp(1.0, 1.6),
                       ),
-                      itemBuilder: (context, index) {
-                        return _SayiSeviyeKarti(
-                          seviye: seviyeler[index],
-                          acik: index + 1 <= acikSeviye,
-                          yildiz: yildizlar[index],
-                          enIyiPuan: enIyiPuanlar[index],
-                          onTap: () {
-                            seviyeAc(index);
-                          },
-                        );
-                      },
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          return _SayiSeviyeKarti(
+                            seviye: seviyeler[index],
+                            acik: index + 1 <= acikSeviye,
+                            yildiz: yildizlar[index],
+                            enIyiPuan: enIyiPuanlar[index],
+                            onTap: () {
+                              seviyeAc(index);
+                            },
+                          );
+                        },
+                        childCount: seviyeler.length,
+                      ),
                     ),
                   ),
                 ],
@@ -723,9 +807,13 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
   List<SayiSorusu> _sorulariUret(Random rng) {
     // Bölüm sayısı değişmeden, her seviyenin kendi oturum uzunluğu kullanılır.
     final int adet = widget.seviye.oturumSoruSayisi;
-    final int difficulty = widget.seviye.challengeLevel
-        .clamp(1, GameContentPolicy.campaignLevels)
-        .toInt();
+    final int rawChallenge = widget.seviye.challengeLevel;
+    final int difficulty = rawChallenge <= GameContentPolicy.campaignLevels
+        ? rawChallenge.clamp(1, GameContentPolicy.campaignLevels).toInt()
+        : (GameContentPolicy.campaignLevels +
+                  (rawChallenge - GameContentPolicy.campaignLevels) ~/ 2)
+              .clamp(1, 60)
+              .toInt();
 
     if (widget.seviye.tur == 'SUDOKU') {
       return _benzersizSorularUret(
@@ -859,7 +947,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
   }
 
   SayiSorusu _eksikSayiUret(Random rng, {int difficulty = 1}) {
-    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int safeDifficulty = difficulty.clamp(1, 60).toInt();
     // The opening round starts with alternating gaps instead of a single
     // elementary +N pattern; each new chapter advances the sequence rule.
     final int stage = (safeDifficulty + 1).clamp(2, 10).toInt();
@@ -986,7 +1074,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
   }
 
   SayiSorusu _alternatifDiziUret(Random rng, {int difficulty = 1}) {
-    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int safeDifficulty = difficulty.clamp(1, 60).toInt();
     final int stepCount = safeDifficulty >= 6 ? 3 : 2;
     final int termCount = safeDifficulty >= 23
         ? 8
@@ -1032,7 +1120,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
   }
 
   SayiSorusu _gelismisDiziUret(Random rng, {int difficulty = 1}) {
-    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int safeDifficulty = difficulty.clamp(1, 60).toInt();
     final int tip = rng.nextInt(safeDifficulty >= 24 ? 6 : 4);
     final int termCount = safeDifficulty >= 9 ? 7 : 6;
     late List<int> dizi;
@@ -1120,7 +1208,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
   }
 
   SayiSorusu _zincirUret(Random rng, {int difficulty = 1}) {
-    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int safeDifficulty = difficulty.clamp(1, 60).toInt();
     final int tip = rng.nextInt(
       safeDifficulty >= 22
           ? 5
@@ -1188,7 +1276,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
   }
 
   SayiSorusu _islemUret(Random rng, {int difficulty = 1}) {
-    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int safeDifficulty = difficulty.clamp(1, 60).toInt();
     final int a = 5 + rng.nextInt(10 + safeDifficulty * 2);
     final int b = 3 + rng.nextInt(5 + safeDifficulty);
     final int c = 2 + rng.nextInt(4 + safeDifficulty);
@@ -1240,7 +1328,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
   }
 
   SayiSorusu _sayiPiramidiUret(Random rng, {int difficulty = 1}) {
-    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int safeDifficulty = difficulty.clamp(1, 60).toInt();
     final int upper = 6 + safeDifficulty * 2;
     final int alt1 = 1 + rng.nextInt(upper);
     final int alt2 = 1 + rng.nextInt(upper);
@@ -1279,7 +1367,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
   }
 
   SayiSorusu _denklemUret(Random rng, {int difficulty = 1}) {
-    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int safeDifficulty = difficulty.clamp(1, 60).toInt();
     final int bilinmeyen = 4 + rng.nextInt(8 + safeDifficulty * 2);
     final int carpan = 2 + rng.nextInt(3 + safeDifficulty ~/ 2);
     final int ek = 2 + rng.nextInt(5 + safeDifficulty * 2);
@@ -1305,7 +1393,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
   }
 
   SayiSorusu _sayiMatrisiUret(Random rng, {int difficulty = 1}) {
-    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int safeDifficulty = difficulty.clamp(1, 60).toInt();
     final int tip = rng.nextInt(
       safeDifficulty >= 28
           ? 5
@@ -1363,7 +1451,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
   }
 
   SayiSorusu _siniflandirmaUret(Random rng, {int difficulty = 1}) {
-    final int safeDifficulty = difficulty.clamp(1, 30).toInt();
+    final int safeDifficulty = difficulty.clamp(1, 60).toInt();
     final int tip = rng.nextInt(3);
     late List<int> degerler;
     late int dogru;
@@ -2108,57 +2196,30 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                   ),
                   const SizedBox(height: 22),
 
-                  if (widget.seviye.numara < widget.toplamSeviye)
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF34715D),
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(dialogContext);
-
-                          Navigator.pop(
-                            context,
-                            SayiSeviyeSonucu(
-                              tamamlandi: true,
-                              yildiz: yildiz,
-                              puan: puan,
-                              sonrakiSeviye: true,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.arrow_forward_rounded),
-                        label: const LText('SONRAKİ SEVİYE'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF34715D),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
-                    ),
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
 
-                  if (widget.seviye.numara == widget.toplamSeviye)
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF9C5471),
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(dialogContext);
-
-                          Navigator.pop(
-                            context,
-                            SayiSeviyeSonucu(
-                              tamamlandi: true,
-                              yildiz: yildiz,
-                              puan: puan,
-                              sonrakiSeviye: false,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.emoji_events_rounded),
-                        label: const LText('SAYI PARKURUNU TAMAMLA'),
-                      ),
+                        Navigator.pop(
+                          context,
+                          SayiSeviyeSonucu(
+                            tamamlandi: true,
+                            yildiz: yildiz,
+                            puan: puan,
+                            sonrakiSeviye: true,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      label: const LText('SONRAKİ SEVİYE'),
                     ),
+                  ),
 
                   const SizedBox(height: 6),
 
@@ -2181,6 +2242,82 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                 ],
               ),
             ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: StudioVisuals.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Row(
+                children: [
+                  Icon(Icons.help_outline_rounded, color: Color(0xFF34715D), size: 22),
+                  SizedBox(width: 8),
+                  Text(
+                    'Nasıl Oynanır?',
+                    style: TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: StudioVisuals.ink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                '• Sorulan matematiksel veya mantıksal sayı bulmacasını dikkatle oku.\n'
+                '• Seçenekler arasından doğru sayıyı bulup işaretle.\n'
+                '• Mini Sudoku bölümlerinde parlayan boş hücreleri seçerek doğru sayıları yerleştir.\n'
+                '• Zorlandığında sağ üstteki ampul simgesine dokunarak ipucu alabilirsin!',
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 13,
+                  height: 1.5,
+                  color: StudioVisuals.ink,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF34715D),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('ANLADIM', style: TextStyle(fontWeight: FontWeight.w900)),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -2229,15 +2366,15 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LText(
-              widget.seviye.baslik.toUpperCase(),
+              context.l10n.uppercaseLabel(widget.seviye.baslik),
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 fontWeight: FontWeight.w900,
-                fontSize: 17,
+                fontSize: 15,
               ),
             ),
             LText(
-              'Soru ${soruIndex + 1} / ${oturumSorulari.length}',
+              'Bölüm ${widget.seviye.numara} • Soru ${soruIndex + 1}/${oturumSorulari.length}',
               style: TextStyle(
                 fontFamily: 'Roboto',
                 color: mutedTextColor,
@@ -2247,6 +2384,11 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Nasıl Oynanır?',
+            onPressed: _showHowToPlay,
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
           IconButton(
             tooltip: 'İpucu',
             onPressed: ipucuGoster,
@@ -2261,35 +2403,67 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           child: Column(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: LinearProgressIndicator(
-                  value: ilerleme,
-                  minHeight: 9,
-                  backgroundColor: Theme.of(context).colorScheme.outlineVariant,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    Color(0xFF34715D),
-                  ),
+              // Kompakt durum çubuğu (38px)
+              Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Soru ${soruIndex + 1}/${oturumSorulari.length}',
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        color: StudioVisuals.ink,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '•  ✓ $dogruSayisi',
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        color: Color(0xFF238451),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '•  ${widget.seviye.tur}',
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        color: mutedTextColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    SizedBox(
+                      width: 50,
+                      height: 6,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: LinearProgressIndicator(
+                          value: ilerleme,
+                          backgroundColor: Theme.of(context).colorScheme.outlineVariant,
+                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF34715D)),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  _UstBilgiEtiketi(
-                    ikon: Icons.calculate_rounded,
-                    metin: widget.seviye.tur,
-                  ),
-                  const Spacer(),
-                  _UstBilgiEtiketi(
-                    ikon: Icons.check_rounded,
-                    metin: '$dogruSayisi doğru',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 25),
+              const SizedBox(height: 10),
+
               Expanded(
                 child: miniSudokuGorunumu
                     ? _MiniSudokuSoruKarti(
@@ -2303,16 +2477,15 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                     : Center(
                         child: Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(25),
+                          padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: <Color>[
                                 ZpVisualPalette.of(context).surface,
-                                ZpVisualPalette.of(context)
-                                    .gamePanelGradientEnd,
+                                ZpVisualPalette.of(context).gamePanelGradientEnd,
                               ],
                             ),
-                            borderRadius: BorderRadius.circular(28),
+                            borderRadius: BorderRadius.circular(24),
                             border: Border.all(color: const Color(0xFF2E8256)),
                           ),
                           child: Column(
@@ -2321,28 +2494,26 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                               LText(
                                 mevcutSoru.soru,
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontFamily: 'Roboto',
                                   fontWeight: FontWeight.w900,
-                                  fontSize: 30,
-                                  height: 1.5,
+                                  fontSize: 26,
+                                  height: 1.4,
                                 ),
                               ),
-                              const SizedBox(height: 30),
+                              const SizedBox(height: 20),
                               GridView.builder(
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: mevcutSoru.secenekler.length,
-                                gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2,
-                                      crossAxisSpacing: 12,
-                                      mainAxisSpacing: 12,
-                                      childAspectRatio: 2.0,
-                                    ),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 10,
+                                  childAspectRatio: 2.2,
+                                ),
                                 itemBuilder: (context, index) {
                                   final cevap = mevcutSoru.secenekler[index];
-
                                   Color renk = const Color(0xFFF0F4F0);
 
                                   if (cevapVerildi) {
@@ -2356,19 +2527,13 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                                   return Material(
                                     color: Colors.transparent,
                                     child: InkWell(
-                                      onTap: () {
-                                        cevapSec(cevap);
-                                      },
-                                      borderRadius: BorderRadius.circular(18),
+                                      onTap: () => cevapSec(cevap),
+                                      borderRadius: BorderRadius.circular(16),
                                       child: Ink(
                                         decoration: BoxDecoration(
                                           color: renk,
-                                          borderRadius: BorderRadius.circular(
-                                            18,
-                                          ),
-                                          border: Border.all(
-                                            color: StudioVisuals.line,
-                                          ),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(color: StudioVisuals.line),
                                         ),
                                         child: Center(
                                           child: LText(
@@ -2377,7 +2542,7 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                                               fontFamily: 'Roboto',
                                               color: StudioVisuals.ink,
                                               fontWeight: FontWeight.w900,
-                                              fontSize: 22,
+                                              fontSize: 20,
                                             ),
                                           ),
                                         ),
@@ -2391,34 +2556,49 @@ class _SayiOyunEkraniState extends State<SayiOyunEkrani> {
                         ),
                       ),
               ),
-              const SizedBox(height: 15),
-              LText(
-                durumMetni,
-                style: TextStyle(
-                  fontFamily: 'Roboto',
-                  fontWeight: FontWeight.bold,
-                  color: durumRengi,
+              const SizedBox(height: 8),
+
+              // Alt Durum ve Geçiş Çubuğu
+              Container(
+                constraints: const BoxConstraints(minHeight: 38),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: LText(
+                        durumMetni,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Roboto',
+                          fontWeight: FontWeight.bold,
+                          color: durumRengi,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    if (cevapVerildi && !mevcutCevapDogru) ...<Widget>[
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        key: const ValueKey<String>('numbers_wrong_answer_continue'),
+                        onPressed: _advancingQuestion ? null : _sonrakiSoruyuGoster,
+                        icon: const Icon(Icons.skip_next_rounded, size: 16),
+                        label: Text(context.l10n.isEnglish ? 'NEXT' : 'GEÇ'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF34715D),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              if (cevapVerildi && !mevcutCevapDogru) ...<Widget>[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    key: const ValueKey<String>(
-                      'numbers_wrong_answer_continue',
-                    ),
-                    onPressed: _advancingQuestion ? null : _sonrakiSoruyuGoster,
-                    icon: const Icon(Icons.skip_next_rounded),
-                    label: Text(context.l10n.isEnglish ? 'NEXT' : 'GEÇ'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF34715D),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(48),
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         ),
@@ -3010,6 +3190,135 @@ class _SudokuCevapButonu extends StatelessWidget {
   }
 }
 
+class _SayiQuickResumeCard extends StatelessWidget {
+  final int levelNumber;
+  final String levelTitle;
+  final String difficulty;
+  final VoidCallback onPlay;
+
+  const _SayiQuickResumeCard({
+    required this.levelNumber,
+    required this.levelTitle,
+    required this.difficulty,
+    required this.onPlay,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const Color accent = StudioVisuals.teal;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: StudioVisuals.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.bolt_rounded, color: accent, size: 20),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 2,
+                  children: [
+                    const Text(
+                      'SIRADAKİ PARKUR',
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        color: accent,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        difficulty,
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          color: accent,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Bölüm $levelNumber • $levelTitle',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.ink,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: onPlay,
+            style: FilledButton.styleFrom(
+              backgroundColor: accent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.play_arrow_rounded, size: 16),
+                SizedBox(width: 2),
+                Text(
+                  'OYNA',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SayiIlerlemePaneli extends StatelessWidget {
   final int toplamPuan;
   final int toplamYildiz;
@@ -3200,37 +3509,7 @@ class _SayiSeviyeKarti extends StatelessWidget {
   );
 }
 
-class _UstBilgiEtiketi extends StatelessWidget {
-  final IconData ikon;
-  final String metin;
 
-  const _UstBilgiEtiketi({required this.ikon, required this.metin});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      decoration: BoxDecoration(
-        color: ZpVisualPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Icon(ikon, size: 17, color: const Color(0xFF34715D)),
-          const SizedBox(width: 5),
-          LText(
-            metin,
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _SayiSonucKutusu extends StatelessWidget {
   final String baslik;

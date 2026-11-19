@@ -15,9 +15,10 @@ class SlideSweetsScenario {
     required this.missLimit,
     required this.goldTimeSeconds,
     required this.surgeEvery,
+    this.gateCount = 2,
   });
 
-  static const int maximumLevels = 10;
+  static const int maximumLevels = 20;
   static const int maximumPracticeRounds = 300;
   static final Map<int, SlideSweetsScenario> _campaign =
       <int, SlideSweetsScenario>{};
@@ -33,13 +34,14 @@ class SlideSweetsScenario {
   final int missLimit;
   final double goldTimeSeconds;
   final int surgeEvery;
+  final int gateCount;
 
   int get orderCount => orders.length;
 
   String get signature =>
       '$level|${orders.join()}|${beltSpeed.toStringAsFixed(4)}|'
       '${spawnInterval.toStringAsFixed(4)}|$bufferCapacity|$missLimit|'
-      '$surgeEvery';
+      '$surgeEvery|$gateCount';
 
   static void _checkLevel(int level) {
     if (level < 1 || level > maximumLevels) {
@@ -81,7 +83,8 @@ class SlideSweetsScenario {
   static SlideSweetsScenario _build(int level, {required int replayIndex}) {
     _checkLevel(level);
     final Set<String> used = _usedSignatures;
-    for (int attempt = 0; attempt < 240; attempt++) {
+    final int gateCount = level <= 10 ? 1 : 2;
+    for (int attempt = 0; attempt < 600; attempt++) {
       final int seed = ContentSeed.forLevel(
         gameId: 'slide_sweets:$replayIndex',
         level: level,
@@ -104,20 +107,33 @@ class SlideSweetsScenario {
       orders[0] = 0;
       orders[1] = 1;
       orders[2] = 2;
+      final double speed = level <= 10
+          ? .34 + level * .022
+          : .42 + (level - 10) * .025;
+      final double interval = level <= 10
+          ? math.max(1.30, 2.70 - level * .12)
+          : math.max(1.02, 2.10 - (level - 10) * .10);
       final SlideSweetsScenario candidate = SlideSweetsScenario._(
         level: level,
         seed: seed,
         orders: List<int>.unmodifiable(orders),
-        beltSpeed: .38 + level * .041,
-        spawnInterval: math.max(1.02, 2.55 - level * .145),
-        bufferCapacity: math.max(1, 4 - ((level - 1) ~/ 3)),
-        missLimit: level <= 3
+        beltSpeed: speed,
+        spawnInterval: interval,
+        bufferCapacity: math.max(1, 4 - ((level - 1) ~/ 4)),
+        missLimit: level <= 5
             ? 3
-            : level <= 6
+            : level <= 12
             ? 2
             : 1,
-        goldTimeSeconds: math.max(22, 48 - level * 1.55),
-        surgeEvery: level < 5 ? 0 : (level < 8 ? 5 : 3),
+        goldTimeSeconds: math.max(22, 50 - level * 1.35),
+        surgeEvery: level < 5
+            ? 0
+            : level < 10
+            ? 6
+            : level < 15
+            ? 5
+            : 3,
+        gateCount: gateCount,
       );
       if (!used.contains(candidate.signature) && _isFair(candidate)) {
         return candidate;
@@ -131,7 +147,7 @@ class SlideSweetsScenario {
       scenario.orders.every((int lane) => lane >= 0 && lane < 3) &&
       scenario.orders.take(3).toSet().length == 3 &&
       scenario.spawnInterval >= 1 &&
-      scenario.beltSpeed >= .42 &&
+      scenario.beltSpeed >= .35 &&
       scenario.bufferCapacity >= 1 &&
       scenario.missLimit >= 1;
 }

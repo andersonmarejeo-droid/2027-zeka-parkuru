@@ -33,6 +33,10 @@ class CommonLevelScoreSession {
       .clamp(0, pointsPerLevel)
       .toInt();
 
+  static bool get isActive => _active != null;
+  static int get activePoints => _active?.points ?? pointsPerLevel;
+  static int get activeHints => _active?._hintsUsed ?? 0;
+
   int finish() {
     if (!_finished) {
       _finished = true;

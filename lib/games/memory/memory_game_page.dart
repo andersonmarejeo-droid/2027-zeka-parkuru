@@ -56,7 +56,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
       difficulty: 'KOLAY',
       gridSize: 3,
       sequenceLength: 3,
-      previewMs: 620,
+      previewMs: 650,
       rounds: 5,
       lives: 4,
     ),
@@ -67,7 +67,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
       difficulty: 'KOLAY',
       gridSize: 3,
       sequenceLength: 4,
-      previewMs: 560,
+      previewMs: 600,
       rounds: 5,
       lives: 4,
     ),
@@ -78,7 +78,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
       difficulty: 'ORTA',
       gridSize: 4,
       sequenceLength: 5,
-      previewMs: 500,
+      previewMs: 560,
       rounds: 5,
       lives: 4,
     ),
@@ -91,7 +91,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
       difficulty: 'ORTA',
       gridSize: 4,
       sequenceLength: 5,
-      previewMs: 500,
+      previewMs: 560,
       rounds: 2,
       lives: 3,
       matchCardCount: 8,
@@ -103,7 +103,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
       difficulty: 'ZOR',
       gridSize: 4,
       sequenceLength: 6,
-      previewMs: 460,
+      previewMs: 530,
       rounds: 5,
       lives: 4,
       decoys: 2,
@@ -115,7 +115,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
       difficulty: 'KOLAY',
       gridSize: 4,
       sequenceLength: 5,
-      previewMs: 540,
+      previewMs: 550,
       rounds: 6,
       lives: 5,
     ),
@@ -126,7 +126,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
       difficulty: 'ORTA',
       gridSize: 4,
       sequenceLength: 7,
-      previewMs: 430,
+      previewMs: 510,
       rounds: 6,
       lives: 4,
     ),
@@ -139,7 +139,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
       difficulty: 'ZOR',
       gridSize: 5,
       sequenceLength: 7,
-      previewMs: 390,
+      previewMs: 500,
       rounds: 2,
       lives: 3,
       matchCardCount: 16,
@@ -151,7 +151,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
       difficulty: 'ZOR',
       gridSize: 5,
       sequenceLength: 8,
-      previewMs: 360,
+      previewMs: 490,
       rounds: 6,
       lives: 4,
       reverseRecall: true,
@@ -164,7 +164,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
       difficulty: 'BOSS',
       gridSize: 5,
       sequenceLength: 9,
-      previewMs: 330,
+      previewMs: 480,
       rounds: 7,
       lives: 4,
       reverseRecall: true,
@@ -172,36 +172,65 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
     ),
   ];
 
-  late final List<MemoryLevel> levels = List.generate(
-    GameContentPolicy.campaignLevels,
-    (index) {
-      final chapter = index + 1;
-      final base = _nativeLevels[GameContentPolicy.nativeLevel(chapter) - 1];
-      return MemoryLevel(
-        number: chapter,
-        sourceNumber: base.number,
-        difficulty: GameContentPolicy.difficulty(chapter),
-        title: base.title,
-        titleEn: base.titleEn,
-        subtitle: base.subtitle,
-        subtitleEn: base.subtitleEn,
-        gridSize: base.gridSize,
-        sequenceLength: base.sequenceLength,
-        previewMs: base.previewMs,
-        rounds: base.rounds,
-        lives: base.lives,
-        reverseRecall: base.reverseRecall,
-        decoys: base.decoys,
-        matchCardCount: base.matchCardCount,
-      );
-    },
-    growable: false,
-  );
+  late List<MemoryLevel> levels = [];
+  final ScrollController _scrollController = ScrollController();
+
+  void _generateLevels(int targetLevel) {
+    final int count = targetLevel >= 26
+        ? max(GameContentPolicy.campaignLevels, targetLevel + 5)
+        : GameContentPolicy.campaignLevels;
+    levels = List.generate(
+      count,
+      (index) {
+        final chapter = index + 1;
+        final base = _nativeLevels[GameContentPolicy.nativeLevel(chapter) - 1];
+        final bool isEndless = chapter > GameContentPolicy.campaignLevels;
+        final int extraChapters = max(0, chapter - GameContentPolicy.campaignLevels);
+        final int extraTier = extraChapters == 0 ? 0 : (extraChapters - 1) ~/ 5 + 1;
+        final String title = isEndless
+            ? '${base.title} • Faz $extraChapters'
+            : base.title;
+        final String subtitle = isEndless
+            ? 'Usta Kademesi: İleri seviye hafıza meydan okuması'
+            : base.subtitle;
+
+        return MemoryLevel(
+          number: chapter,
+          sourceNumber: base.number,
+          difficulty: GameContentPolicy.difficulty(chapter),
+          title: title,
+          titleEn: base.titleEn,
+          subtitle: subtitle,
+          subtitleEn: base.subtitleEn,
+          gridSize: base.gridSize,
+          sequenceLength: isEndless
+              ? min(10, base.sequenceLength + (extraTier >= 2 ? 1 : 0))
+              : base.sequenceLength,
+          previewMs: isEndless
+              ? max(420, base.previewMs - min(50, extraTier * 10))
+              : base.previewMs,
+          rounds: isEndless ? min(8, base.rounds + (extraTier >= 3 ? 1 : 0)) : base.rounds,
+          lives: base.lives,
+          reverseRecall: isEndless ? true : base.reverseRecall,
+          decoys: isEndless ? min(5, max(3, base.decoys + (extraTier ~/ 2))) : base.decoys,
+          matchCardCount: isEndless ? 0 : base.matchCardCount,
+        );
+      },
+      growable: false,
+    );
+  }
 
   @override
   void initState() {
     super.initState();
+    _generateLevels(1);
     _loadProgress();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProgress() async {
@@ -215,14 +244,46 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
 
     if (!mounted) return;
 
+    final int star30 = savedStars != null &&
+            savedStars.length >= GameContentPolicy.campaignLevels
+        ? (int.tryParse(savedStars[GameContentPolicy.campaignLevels - 1]) ?? 0)
+        : 0;
+    final int targetLength = star30 > 0
+        ? [
+            GameContentPolicy.campaignLevels,
+            savedLevel,
+            savedStars?.length ?? 0,
+            savedScores?.length ?? 0,
+          ].reduce((a, b) => a > b ? a : b)
+        : GameContentPolicy.campaignLevels;
+    final List<int> decodedStars = _decodeList(savedStars, targetLength);
+    final int effectiveUnlocked = GameContentPolicy.safeUnlocked(
+      savedLevel,
+      decodedStars,
+    );
+    _generateLevels(effectiveUnlocked);
+
     setState(() {
-      stars = _decodeList(savedStars);
-      unlockedLevel = GameContentPolicy.safeUnlocked(savedLevel, stars);
-      bestScores = _decodeList(savedScores);
+      unlockedLevel = effectiveUnlocked;
+      stars = _decodeList(savedStars, levels.length);
+      bestScores = _decodeList(savedScores, levels.length);
       loading = false;
     });
 
     _openCompetitionLevelIfNeeded();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_scrollController.hasClients && unlockedLevel > 2) {
+        final double target = ((unlockedLevel - 2) * 118.0)
+            .clamp(0.0, _scrollController.position.maxScrollExtent);
+        _scrollController.animateTo(
+          target,
+          duration: const Duration(milliseconds: 550),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
   }
 
   void _openCompetitionLevelIfNeeded() {
@@ -235,8 +296,8 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
     });
   }
 
-  List<int> _decodeList(List<String>? source) {
-    return List<int>.generate(GameContentPolicy.campaignLevels, (index) {
+  List<int> _decodeList(List<String>? source, int targetCount) {
+    return List<int>.generate(targetCount, (index) {
       if (source == null || index >= source.length) return 0;
       return int.tryParse(source[index]) ?? 0;
     });
@@ -353,8 +414,13 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
       stars[index] = max(stars[index], completedResult.stars);
       bestScores[index] = max(bestScores[index], completedResult.score);
 
-      if (index + 1 == unlockedLevel && unlockedLevel < levels.length) {
+      if (index + 1 == unlockedLevel) {
         unlockedLevel++;
+        if (unlockedLevel + 3 >= levels.length) {
+          _generateLevels(unlockedLevel);
+          stars = List<int>.generate(levels.length, (i) => i < stars.length ? stars[i] : 0);
+          bestScores = List<int>.generate(levels.length, (i) => i < bestScores.length ? bestScores[i] : 0);
+        }
       }
     });
 
@@ -373,10 +439,23 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
       score: commonPoints,
     );
 
-    if (completedResult.nextLevel && index + 1 < levels.length && mounted) {
+    if (completedResult.nextLevel && mounted) {
       await Future.delayed(const Duration(milliseconds: 180));
 
       if (mounted) {
+        if (index + 1 >= levels.length) {
+          setState(() {
+            _generateLevels(index + 2);
+            stars = List<int>.generate(
+              levels.length,
+              (i) => i < stars.length ? stars[i] : 0,
+            );
+            bestScores = List<int>.generate(
+              levels.length,
+              (i) => i < bestScores.length ? bestScores[i] : 0,
+            );
+          });
+        }
         _openLevel(index + 1);
       }
     }
@@ -424,47 +503,70 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
       body: SafeArea(
         top: false,
         child: ResponsiveGameFrame(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(18),
-                child: _MemoryProgressPanel(
-                  totalScore: totalScore,
-                  totalStars: totalStars,
-                  unlockedLevel: unlockedLevel,
-                ),
-              ),
-              GameInstructionCard(
-                gameId: 'memory',
-                english: context.l10n.isEnglish,
-                initiallyExpanded: MediaQuery.sizeOf(context).height >= 650,
-              ),
-              Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
-                  itemCount: levels.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 1,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                    mainAxisExtent:
-                        104 *
-                        MediaQuery.textScalerOf(context)
-                            .scale(1)
-                            .clamp(1.0, 1.6),
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints limits) {
+              final bool compact = limits.maxWidth < 360;
+              final bool isLandscape = limits.maxWidth > limits.maxHeight;
+
+              return CustomScrollView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: _MemoryProgressPanel(
+                            totalScore: totalScore,
+                            totalStars: totalStars,
+                            unlockedLevel: unlockedLevel,
+                          ),
+                        ),
+                        GameInstructionCard(
+                          gameId: 'memory',
+                          english: context.l10n.isEnglish,
+                          initiallyExpanded: false,
+                        ),
+                        if (unlockedLevel <= levels.length)
+                          _MemoryQuickResumeCard(
+                            level: levels[unlockedLevel - 1],
+                            onTap: () => _openLevel(unlockedLevel - 1),
+                          ),
+                      ],
+                    ),
                   ),
-                  itemBuilder: (context, index) {
-                    return _MemoryLevelCard(
-                      level: levels[index],
-                      unlocked: index + 1 <= unlockedLevel,
-                      stars: stars[index],
-                      bestScore: bestScores[index],
-                      onTap: () => _openLevel(index),
-                    );
-                  },
-                ),
-              ),
-            ],
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: isLandscape ? 2 : 1,
+                        crossAxisSpacing: compact ? 10 : 14,
+                        mainAxisSpacing: 14,
+                        mainAxisExtent:
+                            104 *
+                            MediaQuery.textScalerOf(context)
+                                .scale(1)
+                                .clamp(1.0, 1.6),
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          return _MemoryLevelCard(
+                            level: levels[index],
+                            unlocked: index + 1 <= unlockedLevel,
+                            stars: stars[index],
+                            bestScore: bestScores[index],
+                            onTap: () => _openLevel(index),
+                          );
+                        },
+                        childCount: levels.length,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -626,7 +728,8 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
 
       _audio.playMemoryNote(cell % 8);
 
-      await Future.delayed(Duration(milliseconds: widget.level.previewMs));
+      final int previewDuration = max(460, widget.level.previewMs);
+      await Future.delayed(Duration(milliseconds: previewDuration));
 
       if (!mounted) return;
 
@@ -634,11 +737,11 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
         activeCell = null;
       });
 
-      await Future.delayed(const Duration(milliseconds: 105));
+      await Future.delayed(const Duration(milliseconds: 140));
 
       if (widget.level.decoys > 0 &&
           i < sequence.length - 1 &&
-          random.nextDouble() < 0.36) {
+          random.nextDouble() < 0.25) {
         await _showDecoy();
       }
     }
@@ -670,7 +773,9 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
 
     final int extra = min(round, widget.level.contentLevel >= 7 ? 2 : 1);
 
-    final int length = min(widget.level.sequenceLength + extra, cellCount - 1);
+    const int maxSequenceCap = 12;
+    final int targetLength = widget.level.sequenceLength + extra;
+    final int length = min(maxSequenceCap, min(targetLength, cellCount - 1));
 
     sequence = [];
 
@@ -737,7 +842,12 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
     _audio.play(GameSound.memoryDecoy);
 
     await Future.delayed(
-      Duration(milliseconds: max(120, widget.level.previewMs ~/ 2)),
+      Duration(
+        milliseconds: max(
+          240,
+          (max(460, widget.level.previewMs) * 0.6).round(),
+        ),
+      ),
     );
 
     if (!mounted) return;
@@ -773,7 +883,7 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
         score += 20 + combo * 2;
       });
 
-      await Future.delayed(const Duration(milliseconds: 105));
+      await Future.delayed(const Duration(milliseconds: 140));
 
       if (!mounted) return;
 
@@ -1056,20 +1166,12 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
                             completed: true,
                             stars: stars,
                             score: finalScore,
-                            nextLevel: widget.level.number < widget.totalLevels,
+                            nextLevel: true,
                           ),
                         );
                       },
-                      icon: Icon(
-                        widget.level.number < widget.totalLevels
-                            ? Icons.arrow_forward_rounded
-                            : Icons.workspace_premium_rounded,
-                      ),
-                      label: LText(
-                        widget.level.number < widget.totalLevels
-                            ? 'SONRAKİ SEVİYE'
-                            : 'HAFIZA PARKURUNU TAMAMLA',
-                      ),
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      label: const LText('SONRAKİ SEVİYE'),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1183,6 +1285,82 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
     _startRound();
   }
 
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: StudioVisuals.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Row(
+                children: [
+                  Icon(Icons.help_outline_rounded, color: Color(0xFF34715D), size: 22),
+                  SizedBox(width: 8),
+                  Text(
+                    'Nasıl Oynanır?',
+                    style: TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: StudioVisuals.ink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                '• Ekranda sırayla yanan veya gösterilen taşları ve desenleri dikkatle izle.\n'
+                '• Gösterim bittiğinde aynı taşlara veya desenlere doğru sırayla dokun.\n'
+                '• Hata yapmadan art arda tamamladığın her turda Kombo çarpanı kazanırsın.\n'
+                '• Canların bitmeden tüm turları tamamlayarak seviyeyi bitir!',
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 13,
+                  height: 1.5,
+                  color: StudioVisuals.ink,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF34715D),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('ANLADIM', style: TextStyle(fontWeight: FontWeight.w900)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final double progress = (round / widget.level.rounds).clamp(0.0, 1.0);
@@ -1196,15 +1374,15 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LText(
-              widget.level.title.toUpperCase(),
+              context.l10n.uppercaseLabel(widget.level.title),
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 fontWeight: FontWeight.w900,
-                fontSize: 17,
+                fontSize: 15,
               ),
             ),
             LText(
-              'Seviye ${widget.level.number} / ${widget.totalLevels}',
+              'Bölüm ${widget.level.number} / ${widget.totalLevels}',
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 color: StudioVisuals.muted,
@@ -1214,6 +1392,11 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Nasıl Oynanır?',
+            onPressed: _showHowToPlay,
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
           IconButton(
             tooltip: 'Yeniden başlat',
             onPressed: _restartLevel,
@@ -1230,61 +1413,115 @@ class _MemoryPlayPageState extends State<MemoryPlayPage>
           ),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               child: Column(
                 children: [
-                  _MemoryGameHeader(
-                    score: score,
-                    round: round,
-                    totalRounds: widget.level.rounds,
-                    lives: lives,
-                    combo: combo,
-                  ),
-                  const SizedBox(height: 9),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 8,
-                      backgroundColor: StudioVisuals.line,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        Color(0xFF34715D),
-                      ),
+                  // Kompakt durum çubuğu (38px)
+                  Container(
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: Column(
-                      key: ValueKey('$headline-$subline'),
+                    child: Row(
                       children: [
-                        LText(
-                          headline,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Roboto',
-                            fontWeight: FontWeight.w900,
-                            fontSize: 23,
-                            letterSpacing: 1.2,
-                            color: showingSequence
-                                ? const Color(0xFF3D7183)
-                                : const Color(0xFF8B622C),
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        LText(
-                          subline,
-                          textAlign: TextAlign.center,
+                        Text(
+                          'Tur $round/${widget.level.rounds}',
                           style: const TextStyle(
                             fontFamily: 'Roboto',
-                            color: StudioVisuals.muted,
-                            fontSize: 11,
+                            color: StudioVisuals.ink,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '•  🏆 $score',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: Color(0xFF8B622C),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '•  ❤️ $lives',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: Color(0xFFD64F63),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        if (combo > 1) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            '•  🔥 x$combo',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              color: Color(0xFF238451),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        SizedBox(
+                          width: 50,
+                          height: 6,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              backgroundColor: StudioVisuals.line,
+                              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF34715D)),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 6),
+
+                  // Kompakt Tek Satır Talimat
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          headline,
+                          style: TextStyle(
+                            fontFamily: 'Roboto',
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14,
+                            color: showingSequence ? const Color(0xFF3D7183) : const Color(0xFF8B622C),
+                          ),
+                        ),
+                        if (subline.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            '• $subline',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              color: StudioVisuals.muted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
                   Expanded(
                     child: Stack(
                       alignment: Alignment.center,
@@ -1576,104 +1813,7 @@ class _MemoryCell extends StatelessWidget {
   }
 }
 
-class _MemoryGameHeader extends StatelessWidget {
-  final int score;
-  final int round;
-  final int totalRounds;
-  final int lives;
-  final int combo;
 
-  const _MemoryGameHeader({
-    required this.score,
-    required this.round,
-    required this.totalRounds,
-    required this.lives,
-    required this.combo,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _MemoryTopStat(
-            title: 'PUAN',
-            value: '$score',
-            color: const Color(0xFF8B622C),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: _MemoryTopStat(
-            title: 'TUR',
-            value: '$round/$totalRounds',
-            color: const Color(0xFF3D7183),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: _MemoryTopStat(
-            title: 'CAN',
-            value: '♥ $lives',
-            color: const Color(0xFFA84640),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: _MemoryTopStat(
-            title: 'COMBO',
-            value: 'x$combo',
-            color: const Color(0xFF34715D),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MemoryTopStat extends StatelessWidget {
-  final String title;
-  final String value;
-  final Color color;
-
-  const _MemoryTopStat({
-    required this.title,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: ZpVisualPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        children: [
-          LText(
-            value,
-            style: TextStyle(
-              fontFamily: 'Roboto',
-              color: color,
-              fontWeight: FontWeight.w900,
-              fontSize: 13,
-            ),
-          ),
-          LText(
-            title,
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              color: StudioVisuals.muted,
-              fontSize: 10,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _MemoryInputProgress extends StatelessWidget {
   final int current;
@@ -2071,4 +2211,163 @@ class MemoryLevelResult {
     required this.score,
     required this.nextLevel,
   });
+}
+
+class _MemoryQuickResumeCard extends StatelessWidget {
+  const _MemoryQuickResumeCard({
+    required this.level,
+    required this.onTap,
+  });
+
+  final MemoryLevel level;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            StudioVisuals.tealSoft,
+            StudioVisuals.surface,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: StudioVisuals.teal.withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: StudioVisuals.teal.withValues(alpha: 0.10),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.teal,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: StudioVisuals.teal.withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        runSpacing: 2,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: StudioVisuals.teal.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              '⚡ SIRADAKİ PARKUR',
+                              style: TextStyle(
+                                color: StudioVisuals.tealInk,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 9.5,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            level.difficulty,
+                            style: const TextStyle(
+                              color: StudioVisuals.muted,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Bölüm ${level.number}: ${level.title}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: StudioVisuals.ink,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        level.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: StudioVisuals.muted,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.teal,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'OYNA',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11.5,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

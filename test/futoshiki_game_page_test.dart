@@ -135,6 +135,50 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'board size remains stable and does not shrink on cell selection or entry',
+    (WidgetTester tester) async {
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await _mount(
+        tester,
+        home: FutoshikiPlayPage(level: _level(1), previousBestScore: 0),
+        size: const Size(360, 780),
+        locale: const Locale('tr'),
+      );
+
+      final Finder boardFinder = find.byKey(
+        const ValueKey<String>('futoshiki_board_frame'),
+      );
+      expect(boardFinder, findsOneWidget);
+      final Size initialSize = tester.getSize(boardFinder);
+
+      // Hücre seçimi yapıldığında tahta boyutu küçülmemeli
+      final Finder cellFinder = find.byKey(
+        const ValueKey<String>('futoshiki_cell_0'),
+      );
+      await tester.tap(cellFinder);
+      await tester.pump();
+
+      final Size selectedSize = tester.getSize(boardFinder);
+      expect(selectedSize.height, equals(initialSize.height));
+      expect(selectedSize.width, equals(initialSize.width));
+
+      // Sayı yerleştirildiğinde tahta boyutu yine sabit ve büyük kalmalı
+      final Finder digitFinder = find.byKey(
+        const ValueKey<String>('futoshiki_digit_1'),
+      );
+      await tester.tap(digitFinder);
+      await tester.pump();
+
+      final Size placedSize = tester.getSize(boardFinder);
+      expect(placedSize.height, equals(initialSize.height));
+      expect(placedSize.width, equals(initialSize.width));
+    },
+  );
+
   testWidgets('English hub fits a tablet viewport', (
     WidgetTester tester,
   ) async {

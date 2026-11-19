@@ -85,112 +85,134 @@ class _BlockGamePageState extends State<BlockGamePage> {
       number: 1,
       title: 'Blok Başlangıç',
       difficulty: 'KOLAY',
-      targetScore: 1050,
-      targetLines: 4,
-      targetMoves: 30,
+      targetScore: 3800,
+      targetLines: 15,
+      targetMoves: 110,
     ),
     BlockLevel(
       number: 2,
       title: 'Renk Patlaması',
       difficulty: 'KOLAY',
-      targetScore: 1600,
-      targetLines: 6,
-      targetMoves: 37,
+      targetScore: 5800,
+      targetLines: 22,
+      targetMoves: 135,
     ),
     BlockLevel(
       number: 3,
       title: 'Çift Çizgi',
       difficulty: 'ORTA',
-      targetScore: 2300,
-      targetLines: 8,
-      targetMoves: 46,
+      targetScore: 8200,
+      targetLines: 30,
+      targetMoves: 165,
     ),
     BlockLevel(
       number: 4,
       title: 'Combo Avı',
       difficulty: 'ORTA',
-      targetScore: 3100,
-      targetLines: 10,
+      targetScore: 11000,
+      targetLines: 38,
       targetCombo: 2,
-      targetMoves: 55,
+      targetMoves: 200,
     ),
     BlockLevel(
       number: 5,
       title: 'Dar Alan',
       difficulty: 'ZOR',
-      targetScore: 4000,
-      targetLines: 12,
-      targetMoves: 64,
+      targetScore: 14500,
+      targetLines: 46,
+      targetMoves: 235,
     ),
     BlockLevel(
       number: 6,
       title: 'Hız Turu',
       difficulty: 'KOLAY',
-      targetScore: 4950,
-      targetLines: 14,
-      targetMoves: 74,
+      targetScore: 18000,
+      targetLines: 54,
+      targetMoves: 270,
     ),
     BlockLevel(
       number: 7,
       title: 'Zincir Ustası',
       difficulty: 'ORTA',
-      targetScore: 6000,
-      targetLines: 16,
+      targetScore: 22000,
+      targetLines: 62,
       targetCombo: 2,
-      targetMoves: 83,
+      targetMoves: 310,
     ),
     BlockLevel(
       number: 8,
       title: 'Mega Temizleme',
       difficulty: 'ZOR',
-      targetScore: 7250,
-      targetLines: 18,
+      targetScore: 26500,
+      targetLines: 70,
       targetCombo: 2,
-      targetMoves: 94,
+      targetMoves: 350,
     ),
     BlockLevel(
       number: 9,
       title: 'Blok Fırtınası',
       difficulty: 'ZOR',
-      targetScore: 8650,
-      targetLines: 21,
+      targetScore: 32000,
+      targetLines: 80,
       targetCombo: 2,
-      targetMoves: 108,
+      targetMoves: 400,
     ),
     BlockLevel(
       number: 10,
       title: 'Blok Boss',
       difficulty: 'BOSS',
-      targetScore: 10350,
-      targetLines: 24,
+      targetScore: 38500,
+      targetLines: 95,
       targetCombo: 3,
-      targetMoves: 124,
+      targetMoves: 460,
     ),
   ];
 
-  late final List<BlockLevel> seviyeler = List.generate(
-    GameContentPolicy.campaignLevels,
-    (index) {
-      final chapter = index + 1;
-      final base = _nativeLevels[GameContentPolicy.nativeLevel(chapter) - 1];
-      return BlockLevel(
-        number: chapter,
-        sourceNumber: base.number,
-        difficulty: GameContentPolicy.difficulty(chapter),
-        title: base.title,
-        targetScore: base.targetScore,
-        targetLines: base.targetLines,
-        targetCombo: base.targetCombo,
-        targetMoves: base.targetMoves,
-      );
-    },
-    growable: false,
-  );
+  final ScrollController _scrollController = ScrollController();
+  late List<BlockLevel> seviyeler;
+
+  List<BlockLevel> _generateLevels(int targetLevel) {
+    final int count = targetLevel >= 26
+        ? max(GameContentPolicy.campaignLevels, targetLevel + 5)
+        : GameContentPolicy.campaignLevels;
+    final stages = _nativeLevels.length;
+    return List.generate(
+      count,
+      (index) {
+        final chapter = index + 1;
+        final source = GameContentPolicy.nativeLevel(chapter, stages: stages);
+        final base = _nativeLevels[(source - 1).clamp(0, stages - 1)];
+        final int extraChapters = max(0, chapter - GameContentPolicy.campaignLevels);
+        final int extraTier = extraChapters == 0 ? 0 : (extraChapters - 1) ~/ 3 + 1;
+        return BlockLevel(
+          number: chapter,
+          sourceNumber: base.number,
+          difficulty: GameContentPolicy.difficulty(chapter),
+          title: extraChapters > 0
+              ? '${base.title} • Faz $extraChapters'
+              : base.title,
+          targetScore: base.targetScore + extraTier * 1500,
+          targetLines: base.targetLines + extraTier * 4,
+          targetCombo: extraChapters >= 10
+              ? max(base.targetCombo, 3)
+              : base.targetCombo,
+          targetMoves: base.targetMoves + extraTier * 16,
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
     super.initState();
+    seviyeler = _generateLevels(acikSeviye);
     ilerlemeyiYukle();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> ilerlemeyiYukle() async {
@@ -199,14 +221,37 @@ class _BlockGamePageState extends State<BlockGamePage> {
 
     if (!mounted) return;
 
+    final nextLevels = _generateLevels(veri.acikSeviye);
+    final nextStars = List<int>.from(veri.yildizlar);
+    final nextScores = List<int>.from(veri.enIyiPuanlar);
+    while (nextStars.length < nextLevels.length) {
+      nextStars.add(0);
+    }
+    while (nextScores.length < nextLevels.length) {
+      nextScores.add(0);
+    }
+
     setState(() {
       acikSeviye = veri.acikSeviye;
-      yildizlar = List<int>.from(veri.yildizlar);
-      enIyiPuanlar = List<int>.from(veri.enIyiPuanlar);
+      seviyeler = nextLevels;
+      yildizlar = nextStars;
+      enIyiPuanlar = nextScores;
       yukleniyor = false;
     });
 
     _openCompetitionLevelIfNeeded();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      if (acikSeviye > 2) {
+        final double targetOffset = (acikSeviye - 2) * 110.0;
+        _scrollController.animateTo(
+          targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
   }
 
   void _openCompetitionLevelIfNeeded() {
@@ -300,8 +345,17 @@ class _BlockGamePageState extends State<BlockGamePage> {
 
       enIyiPuanlar[index] = max(enIyiPuanlar[index], completedResult.score);
 
-      if (index + 1 == acikSeviye && acikSeviye < seviyeler.length) {
+      if (index + 1 == acikSeviye) {
         acikSeviye++;
+        if (acikSeviye + 3 >= seviyeler.length) {
+          seviyeler = _generateLevels(acikSeviye);
+          while (yildizlar.length < seviyeler.length) {
+            yildizlar.add(0);
+          }
+          while (enIyiPuanlar.length < seviyeler.length) {
+            enIyiPuanlar.add(0);
+          }
+        }
       }
     });
 
@@ -320,10 +374,21 @@ class _BlockGamePageState extends State<BlockGamePage> {
       score: commonPoints,
     );
 
-    if (completedResult.nextLevel && index + 1 < seviyeler.length && mounted) {
+    if (completedResult.nextLevel && mounted) {
       await Future.delayed(const Duration(milliseconds: 180));
 
       if (mounted) {
+        if (index + 1 >= seviyeler.length) {
+          setState(() {
+            seviyeler = _generateLevels(index + 2);
+            while (yildizlar.length < seviyeler.length) {
+              yildizlar.add(0);
+            }
+            while (enIyiPuanlar.length < seviyeler.length) {
+              enIyiPuanlar.add(0);
+            }
+          });
+        }
         seviyeAc(index + 1);
       }
     }
@@ -371,47 +436,72 @@ class _BlockGamePageState extends State<BlockGamePage> {
       body: SafeArea(
         top: false,
         child: ResponsiveGameFrame(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(18),
-                child: _ProgressPanel(
-                  score: toplamPuan,
-                  stars: toplamYildiz,
-                  level: acikSeviye,
-                ),
-              ),
-              GameInstructionCard(
-                gameId: 'blocks',
-                english: context.l10n.isEnglish,
-                initiallyExpanded: MediaQuery.sizeOf(context).height >= 650,
-              ),
-              Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
-                  itemCount: seviyeler.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 1,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                    mainAxisExtent:
-                        104 *
-                        MediaQuery.textScalerOf(context)
-                            .scale(1)
-                            .clamp(1.0, 1.6),
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints limits) {
+              final bool compact = limits.maxWidth < 360;
+              final bool isLandscape = limits.maxWidth > limits.maxHeight;
+
+              return CustomScrollView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: _ProgressPanel(
+                            score: toplamPuan,
+                            stars: toplamYildiz,
+                            level: acikSeviye,
+                          ),
+                        ),
+                        if (acikSeviye <= seviyeler.length)
+                          _BlockQuickResumeCard(
+                            levelNumber: acikSeviye,
+                            levelTitle: seviyeler[acikSeviye - 1].title,
+                            difficulty: seviyeler[acikSeviye - 1].difficulty,
+                            onPlay: () => seviyeAc(acikSeviye - 1),
+                          ),
+                        GameInstructionCard(
+                          gameId: 'blocks',
+                          english: context.l10n.isEnglish,
+                          initiallyExpanded: false,
+                        ),
+                      ],
+                    ),
                   ),
-                  itemBuilder: (context, index) {
-                    return _LevelCard(
-                      level: seviyeler[index],
-                      unlocked: index + 1 <= acikSeviye,
-                      stars: yildizlar[index],
-                      bestScore: enIyiPuanlar[index],
-                      onTap: () => seviyeAc(index),
-                    );
-                  },
-                ),
-              ),
-            ],
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 30),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: isLandscape ? 2 : 1,
+                        crossAxisSpacing: compact ? 10 : 14,
+                        mainAxisSpacing: 14,
+                        mainAxisExtent:
+                            104 *
+                            MediaQuery.textScalerOf(context)
+                                .scale(1)
+                                .clamp(1.0, 1.6),
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          return _LevelCard(
+                            level: seviyeler[index],
+                            unlocked: index + 1 <= acikSeviye,
+                            stars: yildizlar[index],
+                            bestScore: enIyiPuanlar[index],
+                            onTap: () => seviyeAc(index),
+                          );
+                        },
+                        childCount: seviyeler.length,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -649,95 +739,75 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
   }
 
   GamePiece _randomPiece() {
-    final List<List<BlockCell>> kolay = [
-      const [BlockCell(0, 0)],
-      const [BlockCell(0, 0), BlockCell(1, 0)],
-      const [BlockCell(0, 0), BlockCell(1, 0), BlockCell(2, 0)],
-      const [BlockCell(0, 0), BlockCell(0, 1)],
-      const [BlockCell(0, 0), BlockCell(0, 1), BlockCell(0, 2)],
-      const [BlockCell(0, 0), BlockCell(1, 0), BlockCell(0, 1)],
-      const [
-        BlockCell(0, 0),
-        BlockCell(1, 0),
-        BlockCell(0, 1),
-        BlockCell(1, 1),
-      ],
+    // 3x3 dolu kare blok
+    const piece3x3 = [
+      BlockCell(0, 0), BlockCell(0, 1), BlockCell(0, 2),
+      BlockCell(1, 0), BlockCell(1, 1), BlockCell(1, 2),
+      BlockCell(2, 0), BlockCell(2, 1), BlockCell(2, 2),
     ];
 
-    final List<List<BlockCell>> orta = [
-      ...kolay,
-      const [
-        BlockCell(0, 0),
-        BlockCell(1, 0),
-        BlockCell(2, 0),
-        BlockCell(3, 0),
-      ],
-      const [
-        BlockCell(0, 0),
-        BlockCell(0, 1),
-        BlockCell(0, 2),
-        BlockCell(0, 3),
-      ],
-      const [
-        BlockCell(0, 0),
-        BlockCell(1, 0),
-        BlockCell(2, 0),
-        BlockCell(1, 1),
-      ],
-      const [
-        BlockCell(0, 0),
-        BlockCell(0, 1),
-        BlockCell(0, 2),
-        BlockCell(1, 2),
-      ],
-      const [
-        BlockCell(1, 0),
-        BlockCell(0, 1),
-        BlockCell(1, 1),
-        BlockCell(2, 1),
-      ],
+    // 3x2 ve 2x3 dolu dikdörtgen bloklar
+    const piece3x2 = [
+      BlockCell(0, 0), BlockCell(0, 1),
+      BlockCell(1, 0), BlockCell(1, 1),
+      BlockCell(2, 0), BlockCell(2, 1),
+    ];
+    const piece2x3 = [
+      BlockCell(0, 0), BlockCell(0, 1), BlockCell(0, 2),
+      BlockCell(1, 0), BlockCell(1, 1), BlockCell(1, 2),
     ];
 
-    final List<List<BlockCell>> zor = [
-      ...orta,
-      const [
-        BlockCell(0, 0),
-        BlockCell(1, 0),
-        BlockCell(2, 0),
-        BlockCell(3, 0),
-        BlockCell(4, 0),
-      ],
-      const [
-        BlockCell(0, 0),
-        BlockCell(0, 1),
-        BlockCell(0, 2),
-        BlockCell(0, 3),
-        BlockCell(0, 4),
-      ],
-      const [
-        BlockCell(0, 0),
-        BlockCell(1, 0),
-        BlockCell(2, 0),
-        BlockCell(2, 1),
-        BlockCell(2, 2),
-      ],
-      const [
-        BlockCell(0, 0),
-        BlockCell(1, 0),
-        BlockCell(1, 1),
-        BlockCell(2, 1),
-      ],
+    // 2x2 dolu kare
+    const piece2x2 = [
+      BlockCell(0, 0), BlockCell(0, 1),
+      BlockCell(1, 0), BlockCell(1, 1),
     ];
 
-    List<List<BlockCell>> pool;
+    // Kolay tekli ve çubuk parçalar
+    const piece1x1 = [BlockCell(0, 0)];
+    const piece2x1 = [BlockCell(0, 0), BlockCell(1, 0)];
+    const piece1x2 = [BlockCell(0, 0), BlockCell(0, 1)];
+    const piece3x1 = [BlockCell(0, 0), BlockCell(1, 0), BlockCell(2, 0)];
+    const piece1x3 = [BlockCell(0, 0), BlockCell(0, 1), BlockCell(0, 2)];
+    const pieceCorner = [BlockCell(0, 0), BlockCell(1, 0), BlockCell(0, 1)];
 
-    if (widget.level.contentLevel <= 2) {
-      pool = kolay;
-    } else if (widget.level.contentLevel <= 6) {
-      pool = orta;
-    } else {
-      pool = zor;
-    }
+    // Bolca gelmesi istenen kolay şekiller ve 3x2, 2x3, 3x3 bloklar havuzu
+    final List<List<BlockCell>> kolayVeFavori = [
+      piece3x2,
+      piece3x2,
+      piece3x2, // 3*2 bloklar bolca
+      piece2x3,
+      piece2x3,
+      piece2x3, // 2*3 bloklar bolca
+      piece3x3,
+      piece3x3, // 3*3 bloklar bolca
+      piece2x2,
+      piece2x2,
+      piece1x1,
+      piece1x1,
+      piece2x1,
+      piece1x2,
+      piece3x1,
+      piece1x3,
+      pieceCorner,
+    ];
+
+    final List<List<BlockCell>> cesitlilikSekilleri = [
+      // 4'lü çubuklar
+      const [BlockCell(0, 0), BlockCell(1, 0), BlockCell(2, 0), BlockCell(3, 0)],
+      const [BlockCell(0, 0), BlockCell(0, 1), BlockCell(0, 2), BlockCell(0, 3)],
+      // T ve L şekilleri
+      const [BlockCell(0, 0), BlockCell(1, 0), BlockCell(2, 0), BlockCell(1, 1)],
+      const [BlockCell(0, 0), BlockCell(0, 1), BlockCell(0, 2), BlockCell(1, 2)],
+      const [BlockCell(1, 0), BlockCell(0, 1), BlockCell(1, 1), BlockCell(2, 1)],
+      const [BlockCell(0, 0), BlockCell(1, 0), BlockCell(2, 0), BlockCell(2, 1)],
+      const [BlockCell(0, 0), BlockCell(0, 1), BlockCell(1, 0)],
+      const [BlockCell(0, 1), BlockCell(1, 1), BlockCell(1, 0)],
+    ];
+
+    // Kolay ve keyifli oynanış için: %75 oranında favori kolay bloklar (3x2, 3x3, 2x2 vb.) gelir
+    final bool favoriGelsin = random.nextInt(100) < 75;
+    final List<List<BlockCell>> pool = favoriGelsin ? kolayVeFavori : cesitlilikSekilleri;
 
     return GamePiece(
       cells: List<BlockCell>.from(pool[random.nextInt(pool.length)]),
@@ -1512,51 +1582,107 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  if (widget.level.number < widget.totalLevels)
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          Navigator.pop(dialogContext);
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
 
-                          Navigator.pop(
-                            context,
-                            BlockLevelResult(
-                              completed: true,
-                              stars: stars,
-                              score: finalScore,
-                              nextLevel: true,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.arrow_forward_rounded),
-                        label: const LText('SONRAKİ SEVİYE'),
-                      ),
-                    )
-                  else
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          Navigator.pop(dialogContext);
-
-                          Navigator.pop(
-                            context,
-                            BlockLevelResult(
-                              completed: true,
-                              stars: stars,
-                              score: finalScore,
-                              nextLevel: false,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.workspace_premium_rounded),
-                        label: const LText('PARKURU TAMAMLA'),
-                      ),
+                        Navigator.pop(
+                          context,
+                          BlockLevelResult(
+                            completed: true,
+                            stars: stars,
+                            score: finalScore,
+                            nextLevel: true,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      label: const LText('SONRAKİ SEVİYE'),
                     ),
+                  ),
                 ],
               ),
             ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        return Container(
+          decoration: BoxDecoration(
+            color: _BlockNeon.panel,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: _BlockNeon.cyan.withValues(alpha: 0.3)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Icon(Icons.help_outline_rounded, color: _BlockNeon.cyan, size: 22),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Nasıl Oynanır?',
+                    style: TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                '• Alttaki blok parçalarını 8×8 ızgaraya sürükle veya dokunarak yerleştir.\n'
+                '• Yatay veya dikey tam bir sıra oluşturduğunda o sıra patlar ve temizlenir.\n'
+                '• Art arda hamlelerde sıra temizleyerek Kombo puanı kazan.\n'
+                '• Seviye hedeflerine (Puan, Temizlenen Çizgi, Kombo) ulaşarak bölümü tamamla!',
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 13,
+                  height: 1.5,
+                  color: Color(0xFFD6E2E8),
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _BlockNeon.cyan,
+                    foregroundColor: const Color(0xFF0D1B2A),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('ANLADIM', style: TextStyle(fontWeight: FontWeight.w900)),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -1595,15 +1721,15 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LText(
-              widget.level.title.toUpperCase(),
+              context.l10n.uppercaseLabel(widget.level.title),
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 fontWeight: FontWeight.w900,
-                fontSize: 17,
+                fontSize: 15,
               ),
             ),
             LText(
-              'Seviye ${widget.level.number} / ${widget.totalLevels}',
+              'Bölüm ${widget.level.number} / ${widget.totalLevels}',
               style: TextStyle(
                 fontFamily: 'Roboto',
                 color: _BlockNeon.muted,
@@ -1614,6 +1740,11 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
         ),
         actions: [
           IconButton(
+            tooltip: 'Nasıl Oynanır?',
+            onPressed: _showHowToPlay,
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
+          IconButton(
             tooltip: 'Yeni oyun',
             onPressed: _newGame,
             icon: const Icon(Icons.refresh_rounded),
@@ -1622,38 +1753,74 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+          padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
           child: Column(
             children: [
-              _GameHeader(
-                score: score,
-                clearedLines: clearedLines,
-                targetLines: widget.level.targetLines,
-                moves: moves,
-                bestCombo: bestCombo,
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 9,
-                  backgroundColor: _BlockNeon.panelRaised,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    _BlockNeon.cyan,
-                  ),
+              // Kompakt tek satır durum çubuğu (38px)
+              Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: _BlockNeon.panel,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _BlockNeon.cyan.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.stars_rounded, size: 16, color: _BlockNeon.orange),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$score/${widget.level.targetScore}',
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        color: _scoreMissionCompleted ? _BlockNeon.orange : Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Icon(Icons.clear_all_rounded, size: 16, color: _BlockNeon.cyan),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$clearedLines/${widget.level.targetLines}',
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        color: _lineMissionCompleted ? _BlockNeon.cyan : Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (widget.level.targetCombo > 0) ...[
+                      const SizedBox(width: 10),
+                      Icon(Icons.bolt_rounded, size: 16, color: const Color(0xFFFF5252)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'x$bestCombo/${widget.level.targetCombo}',
+                        style: TextStyle(
+                          fontFamily: 'Roboto',
+                          color: _comboMissionCompleted ? const Color(0xFFFF5252) : Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
+                    SizedBox(
+                      width: 50,
+                      height: 6,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: _BlockNeon.panelRaised,
+                          valueColor: const AlwaysStoppedAnimation<Color>(_BlockNeon.cyan),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 6),
-              _MissionSummary(
-                targetScore: widget.level.targetScore,
-                targetLines: widget.level.targetLines,
-                targetCombo: widget.level.targetCombo,
-                scoreCompleted: _scoreMissionCompleted,
-                linesCompleted: _lineMissionCompleted,
-                comboCompleted: _comboMissionCompleted,
-              ),
-              const SizedBox(height: 7),
 
               Expanded(
                 child: Stack(
@@ -1769,29 +1936,10 @@ class _BlockPlayPageState extends State<BlockPlayPage> {
                 ),
               ),
 
-              const SizedBox(height: 5),
-
-              Row(
-                children: [
-                  Icon(Icons.bolt_rounded, color: _BlockNeon.cyan, size: 18),
-                  SizedBox(width: 6),
-                  Expanded(
-                    child: LText(
-                      'Bloğa dokunduğun anda kalkar. Parmağını bırakınca otomatik yerleşir.',
-                      style: TextStyle(
-                        fontFamily: 'Roboto',
-                        color: _BlockNeon.muted,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
               const SizedBox(height: 6),
 
               SizedBox(
-                height: 108,
+                height: 96,
                 child: Row(
                   children: List.generate(3, (index) {
                     return Expanded(
@@ -2293,150 +2441,6 @@ class _ColorBlock extends StatelessWidget {
   }
 }
 
-class _GameHeader extends StatelessWidget {
-  final int score;
-  final int clearedLines;
-  final int targetLines;
-  final int moves;
-  final int bestCombo;
-
-  const _GameHeader({
-    required this.score,
-    required this.clearedLines,
-    required this.targetLines,
-    required this.moves,
-    required this.bestCombo,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _stat(context, 'PUAN', '$score', _BlockNeon.orange),
-        const SizedBox(width: 6),
-        _stat(context, 'SIRA', '$clearedLines/$targetLines', _BlockNeon.green),
-        const SizedBox(width: 6),
-        _stat(context, 'HAMLE', '$moves', _BlockNeon.cyan),
-        const SizedBox(width: 6),
-        _stat(context, 'COMBO', 'x$bestCombo', _BlockNeon.pink),
-      ],
-    );
-  }
-
-  Widget _stat(BuildContext context, String title, String value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: _BlockNeon.panel,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _BlockNeon.line.withValues(alpha: 0.7)),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: color.withValues(alpha: 0.12),
-              blurRadius: 10,
-              spreadRadius: 0.5,
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            LText(
-              value,
-              style: TextStyle(
-                fontFamily: 'Roboto',
-                color: color,
-                fontWeight: FontWeight.w900,
-                fontSize: 14,
-              ),
-            ),
-            LText(
-              title,
-              style: TextStyle(
-                fontFamily: 'Roboto',
-                color: _BlockNeon.muted,
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MissionSummary extends StatelessWidget {
-  final int targetScore;
-  final int targetLines;
-  final int targetCombo;
-  final bool scoreCompleted;
-  final bool linesCompleted;
-  final bool comboCompleted;
-
-  const _MissionSummary({
-    required this.targetScore,
-    required this.targetLines,
-    required this.targetCombo,
-    required this.scoreCompleted,
-    required this.linesCompleted,
-    required this.comboCompleted,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: _BlockNeon.panel,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: _BlockNeon.line),
-      ),
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 10,
-        runSpacing: 4,
-        children: [
-          _missionItem(completed: scoreCompleted, text: '$targetScore puan'),
-          _missionItem(completed: linesCompleted, text: '$targetLines sıra'),
-          if (targetCombo > 0)
-            _missionItem(
-              completed: comboCompleted,
-              text: 'x$targetCombo kombo',
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _missionItem({required bool completed, required String text}) {
-    final Color color = completed ? _BlockNeon.green : _BlockNeon.muted;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          completed
-              ? Icons.check_circle_rounded
-              : Icons.radio_button_unchecked_rounded,
-          size: 14,
-          color: color,
-        ),
-        const SizedBox(width: 4),
-        LText(
-          text,
-          style: TextStyle(
-            fontFamily: 'Roboto',
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _ProgressPanel extends StatelessWidget {
   final int score;
   final int stars;
@@ -2555,6 +2559,135 @@ class _LevelCard extends StatelessWidget {
     best: bestScore,
     onTap: onTap,
   );
+}
+
+class _BlockQuickResumeCard extends StatelessWidget {
+  final int levelNumber;
+  final String levelTitle;
+  final String difficulty;
+  final VoidCallback onPlay;
+
+  const _BlockQuickResumeCard({
+    required this.levelNumber,
+    required this.levelTitle,
+    required this.difficulty,
+    required this.onPlay,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const Color accent = StudioVisuals.teal;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: StudioVisuals.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.bolt_rounded, color: accent, size: 20),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 2,
+                  children: [
+                    const Text(
+                      'SIRADAKİ PARKUR',
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        color: accent,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        difficulty,
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          color: accent,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Bölüm $levelNumber • $levelTitle',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.ink,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: onPlay,
+            style: FilledButton.styleFrom(
+              backgroundColor: accent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.play_arrow_rounded, size: 16),
+                SizedBox(width: 2),
+                Text(
+                  'OYNA',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ResultBox extends StatelessWidget {

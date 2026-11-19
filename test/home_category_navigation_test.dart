@@ -64,6 +64,8 @@ void main() {
               )
               .first,
         );
+        await tester.ensureVisible(category);
+        await tester.pumpAndSettle(const Duration(milliseconds: 50));
         await tester.tap(category);
         await tester.pumpAndSettle(const Duration(milliseconds: 50));
 

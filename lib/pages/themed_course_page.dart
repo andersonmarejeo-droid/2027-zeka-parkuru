@@ -707,7 +707,7 @@ class _ThemedCoursePageState extends State<ThemedCoursePage> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          definition.title(english: english),
+          context.l10n.gameTitle(definition.id),
           style: const TextStyle(
             color: StudioVisuals.ink,
             fontWeight: FontWeight.w900,
@@ -866,7 +866,7 @@ class _ThemedCourseHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      definition.title(english: english),
+                      context.l10n.gameTitle(definition.id),
                       style: const TextStyle(
                         color: StudioVisuals.ink,
                         fontSize: 20,

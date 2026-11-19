@@ -370,7 +370,7 @@ class _LeagueHero extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      context.l10n.level.toUpperCase(),
+                      context.l10n.uppercaseLabel(context.l10n.level),
                       style: TextStyle(
                         color: StudioVisuals.muted,
                         fontSize: 8,
@@ -392,14 +392,19 @@ class _LeagueHero extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const Spacer(),
-              Text(
-                data.xpForNextLevel <= 0
-                    ? (english ? 'Maximum level' : 'En yüksek seviye')
-                    : english
-                    ? '${data.xpForNextLevel - data.xpIntoLevel} to level ${data.level + 1}'
-                    : 'Seviye ${data.level + 1} için ${data.xpForNextLevel - data.xpIntoLevel} puan',
-                style: const TextStyle(color: StudioVisuals.muted, fontSize: 9),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  data.xpForNextLevel <= 0
+                      ? (english ? 'Maximum level' : 'En yüksek seviye')
+                      : english
+                      ? '${data.xpForNextLevel - data.xpIntoLevel} to level ${data.level + 1}'
+                      : 'Seviye ${data.level + 1} için ${data.xpForNextLevel - data.xpIntoLevel} puan',
+                  textAlign: TextAlign.end,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: StudioVisuals.muted, fontSize: 9),
+                ),
               ),
             ],
           ),

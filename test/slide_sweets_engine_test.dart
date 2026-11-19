@@ -3,17 +3,39 @@ import 'package:zeka_parkuru/games/slide_sweets/slide_sweets_engine.dart';
 import 'package:zeka_parkuru/games/slide_sweets/slide_sweets_scenario.dart';
 
 void main() {
-  test('two diverters route successive colour orders into the right lanes', () {
+  test('single diverter in early levels routes successive colour orders into lanes', () {
     final SlideSweetsScenario wave = SlideSweetsScenario.forLevel(1);
+    expect(wave.gateCount, 1);
     final SlideSweetsEngine engine = SlideSweetsEngine(scenario: wave);
+    expect(engine.gateCount, 1);
+    // Order 0 is lane 0 (Gül / top) -> set diverter 0 to -1 (ÜST)
+    expect(engine.setDiverter(0, -1), isTrue);
+
+    for (int frame = 0; frame < 38; frame++) {
+      engine.step(.05);
+    }
+    // Following order is lane 1 (Bal / middle) -> set diverter 0 to 0 (ORTA)
+    expect(engine.setDiverter(0, 0), isTrue);
+    for (int frame = 0; frame < 200 && engine.deliveredCount < 2; frame++) {
+      engine.step(.05);
+    }
+
+    expect(engine.deliveredCount, 2);
+    expect(engine.missedCount, 0);
+    expect(engine.isComplete, isFalse);
+  });
+
+  test('two diverters in level 11+ route successive colour orders into the right lanes', () {
+    final SlideSweetsScenario wave = SlideSweetsScenario.forLevel(11);
+    expect(wave.gateCount, 2);
+    final SlideSweetsEngine engine = SlideSweetsEngine(scenario: wave);
+    expect(engine.gateCount, 2);
     expect(engine.setDiverter(0, 0), isTrue);
     expect(engine.setDiverter(1, -1), isTrue);
 
     for (int frame = 0; frame < 43; frame++) {
       engine.step(.05);
     }
-    // The berry has cleared gate two; the following honey order must keep the
-    // centre exit straight through that same switch.
     expect(engine.setDiverter(1, 0), isTrue);
     for (int frame = 0; frame < 200 && engine.deliveredCount < 2; frame++) {
       engine.step(.05);
@@ -31,7 +53,7 @@ void main() {
         scenario: SlideSweetsScenario.forLevel(4),
       );
       expect(engine.setDiverter(-1, 0), isFalse);
-      expect(engine.setDiverter(2, 0), isFalse);
+      expect(engine.setDiverter(1, 0), isFalse); // Only 1 gate in level 4
       expect(engine.setDiverter(0, 2), isFalse);
       expect(() => engine.laneForOrder(-1), throwsRangeError);
       expect(() => engine.laneForOrder(99), throwsRangeError);

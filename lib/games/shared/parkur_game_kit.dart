@@ -99,8 +99,13 @@ class ParkurProgressStore {
   final SharedPreferencesAsync _prefs = SharedPreferencesAsync();
   final String prefix;
   final int levelCount;
+  final bool endless;
 
-  ParkurProgressStore({required this.prefix, required this.levelCount});
+  ParkurProgressStore({
+    required this.prefix,
+    required this.levelCount,
+    this.endless = false,
+  });
 
   Future<ParkurProgressSnapshot> load() async {
     final int unlocked = await _prefs.getInt('${prefix}_unlocked_level') ?? 1;
@@ -114,21 +119,43 @@ class ParkurProgressStore {
       '${prefix}_common_points',
     );
 
-    final decodedStars = _decode(storedStars, stars: true);
-    int safeUnlocked = unlocked.clamp(1, levelCount).toInt();
-    if (unlocked > levelCount) {
-      safeUnlocked = levelCount;
-    }
+    final int star30 = storedStars != null &&
+            storedStars.length >= GameContentPolicy.campaignLevels
+        ? (int.tryParse(storedStars[GameContentPolicy.campaignLevels - 1]) ?? 0)
+        : 0;
+    final bool hasGenuinePost30 = endless && star30 > 0;
+    final int effectiveLength = hasGenuinePost30
+        ? max(
+            levelCount,
+            max(
+              unlocked,
+              max(storedStars?.length ?? 0, storedScores?.length ?? 0),
+            ),
+          )
+        : levelCount;
+
+    final decodedStars = _decode(storedStars, effectiveLength, stars: true);
+    final int safeUnlocked = hasGenuinePost30
+        ? max(1, unlocked)
+        : unlocked.clamp(1, levelCount).toInt();
     return ParkurProgressSnapshot(
       unlockedLevel: safeUnlocked,
       stars: decodedStars,
-      bestScores: _decode(storedScores),
-      commonPoints: _decodeCommonPoints(storedCommonPoints, decodedStars),
+      bestScores: _decode(storedScores, effectiveLength),
+      commonPoints: _decodeCommonPoints(
+        storedCommonPoints,
+        decodedStars,
+        effectiveLength,
+      ),
     );
   }
 
-  List<int> _decodeCommonPoints(List<String>? source, List<int> stars) {
-    return List<int>.generate(levelCount, (int index) {
+  List<int> _decodeCommonPoints(
+    List<String>? source,
+    List<int> stars,
+    int targetLength,
+  ) {
+    return List<int>.generate(targetLength, (int index) {
       if (source != null && index < source.length) {
         return (int.tryParse(source[index]) ?? 0)
             .clamp(0, CommonLevelScoreSession.pointsPerLevel)
@@ -142,8 +169,8 @@ class ParkurProgressStore {
     }, growable: false);
   }
 
-  List<int> _decode(List<String>? source, {bool stars = false}) {
-    return List<int>.generate(levelCount, (int index) {
+  List<int> _decode(List<String>? source, int targetLength, {bool stars = false}) {
+    return List<int>.generate(targetLength, (int index) {
       if (source == null || index >= source.length) return 0;
       final int value = max(0, int.tryParse(source[index]) ?? 0);
       return stars ? value.clamp(0, 3).toInt() : value;
@@ -161,8 +188,11 @@ class ParkurProgressStore {
     final List<String>? storedCommonPoints = await _prefs.getStringList(
       commonPointsKey,
     );
+    final int effectiveMaxLevel = endless
+        ? max(levelCount, max(data.unlockedLevel, data.stars.length))
+        : levelCount;
     final int retainedLength = max(
-      levelCount,
+      effectiveMaxLevel,
       max(
         max(storedStars?.length ?? 0, storedScores?.length ?? 0),
         storedCommonPoints?.length ?? 0,
@@ -174,9 +204,12 @@ class ParkurProgressStore {
     final int clampedStoredUnlock = storedUnlocked
         .clamp(1, retainedLength)
         .toInt();
+    final int targetUnlock = endless
+        ? max(1, data.unlockedLevel)
+        : data.unlockedLevel.clamp(1, levelCount).toInt();
     await _prefs.setInt(
       unlockedKey,
-      max(clampedStoredUnlock, data.unlockedLevel.clamp(1, levelCount).toInt()),
+      max(clampedStoredUnlock, targetUnlock),
     );
     await _prefs.setStringList(
       starsKey,
@@ -187,7 +220,7 @@ class ParkurProgressStore {
       _mergeStoredTail(data.bestScores, storedScores),
     );
     final List<int> commonPoints = data.commonPoints.isEmpty
-        ? List<int>.generate(levelCount, (int index) {
+        ? List<int>.generate(effectiveMaxLevel, (int index) {
             return index < data.stars.length && data.stars[index] > 0
                 ? CommonLevelScoreSession.pointsPerLevel
                 : 0;
@@ -267,7 +300,8 @@ class ParkurLevelHub extends StatefulWidget {
 
 class _ParkurLevelHubState extends State<ParkurLevelHub> {
   late final ParkurProgressStore _store;
-  late final List<ParkurLevelSpec> _levels;
+  late List<ParkurLevelSpec> _levels;
+  final ScrollController _scrollController = ScrollController();
   bool _opening = false;
   bool get _standard => GameContentPolicy.standardGames.contains(widget.gameId);
   final GameAudioService _audio = GameAudioService.instance;
@@ -281,55 +315,107 @@ class _ParkurLevelHubState extends State<ParkurLevelHub> {
 
   int get _totalStars => _stars.fold<int>(0, (int a, int b) => a + b);
   int get _totalScore => _bestScores.fold<int>(0, (int a, int b) => a + b);
+  int get _totalCommonPoints => _commonPoints.fold<int>(0, (int a, int b) => a + b);
+
+  List<ParkurLevelSpec> _generateLevels(int targetLevel) {
+    final int count = targetLevel >= 26
+        ? max(GameContentPolicy.campaignLevels, targetLevel + 5)
+        : GameContentPolicy.campaignLevels;
+    if (!_standard) {
+      if (widget.levels.length >= count) {
+        return widget.levels.take(count).toList();
+      }
+      return List<ParkurLevelSpec>.generate(count, (index) {
+        final chapter = index + 1;
+        final source = GameContentPolicy.endlessHighChapter(chapter);
+        final base = widget.levels[(source - 1) % widget.levels.length];
+        return base.campaignCopy(
+          number: chapter,
+          difficulty: GameContentPolicy.difficulty(chapter),
+        );
+      });
+    }
+    final int stages = GameContentPolicy.nativeStages(widget.gameId);
+    return List<ParkurLevelSpec>.generate(count, (index) {
+      final chapter = index + 1;
+      final source = GameContentPolicy.nativeLevel(
+        chapter,
+        stages: stages,
+      );
+      final base =
+          widget.levels[(source - 1).clamp(0, widget.levels.length - 1)];
+      String title(String value) => value.replaceFirst(
+        RegExp(r'\s+\d+$'),
+        ' ${chapter.toString().padLeft(2, '0')}',
+      );
+      return base.campaignCopy(
+        number: chapter,
+        sourceNumber: source,
+        titleTr: title(base.titleTr),
+        titleEn: title(base.titleEn),
+        difficulty: GameContentPolicy.difficulty(chapter),
+      );
+    });
+  }
 
   @override
   void initState() {
     super.initState();
-    _levels = _standard
-        ? List<ParkurLevelSpec>.generate(GameContentPolicy.campaignLevels, (
-            index,
-          ) {
-            final chapter = index + 1;
-            final stages = GameContentPolicy.nativeStages(widget.gameId);
-            final source = GameContentPolicy.nativeLevel(
-              chapter,
-              stages: stages,
-            );
-            final base =
-                widget.levels[(source - 1).clamp(0, widget.levels.length - 1)];
-            String title(String value) => value.replaceFirst(
-              RegExp(r'\s+\d+$'),
-              ' ${chapter.toString().padLeft(2, '0')}',
-            );
-            return base.campaignCopy(
-              number: chapter,
-              sourceNumber: source,
-              titleTr: title(base.titleTr),
-              titleEn: title(base.titleEn),
-              difficulty: GameContentPolicy.difficulty(chapter),
-            );
-          }, growable: false)
-        : widget.levels;
+    _levels = _generateLevels(1);
     _store = ParkurProgressStore(
       prefix: widget.progressPrefix,
-      levelCount: _levels.length,
+      levelCount: GameContentPolicy.campaignLevels,
+      endless: true,
     );
     unawaited(_load());
     unawaited(_audio.preload(GameAudioGroup.ui));
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     final ParkurProgressSnapshot data = await _store.load();
     if (!mounted) return;
+    final levels = _generateLevels(data.unlockedLevel);
+    final stars = List<int>.from(data.stars);
+    final bestScores = List<int>.from(data.bestScores);
+    final commonPoints = List<int>.from(data.commonPoints);
+    while (stars.length < levels.length) {
+      stars.add(0);
+    }
+    while (bestScores.length < levels.length) {
+      bestScores.add(0);
+    }
+    while (commonPoints.length < levels.length) {
+      commonPoints.add(0);
+    }
+
     setState(() {
       _unlockedLevel = data.unlockedLevel;
-      _stars = List<int>.from(data.stars);
-      _bestScores = List<int>.from(data.bestScores);
-      _commonPoints = List<int>.from(data.commonPoints);
+      _levels = levels;
+      _stars = stars;
+      _bestScores = bestScores;
+      _commonPoints = commonPoints;
       _loading = false;
     });
 
     _openCompetitionLevelIfNeeded();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      if (_unlockedLevel > 2) {
+        final double targetOffset = (_unlockedLevel - 2) * 110.0;
+        _scrollController.animateTo(
+          targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
   }
 
   void _openCompetitionLevelIfNeeded() {
@@ -480,9 +566,21 @@ class _ParkurLevelHubState extends State<ParkurLevelHub> {
           _commonPoints[activeIndex],
           commonPoints,
         );
-        if (activeIndex + 1 == _unlockedLevel &&
-            _unlockedLevel < _levels.length) {
+        if (activeIndex + 1 == _unlockedLevel) {
           _unlockedLevel++;
+          if (_unlockedLevel + 3 >= _levels.length) {
+            final nextLevels = _generateLevels(_unlockedLevel);
+            while (_stars.length < nextLevels.length) {
+              _stars.add(0);
+            }
+            while (_bestScores.length < nextLevels.length) {
+              _bestScores.add(0);
+            }
+            while (_commonPoints.length < nextLevels.length) {
+              _commonPoints.add(0);
+            }
+            _levels = nextLevels;
+          }
         }
       });
 
@@ -507,9 +605,24 @@ class _ParkurLevelHubState extends State<ParkurLevelHub> {
         continue;
       }
 
-      if (completedResult.nextLevel && activeIndex + 1 < _levels.length) {
+      if (completedResult.nextLevel) {
         _opening = true;
         activeIndex++;
+        if (activeIndex >= _levels.length) {
+          final nextLevels = _generateLevels(activeIndex + 1);
+          while (_stars.length < nextLevels.length) {
+            _stars.add(0);
+          }
+          while (_bestScores.length < nextLevels.length) {
+            _bestScores.add(0);
+          }
+          while (_commonPoints.length < nextLevels.length) {
+            _commonPoints.add(0);
+          }
+          setState(() {
+            _levels = nextLevels;
+          });
+        }
         await Future<void>.delayed(const Duration(milliseconds: 160));
         continue;
       }
@@ -561,78 +674,95 @@ class _ParkurLevelHubState extends State<ParkurLevelHub> {
               ? const Center(child: CircularProgressIndicator())
               : LayoutBuilder(
                   builder: (BuildContext context, BoxConstraints limits) {
-                    final bool compactHeight = limits.maxHeight < 650;
-                    return Column(
-                      children: <Widget>[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
-                          child: _ProgressPanel(
-                            gameId: widget.gameId,
-                            accent: widget.accent,
-                            icon: widget.icon,
-                            totalScore: _totalScore,
-                            totalStars: _totalStars,
-                            unlockedLevel: _unlockedLevel,
-                            levelCount: _levels.length,
-                            english: english,
+                    final bool compact = limits.maxWidth < 360;
+                    final bool isLandscape = limits.maxWidth > limits.maxHeight;
+
+                    return CustomScrollView(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: <Widget>[
+                        SliverToBoxAdapter(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+                                child: _ProgressPanel(
+                                  gameId: widget.gameId,
+                                  accent: widget.accent,
+                                  icon: widget.icon,
+                                  totalScore: _totalScore,
+                                  totalCommonPoints: _totalCommonPoints,
+                                  totalStars: _totalStars,
+                                  unlockedLevel: _unlockedLevel,
+                                  levelCount: _levels.length,
+                                  english: english,
+                                ),
+                              ),
+                              if (_unlockedLevel <= _levels.length)
+                                _ParkurQuickResumeCard(
+                                  levelNumber: _unlockedLevel,
+                                  levelTitle:
+                                      _levels[_unlockedLevel - 1].title(english),
+                                  difficulty: _levels[_unlockedLevel - 1].difficulty,
+                                  accent: widget.accent,
+                                  onPlay: () => _openLevel(_unlockedLevel - 1),
+                                ),
+                              if (GameInstructionCatalog.forGame(widget.gameId) !=
+                                  null)
+                                GameInstructionCard(
+                                  gameId: widget.gameId,
+                                  english: english,
+                                  initiallyExpanded: false,
+                                ),
+                              if (!_standard && widget.hubAction != null)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    child: widget.hubAction,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
-                        if (GameInstructionCatalog.forGame(widget.gameId) !=
-                            null)
-                          GameInstructionCard(
-                            gameId: widget.gameId,
-                            english: english,
-                            initiallyExpanded: !compactHeight,
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(
+                            compact ? 12 : 16,
+                            0,
+                            compact ? 12 : 16,
+                            30,
                           ),
-                        if (!_standard && widget.hubAction != null)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: widget.hubAction,
+                          sliver: SliverGrid(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: isLandscape ? 2 : 1,
+                              crossAxisSpacing: compact ? 10 : 14,
+                              mainAxisSpacing: 10,
+                              mainAxisExtent:
+                                  104 *
+                                  MediaQuery.textScalerOf(context)
+                                      .scale(1)
+                                      .clamp(1.0, 1.6),
                             ),
-                          ),
-                        Expanded(
-                          child: LayoutBuilder(
-                            builder:
-                                (BuildContext context, BoxConstraints limits) {
-                                  final bool compact = limits.maxWidth < 360;
-                                  return GridView.builder(
-                                    padding: EdgeInsets.fromLTRB(
-                                      compact ? 12 : 18,
-                                      0,
-                                      compact ? 12 : 18,
-                                      30,
-                                    ),
-                                    itemCount: _levels.length,
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: 1,
-                                          crossAxisSpacing: compact ? 10 : 14,
-                                          mainAxisSpacing: 10,
-                                          mainAxisExtent:
-                                              104 *
-                                              MediaQuery.textScalerOf(context)
-                                                  .scale(1)
-                                                  .clamp(1.0, 1.6),
-                                        ),
-                                    itemBuilder:
-                                        (BuildContext context, int index) {
-                                          return _LevelCard(
-                                            gameId: widget.gameId,
-                                            level: _levels[index],
-                                            accent: widget.accent,
-                                            unlocked:
-                                                index + 1 <= _unlockedLevel,
-                                            stars: _stars[index],
-                                            bestScore: _bestScores[index],
-                                            english: english,
-                                            prominent: true,
-                                            onTap: () => _openLevel(index),
-                                          );
-                                        },
-                                  );
-                                },
+                            delegate: SliverChildBuilderDelegate(
+                              (BuildContext context, int index) {
+                                return _LevelCard(
+                                  gameId: widget.gameId,
+                                  level: _levels[index],
+                                  accent: widget.accent,
+                                  unlocked:
+                                      index + 1 <= _unlockedLevel,
+                                  stars: _stars[index],
+                                  bestScore: _bestScores[index],
+                                  commonPoints: _commonPoints[index],
+                                  english: english,
+                                  prominent: true,
+                                  onTap: () => _openLevel(index),
+                                );
+                              },
+                              childCount: _levels.length,
+                            ),
                           ),
                         ),
                       ],
@@ -650,6 +780,7 @@ class _ProgressPanel extends StatelessWidget {
   final Color accent;
   final IconData icon;
   final int totalScore;
+  final int totalCommonPoints;
   final int totalStars;
   final int unlockedLevel;
   final int levelCount;
@@ -660,6 +791,7 @@ class _ProgressPanel extends StatelessWidget {
     required this.accent,
     required this.icon,
     required this.totalScore,
+    required this.totalCommonPoints,
     required this.totalStars,
     required this.unlockedLevel,
     required this.levelCount,
@@ -700,14 +832,14 @@ class _ProgressPanel extends StatelessWidget {
                   color: StudioVisuals.amberInk,
                 ),
                 _HubStat(
-                  label: context.l10n.gameUi(english ? 'SCORE' : 'PUAN'),
-                  value: '$totalScore',
-                  color: StudioVisuals.ink,
+                  label: 'ZP',
+                  value: '$totalCommonPoints',
+                  color: StudioVisuals.tealInk,
                 ),
                 _HubStat(
                   label: context.l10n.gameUi(english ? 'OPEN' : 'AÇIK'),
                   value: '$unlockedLevel/$levelCount',
-                  color: StudioVisuals.tealInk,
+                  color: StudioVisuals.ink,
                 ),
               ],
             ),
@@ -764,6 +896,138 @@ class _HubStat extends StatelessWidget {
   }
 }
 
+class _ParkurQuickResumeCard extends StatelessWidget {
+  final int levelNumber;
+  final String levelTitle;
+  final String difficulty;
+  final Color accent;
+  final VoidCallback onPlay;
+
+  const _ParkurQuickResumeCard({
+    required this.levelNumber,
+    required this.levelTitle,
+    required this.difficulty,
+    required this.accent,
+    required this.onPlay,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: StudioVisuals.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.bolt_rounded, color: accent, size: 20),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 2,
+                  children: [
+                    Text(
+                      'SIRADAKİ PARKUR',
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        color: accent,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        difficulty,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Roboto',
+                          color: accent,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Bölüm $levelNumber • $levelTitle',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: StudioVisuals.ink,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: onPlay,
+            style: FilledButton.styleFrom(
+              backgroundColor: accent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.play_arrow_rounded, size: 16),
+                SizedBox(width: 2),
+                Text(
+                  'OYNA',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _LevelCard extends StatelessWidget {
   final String gameId;
   final ParkurLevelSpec level;
@@ -771,6 +1035,7 @@ class _LevelCard extends StatelessWidget {
   final bool unlocked;
   final int stars;
   final int bestScore;
+  final int commonPoints;
   final bool english;
   final bool prominent;
   final VoidCallback onTap;
@@ -782,6 +1047,7 @@ class _LevelCard extends StatelessWidget {
     required this.unlocked,
     required this.stars,
     required this.bestScore,
+    this.commonPoints = 0,
     required this.english,
     required this.prominent,
     required this.onTap,
@@ -898,7 +1164,27 @@ class _LevelCard extends StatelessWidget {
                         size: 18,
                       ),
                     const Spacer(),
-                    if (bestScore > 0)
+                    if (commonPoints > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: StudioVisuals.tealSoft,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '+$commonPoints ZP',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: StudioVisuals.tealInk,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      )
+                    else if (bestScore > 0)
                       Text(
                         '$bestScore',
                         style: const TextStyle(
@@ -1041,7 +1327,27 @@ class _LevelCard extends StatelessWidget {
                             ),
                           ),
                         const Spacer(),
-                        if (bestScore > 0)
+                        if (commonPoints > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: StudioVisuals.tealSoft,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '+$commonPoints ZP',
+                              style: const TextStyle(
+                                fontFamily: 'Roboto',
+                                color: StudioVisuals.tealInk,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          )
+                        else if (bestScore > 0)
                           Text(
                             '$bestScore',
                             style: const TextStyle(
@@ -1163,16 +1469,48 @@ Future<ParkurResultAction?> showParkurResultDialog({
                       ),
                   ],
                 ),
-                const SizedBox(height: 9),
-                Text(
-                  '$score ${context.l10n.gameUi(english ? 'POINTS' : 'PUAN')}',
-                  style: const TextStyle(
-                    fontFamily: 'Roboto',
-                    color: StudioVisuals.ink,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
+                const SizedBox(height: 10),
+                Builder(
+                  builder: (BuildContext context) {
+                    final int earnedZp = CommonLevelScoreSession.isActive
+                        ? CommonLevelScoreSession.activePoints
+                        : (stars == 3 ? 10 : (stars == 2 ? 8 : (stars >= 1 ? 6 : 0)));
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: StudioVisuals.tealSoft,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: StudioVisuals.teal.withValues(alpha: 0.22),
+                        ),
+                      ),
+                      child: Text(
+                        '+$earnedZp ZP',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          color: StudioVisuals.tealInk,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    );
+                  },
                 ),
+                if (score > 0) ...<Widget>[
+                  const SizedBox(height: 6),
+                  Text(
+                    '$score ${context.l10n.gameUi(english ? 'POINTS' : 'PUAN')}',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      color: StudioVisuals.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 17),
                 StudioGameActions(
                   children: <Widget>[
@@ -1191,9 +1529,13 @@ Future<ParkurResultAction?> showParkurResultDialog({
                           ),
                         ),
                         icon: const Icon(Icons.autorenew_rounded),
-                        label: Text(
-                          context.l10n.gameUi(
-                            english ? 'NEW ROUND' : 'YENİ TUR',
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            context.l10n.gameUi(
+                              english ? 'NEW ROUND' : 'YENİ TUR',
+                            ),
+                            maxLines: 1,
                           ),
                         ),
                       ),
@@ -1222,15 +1564,19 @@ Future<ParkurResultAction?> showParkurResultDialog({
                               ? Icons.arrow_forward_rounded
                               : Icons.map_rounded,
                         ),
-                        label: Text(
-                          context.l10n.gameUi(
-                            canGoNext
-                                ? english
-                                      ? 'NEXT'
-                                      : 'SONRAKİ'
-                                : english
-                                ? 'MAP'
-                                : 'HARİTA',
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            context.l10n.gameUi(
+                              canGoNext
+                                  ? english
+                                        ? 'NEXT'
+                                        : 'SONRAKİ'
+                                  : english
+                                  ? 'MAP'
+                                  : 'HARİTA',
+                            ),
+                            maxLines: 1,
                           ),
                         ),
                       ),

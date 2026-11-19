@@ -695,7 +695,7 @@ class _GalleryPainter extends CustomPainter {
       _centerText(
         canvas,
         plaque,
-        preview.label(english).toUpperCase(),
+        uppercaseUiText(preview.label(english), english: english),
         const Color(0xFFF3E9D7),
         size.width * .025,
       );

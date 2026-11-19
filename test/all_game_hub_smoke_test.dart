@@ -135,7 +135,7 @@ const List<(String, Widget)> _gameHubs = <(String, Widget)>[
   ('Kilit Aç', PinUnlockGamePage()),
   ('Ağırlık Dengesi', BalanceScaleGamePage()),
   ('Hedef 24', Target24GamePage()),
-  ('Mini Sudoku 6×6', MiniSudokuGamePage()),
+  ('Su Doku', MiniSudokuGamePage()),
   ('KenKen Küpü', KenKenCubeGamePage()),
   ('Mahjong Katmanları', MahjongLayersGamePage()),
   ('Mayın Dedektifi', MineDetectorGamePage()),

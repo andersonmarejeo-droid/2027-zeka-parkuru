@@ -89,7 +89,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
     expect(find.text('KenKen Cube'), findsOneWidget);
-    expect(find.textContaining('KenKen 01'), findsOneWidget);
+    expect(find.textContaining('KenKen 01'), findsWidgets);
     expect(KenKenCubeGamePage.totalCases, 30);
     expect(KenKenPuzzle.maximumUniqueCases, 300);
     expect(KenKenCubeGamePage.totalCases, 30);

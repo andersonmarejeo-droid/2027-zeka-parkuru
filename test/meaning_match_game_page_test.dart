@@ -53,7 +53,7 @@ void main() {
     final List<MeaningTile> group = scenario.tiles
         .where((MeaningTile tile) => tile.categoryId == category.id)
         .toList(growable: false);
-    expect(group, hasLength(4));
+    expect(group, hasLength(scenario.wordsPerCategory));
 
     for (final MeaningTile tile in group) {
       await tester.tap(find.text(tile.word));

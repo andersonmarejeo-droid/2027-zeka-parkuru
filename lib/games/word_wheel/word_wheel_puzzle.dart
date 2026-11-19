@@ -20,9 +20,16 @@ class WordWheelPuzzle {
   static const int poolSize = GameContentPolicy.wordWheelPoolSize;
   static final Map<String, List<WordWheelPuzzle>> _poolCache = {};
 
+  static String canonicalLocale(String languageCode) {
+    final String code = languageCode.toLowerCase();
+    if (code == 'tr') return 'tr';
+    if (code == 'ar') return 'ar';
+    return 'en';
+  }
+
   static WordWheelPuzzle forPool(int index, {String languageCode = 'tr'}) {
     RangeError.checkValueInInterval(index, 1, poolSize, 'index');
-    final locale = languageCode.toLowerCase() == 'tr' ? 'tr' : 'en';
+    final locale = canonicalLocale(languageCode);
     final pool = _poolCache.putIfAbsent(locale, () => <WordWheelPuzzle>[]);
     final templates =
         List<WordWheelPuzzle>.generate(
@@ -51,7 +58,7 @@ class WordWheelPuzzle {
           level: next,
           attempt: attempt,
         );
-        final packs = (locale == 'tr' ? _turkishPacks : _englishPacks)
+        final packs = _packsFor(locale)
             .where(
               (pack) =>
                   _letters(pack.anchor).length ==
@@ -138,7 +145,7 @@ class WordWheelPuzzle {
     if (level < 1 || level > maximumLevels) {
       throw RangeError.range(level, 1, maximumLevels, 'level');
     }
-    final String locale = languageCode.toLowerCase() == 'tr' ? 'tr' : 'en';
+    final String locale = canonicalLocale(languageCode);
     final List<WordWheelPuzzle> campaign = _campaignCache.putIfAbsent(
       locale,
       () => _generateCampaign(locale),
@@ -150,19 +157,41 @@ class WordWheelPuzzle {
 
   /// Returns true for a target or bonus word in the wider language pool.
   /// Target words remain separate in [answers] and still control completion.
+  ///
+  /// Words with fewer than 4 letters are strictly rejected.
   bool isKnownWord(String value) {
     final String normalized = _normalize(value, languageCode);
-    return validWords.contains(normalized) ||
-        wordWheelLexicon(languageCode).contains(normalized);
+    if (normalized.runes.length < 4) return false;
+    return answers.contains(normalized) ||
+        validWords.contains(normalized) ||
+        wordWheelLexicon(languageCode).contains(normalized) ||
+        _allPacksWordSet(languageCode).contains(normalized);
+  }
+
+  static final Map<String, Set<String>> _packsWordCache = {};
+  static Set<String> _allPacksWordSet(String locale) {
+    final String canon = canonicalLocale(locale);
+    return _packsWordCache.putIfAbsent(canon, () {
+      final packs = _packsFor(canon);
+      final set = <String>{};
+      for (final pack in packs) {
+        set.add(_normalize(pack.anchor, canon));
+        for (final w in pack.words) {
+          set.add(_normalize(w, canon));
+        }
+      }
+      return set;
+    });
   }
 
   /// Checks that a known word can be made from this wheel.
   ///
+  /// Words with fewer than 4 letters are never accepted.
   /// When [jokerLetter] is supplied it is added as the single wildcard tile,
   /// so a joker cannot silently create more than one missing letter.
   bool canBuildWord(String value, {String? jokerLetter}) {
     final String normalized = _normalize(value, languageCode);
-    if (normalized.runes.length < 2 || !isKnownWord(normalized)) return false;
+    if (normalized.runes.length < 4 || !isKnownWord(normalized)) return false;
     final List<String> available = <String>[...wheelLetters];
     if (jokerLetter != null && jokerLetter.isNotEmpty) {
       available.add(_normalize(jokerLetter, languageCode));
@@ -178,16 +207,15 @@ class WordWheelPuzzle {
   static List<String> _validWords(_WheelPack pack) => pack.words
       .where(
         (String word) =>
-            _letters(word).length >= 2 &&
+            _letters(word).length >= 4 &&
             _canBuild(word, _letters(pack.anchor)),
       )
       .toSet()
       .toList(growable: false);
 
   static List<WordWheelPuzzle> _generateCampaign(String locale) {
-    final List<_WheelPack> packs = locale == 'tr'
-        ? _turkishPacks
-        : _englishPacks;
+    final String canon = canonicalLocale(locale);
+    final List<_WheelPack> packs = _packsFor(canon);
     final List<WordWheelPuzzle> puzzles = <WordWheelPuzzle>[];
     final Set<String> usedAnchors = <String>{};
     final Set<String> signatures = <String>{};
@@ -203,7 +231,7 @@ class WordWheelPuzzle {
       };
       bool added = false;
       final math.Random random = ContentSeed.randomFor(
-        gameId: 'word_wheel:$locale',
+        gameId: 'word_wheel:$canon',
         level: level,
       );
       final List<_WheelPack> orderedPacks = List<_WheelPack>.from(packs);
@@ -229,7 +257,7 @@ class WordWheelPuzzle {
 
           final List<String> wheel = _letters(pack.anchor).toList();
           if (chapter == 2) {
-            final List<String> decoys = _alphabetFor(locale)
+            final List<String> decoys = _alphabetFor(canon)
                 .where((String letter) => !wheel.contains(letter))
                 .toList(growable: false);
             if (decoys.isNotEmpty) {
@@ -239,7 +267,7 @@ class WordWheelPuzzle {
           _shuffle(wheel, random);
           final WordWheelPuzzle puzzle = WordWheelPuzzle(
             level: level,
-            languageCode: locale,
+            languageCode: canon,
             anchor: pack.anchor,
             wheelLetters: List<String>.unmodifiable(wheel),
             answers: List<String>.unmodifiable(selected),
@@ -256,7 +284,7 @@ class WordWheelPuzzle {
       }
       if (!added) {
         throw StateError(
-          'Could not create unique word-wheel level $level for $locale.',
+          'Could not create unique word-wheel level $level for $canon.',
         );
       }
     }
@@ -274,7 +302,7 @@ class WordWheelPuzzle {
         .where(
           (String word) =>
               word != anchor &&
-              _letters(word).length >= 2 &&
+              _letters(word).length >= 4 &&
               _canBuild(word, anchorLetters),
         )
         .toSet()
@@ -325,75 +353,47 @@ class WordWheelPuzzle {
 
   static String _normalize(String value, String locale) {
     final String trimmed = value.trim();
-    if (locale.toLowerCase() != 'tr') return trimmed.toUpperCase();
-
-    // Dart's Unicode uppercasing is locale-independent: lowercase `i` would
-    // become `I`, which merges it with Turkish dotless `ı`. Keep both letters
-    // distinct so the Turkish wheel accepts the spelling represented by its
-    // actual tiles.
-    return trimmed.replaceAll('i', 'İ').replaceAll('ı', 'I').toUpperCase();
+    final String canon = canonicalLocale(locale);
+    if (canon == 'tr') {
+      return trimmed.replaceAll('i', 'İ').replaceAll('ı', 'I').toUpperCase();
+    }
+    if (canon == 'ar') {
+      return trimmed
+          .replaceAll(RegExp(r'[\u064B-\u065F\u0670]'), '')
+          .replaceAll(RegExp(r'[أإآ]'), 'ا');
+    }
+    return trimmed.toUpperCase();
   }
 
-  static List<String> _alphabetFor(String locale) => locale == 'tr'
-      ? const <String>[
-          'A',
-          'B',
-          'C',
-          'Ç',
-          'D',
-          'E',
-          'F',
-          'G',
-          'Ğ',
-          'H',
-          'I',
-          'İ',
-          'J',
-          'K',
-          'L',
-          'M',
-          'N',
-          'O',
-          'Ö',
-          'P',
-          'R',
-          'S',
-          'Ş',
-          'T',
-          'U',
-          'Ü',
-          'V',
-          'Y',
-          'Z',
-        ]
-      : const <String>[
-          'A',
-          'B',
-          'C',
-          'D',
-          'E',
-          'F',
-          'G',
-          'H',
-          'I',
-          'J',
-          'K',
-          'L',
-          'M',
-          'N',
-          'O',
-          'P',
-          'Q',
-          'R',
-          'S',
-          'T',
-          'U',
-          'V',
-          'W',
-          'X',
-          'Y',
-          'Z',
-        ];
+  static List<String> _alphabetFor(String locale) {
+    final String canon = canonicalLocale(locale);
+    if (canon == 'tr') {
+      return const <String>[
+        'A', 'B', 'C', 'Ç', 'D', 'E', 'F', 'G', 'Ğ', 'H', 'I', 'İ',
+        'J', 'K', 'L', 'M', 'N', 'O', 'Ö', 'P', 'R', 'S', 'Ş', 'T',
+        'U', 'Ü', 'V', 'Y', 'Z',
+      ];
+    }
+    if (canon == 'ar') {
+      return const <String>[
+        'ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س',
+        'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م',
+        'ن', 'ه', 'و', 'ي', 'ة',
+      ];
+    }
+    return const <String>[
+      'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
+      'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
+      'Y', 'Z',
+    ];
+  }
+
+  static List<_WheelPack> _packsFor(String locale) {
+    final String canon = canonicalLocale(locale);
+    if (canon == 'tr') return _turkishPacks;
+    if (canon == 'ar') return _arabicPacks;
+    return _englishPacks;
+  }
 
   static void _shuffle<T>(List<T> values, math.Random random) {
     for (int index = values.length - 1; index > 0; index--) {
@@ -415,25 +415,43 @@ class _WheelPack {
 const List<_WheelPack> _turkishPacks = <_WheelPack>[
   _WheelPack(
     anchor: 'KALEM',
-    words: <String>['KALEM', 'ELMA', 'KELAM', 'KAL', 'KEL', 'KAM', 'ELA'],
+    words: <String>['KALEM', 'ELMA', 'KELAM', 'KALE', 'MEAL', 'AMEL', 'KAME', 'KEMAL'],
   ),
   _WheelPack(
     anchor: 'KARTON',
     words: <String>[
       'KARTON',
       'KART',
-      'KOR',
-      'TON',
-      'TAR',
-      'NAR',
-      'KOT',
-      'NOT',
-      'KAN',
+      'KOTRA',
+      'KANTO',
+      'NOKTA',
+      'ORTAK',
+      'TORNA',
+      'AKOR',
+      'KOTA',
+      'ORTA',
+      'ROTA',
+      'TANK',
+      'ORAN',
     ],
   ),
   _WheelPack(
     anchor: 'KAMERA',
-    words: <String>['KAMERA', 'KARE', 'KARA', 'KAMA', 'ARMA', 'KREM', 'KAMER'],
+    words: <String>[
+      'KAMERA',
+      'KARE',
+      'KARA',
+      'KAMA',
+      'ARMA',
+      'KREM',
+      'KAMER',
+      'MARKA',
+      'RAKAM',
+      'MERAK',
+      'KREMA',
+      'ARKA',
+      'ARAK',
+    ],
   ),
   _WheelPack(
     anchor: 'KAPLAN',
@@ -442,11 +460,13 @@ const List<_WheelPack> _turkishPacks = <_WheelPack>[
       'KAPAN',
       'KANAL',
       'PLAN',
-      'KAP',
-      'KAN',
-      'KAL',
-      'PAL',
       'ALAN',
+      'PALAN',
+      'PLAKA',
+      'APAK',
+      'ANKA',
+      'LAPA',
+      'PALA',
     ],
   ),
   _WheelPack(
@@ -456,15 +476,35 @@ const List<_WheelPack> _turkishPacks = <_WheelPack>[
       'PARA',
       'KARA',
       'PARK',
-      'KAP',
-      'KAR',
-      'RAM',
-      'ARP',
+      'ARPA',
+      'ARKA',
+      'MARKA',
+      'RAKAM',
+      'RAMP',
+      'KRAMP',
+      'ARMA',
+      'KAMA',
+      'ARAK',
     ],
   ),
   _WheelPack(
-    anchor: 'ARABA',
-    words: <String>['ARABA', 'BARA', 'ARA', 'ABA', 'BAR', 'AR', 'BA'],
+    anchor: 'KESTANE',
+    words: <String>[
+      'KESTANE',
+      'TANE',
+      'KASE',
+      'KAST',
+      'KESAT',
+      'TANK',
+      'KANTE',
+      'KESEN',
+      'ENSE',
+      'SENET',
+      'ETEN',
+      'TEKE',
+      'ETEK',
+      'KENE',
+    ],
   ),
   _WheelPack(
     anchor: 'SATIR',
@@ -473,101 +513,295 @@ const List<_WheelPack> _turkishPacks = <_WheelPack>[
       'SIRT',
       'SARI',
       'SIRA',
-      'ART',
-      'TAR',
-      'ARI',
-      'TAS',
-      'TIR',
+      'ARTI',
+      'ASIR',
     ],
   ),
   _WheelPack(
     anchor: 'MANTIK',
     words: <String>[
       'MANTIK',
+      'MANTI',
+      'TAKIM',
+      'TIKMA',
+      'TANIK',
+      'KANIT',
       'AKIT',
-      'KAT',
-      'MAT',
-      'TAM',
-      'TAN',
-      'ANT',
-      'KIN',
-      'KAN',
+      'ATIK',
+      'KATI',
+      'KITA',
+      'ATKI',
+      'TANI',
+      'TANK',
+      'KANI',
     ],
   ),
   _WheelPack(
-    anchor: 'DENİZ',
-    words: <String>['DENİZ', 'DİN', 'DİZ', 'İZ', 'DEN', 'ZEN', 'NEZ', 'İN'],
+    anchor: 'MERSİN',
+    words: <String>[
+      'MERSİN',
+      'RESMİ',
+      'SİREN',
+      'İSME',
+      'SİNE',
+      'EMİR',
+      'ESİR',
+      'ESİN',
+      'ERİN',
+      'REİS',
+      'SERİ',
+      'MİNE',
+      'MENİ',
+    ],
   ),
   _WheelPack(
     anchor: 'BAHÇELİ',
     words: <String>[
       'BAHÇELİ',
       'BAHÇE',
-      'BAL',
-      'BEL',
-      'İLE',
-      'ÇİL',
-      'EL',
-      'BAH',
-      'AÇ',
+      'BİLE',
+      'BALE',
+      'İLÇE',
+      'İHALE',
+      'İLAH',
+      'ÇİLE',
+      'HEBA',
+      'HALE',
+      'HELA',
+      'ALİÇ',
+      'ÇALİ',
     ],
   ),
   _WheelPack(
-    anchor: 'GÖLGE',
-    words: <String>['GÖLGE', 'GÖL', 'GÖLE', 'GEL', 'EGE', 'ÖL', 'EL'],
+    anchor: 'TOPRAK',
+    words: <String>[
+      'TOPRAK',
+      'ORTAK',
+      'KORAT',
+      'PARKO',
+      'PARK',
+      'KART',
+      'ORTA',
+      'ROTA',
+      'AKOR',
+      'KOTA',
+      'POTA',
+      'TOKA',
+      'TRAP',
+    ],
   ),
   _WheelPack(
-    anchor: 'GÜNEŞ',
-    words: <String>['GÜNEŞ', 'GÜN', 'ŞEN', 'EŞ', 'ÜN', 'NEŞE', 'EŞE'],
+    anchor: 'MARKET',
+    words: <String>[
+      'MARKET',
+      'MERAK',
+      'MAKET',
+      'MATER',
+      'KREMA',
+      'KAMER',
+      'KARE',
+      'KREM',
+      'MERT',
+      'MERA',
+      'META',
+      'TERK',
+      'TEMA',
+      'KART',
+    ],
   ),
   _WheelPack(
-    anchor: 'KÖPRÜ',
-    words: <String>['KÖPRÜ', 'KÖR', 'KÜR', 'KÖP', 'ÖP', 'KÜP'],
+    anchor: 'BARDAK',
+    words: <String>[
+      'BARDAK',
+      'KABRA',
+      'ARDA',
+      'DARA',
+      'KABA',
+      'BARA',
+      'KARA',
+      'ARKA',
+      'ARAK',
+      'BARK',
+      'ABRA',
+    ],
   ),
   _WheelPack(
-    anchor: 'SÖZLÜK',
-    words: <String>['SÖZLÜK', 'SÖZ', 'ÖZ', 'KÖZ', 'KÜL', 'SÖK', 'KÜS'],
+    anchor: 'KARDELEN',
+    words: <String>[
+      'KARDELEN',
+      'KADER',
+      'DEKAN',
+      'ERKAN',
+      'KANEL',
+      'KALE',
+      'KARE',
+      'KENE',
+      'KLAN',
+      'DERE',
+      'DANE',
+      'EDER',
+      'ELAN',
+      'EREN',
+      'ELEK',
+    ],
   ),
   _WheelPack(
-    anchor: 'KELEBEK',
-    words: <String>['KELEBEK', 'LEKE', 'KEK', 'BEL', 'KEL', 'EKE', 'EKLE'],
-  ),
-  _WheelPack(
-    anchor: 'KİTAP',
-    words: <String>['KİTAP', 'KAT', 'KAP', 'TAK', 'PAT', 'PAK', 'PİK'],
-  ),
-  _WheelPack(
-    anchor: 'YELKEN',
-    words: <String>['YELKEN', 'YEL', 'EL', 'KEL', 'EK', 'KEN', 'YEN', 'KENE'],
+    anchor: 'PORTAKAL',
+    words: <String>[
+      'PORTAKAL',
+      'ORTAK',
+      'POLAR',
+      'TOPAL',
+      'PARKA',
+      'TARLA',
+      'PARK',
+      'KART',
+      'ORTA',
+      'ROTA',
+      'POTA',
+      'TOKA',
+      'KOLA',
+      'ALTO',
+      'LAPA',
+      'PALA',
+      'KOTA',
+      'ARAP',
+      'ARPA',
+      'ARKA',
+      'KARA',
+      'ORAL',
+    ],
   ),
   _WheelPack(
     anchor: 'SANDAL',
     words: <String>[
       'SANDAL',
-      'DANA',
       'ALAN',
+      'DANA',
       'SANA',
-      'DAL',
-      'SAL',
-      'AND',
-      'NAL',
-      'ANA',
+      'SALA',
+      'ASLA',
+      'ASAL',
+      'ANAS',
+      'NALA',
+      'ASAN',
+      'ADAN',
     ],
   ),
   _WheelPack(
-    anchor: 'OYUNCAK',
-    words: <String>['OYUNCAK', 'OYUN', 'CAN', 'YOK', 'KAN', 'ONA', 'KAY'],
+    anchor: 'BAYRAK',
+    words: <String>[
+      'BAYRAK',
+      'KABRA',
+      'BARA',
+      'KARA',
+      'KABA',
+      'ARKA',
+      'ARAK',
+      'AYAR',
+      'AYAK',
+      'KAYA',
+      'YAKA',
+      'ABRA',
+      'BARK',
+    ],
   ),
   _WheelPack(
-    anchor: 'KAVUN',
-    words: <String>['KAVUN', 'KAN', 'VAN', 'UN', 'AV', 'AK', 'AN'],
+    anchor: 'MANDALİNA',
+    words: <String>[
+      'MANDALİNA',
+      'MANDAL',
+      'ADANA',
+      'DAMA',
+      'DANA',
+      'ALAN',
+      'İMAN',
+      'İNAL',
+      'AMAN',
+      'ANAM',
+      'MANA',
+      'MANİ',
+      'MAİN',
+      'MİNA',
+    ],
+  ),
+  _WheelPack(
+    anchor: 'KAYNAK',
+    words: <String>[
+      'KAYNAK',
+      'KANAK',
+      'KAYAN',
+      'YANAK',
+      'AKAN',
+      'ANKA',
+      'AYAN',
+      'AYAK',
+      'KAYA',
+      'YAKA',
+      'KANA',
+    ],
+  ),
+  _WheelPack(
+    anchor: 'BALIKÇI',
+    words: <String>[
+      'BALIKÇI',
+      'BALIK',
+      'BALÇIK',
+      'ÇALIK',
+      'BIÇAK',
+      'AÇLIK',
+      'AKIL',
+      'ALIK',
+      'ILIK',
+      'AÇIK',
+      'AÇKI',
+      'ÇAKI',
+      'ÇALI',
+      'KALI',
+      'BAKI',
+    ],
+  ),
+  _WheelPack(
+    anchor: 'ZEYTİNLİK',
+    words: <String>[
+      'ZEYTİNLİK',
+      'ZEYTİN',
+      'YETKİ',
+      'TEKİN',
+      'ETKİN',
+      'KİTLE',
+      'KİLİT',
+      'İNTEL',
+      'İLKE',
+      'EKİN',
+      'KİLE',
+      'NİTEL',
+      'EZİK',
+    ],
+  ),
+  _WheelPack(
+    anchor: 'ÇİKOLATA',
+    words: <String>[
+      'ÇİKOLATA',
+      'ÇATAL',
+      'ALTO',
+      'KOLA',
+      'ATOL',
+      'TOKA',
+      'TAKO',
+      'ATİK',
+      'LATA',
+      'ÇİTA',
+      'KİLO',
+      'AKİT',
+    ],
   ),
 ];
 
 const List<_WheelPack> _englishPacks = <_WheelPack>[
   _WheelPack(
     anchor: 'CARES',
-    words: <String>['CARES', 'SCARE', 'RACE', 'CASE', 'ACRES', 'SCAR', 'CARE'],
+    words: <String>['CARES', 'SCARE', 'RACE', 'CASE', 'ACRES', 'SCAR', 'CARE', 'EARS', 'SEAR', 'ARCS'],
   ),
   _WheelPack(
     anchor: 'STONER',
@@ -580,6 +814,9 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'NOTES',
       'TONES',
       'STERN',
+      'ROTE',
+      'NOSE',
+      'TORE',
     ],
   ),
   _WheelPack(
@@ -593,6 +830,10 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'TILES',
       'TINS',
       'TIES',
+      'SITE',
+      'LINT',
+      'LENT',
+      'NEST',
     ],
   ),
   _WheelPack(
@@ -606,6 +847,10 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'TARES',
       'RATES',
       'STAR',
+      'DATE',
+      'DEAR',
+      'REST',
+      'TEAR',
     ],
   ),
   _WheelPack(
@@ -621,6 +866,9 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'PANE',
       'PANT',
       'TEAL',
+      'PALE',
+      'LEAN',
+      'NEAT',
     ],
   ),
   _WheelPack(
@@ -634,6 +882,10 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'USER',
       'SURE',
       'CUES',
+      'SEER',
+      'CURE',
+      'RUSE',
+      'ECRU',
     ],
   ),
   _WheelPack(
@@ -648,6 +900,10 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'STARE',
       'TEARS',
       'STAR',
+      'TEAM',
+      'MEAT',
+      'STEM',
+      'MATE',
     ],
   ),
   _WheelPack(
@@ -662,6 +918,9 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'RANT',
       'TORN',
       'TARO',
+      'ROAN',
+      'ANTI',
+      'INTO',
     ],
   ),
   _WheelPack(
@@ -675,6 +934,8 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'ORAL',
       'ALSO',
       'COAL',
+      'SOAR',
+      'COLA',
     ],
   ),
   _WheelPack(
@@ -689,6 +950,8 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'PARK',
       'RASP',
       'PEAR',
+      'REAP',
+      'RAKE',
     ],
   ),
   _WheelPack(
@@ -703,6 +966,8 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'AIRS',
       'RASH',
       'CASH',
+      'RICH',
+      'ARCH',
     ],
   ),
   _WheelPack(
@@ -712,11 +977,10 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'BIRTH',
       'RIGHT',
       'GIRTH',
-      'RIG',
-      'BIG',
-      'RIB',
-      'HIT',
       'GRIT',
+      'GIRT',
+      'BRIG',
+      'TRIG',
     ],
   ),
   _WheelPack(
@@ -729,7 +993,8 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'POLY',
       'LORD',
       'LOUD',
-      'OLD',
+      'DROP',
+      'ROUP',
     ],
   ),
   _WheelPack(
@@ -744,6 +1009,9 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'CARED',
       'RATED',
       'TREAD',
+      'CARD',
+      'DARE',
+      'DEAR',
     ],
   ),
   _WheelPack(
@@ -758,6 +1026,10 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'SHEAR',
       'TEARS',
       'STAR',
+      'HEAT',
+      'HATE',
+      'HEAR',
+      'REST',
     ],
   ),
   _WheelPack(
@@ -769,9 +1041,11 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'COLD',
       'LOUD',
       'SOUL',
-      'OLD',
       'CLOD',
-      'COD',
+      'COLDS',
+      'SCUD',
+      'DUOS',
+      'LUDO',
     ],
   ),
   _WheelPack(
@@ -786,6 +1060,9 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'MEAN',
       'MARE',
       'NEAR',
+      'MINE',
+      'EARN',
+      'RAMI',
     ],
   ),
   _WheelPack(
@@ -800,6 +1077,9 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'PATS',
       'PINS',
       'TAPS',
+      'SPAT',
+      'PAST',
+      'SPIT',
     ],
   ),
   _WheelPack(
@@ -814,6 +1094,8 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'DARE',
       'DEAR',
       'READ',
+      'RANG',
+      'AGED',
     ],
   ),
   _WheelPack(
@@ -829,6 +1111,91 @@ const List<_WheelPack> _englishPacks = <_WheelPack>[
       'RATE',
       'TEAR',
       'CART',
+      'RARE',
+      'REAR',
     ],
+  ),
+];
+
+const List<_WheelPack> _arabicPacks = <_WheelPack>[
+  _WheelPack(
+    anchor: 'مسافر',
+    words: <String>['مسافر', 'مسار', 'فارس', 'سامر', 'سافر', 'فراس', 'مفرس', 'سمار', 'رسام'],
+  ),
+  _WheelPack(
+    anchor: 'اشجارة',
+    words: <String>['اشجارة', 'اشجار', 'شجار', 'شارج', 'جاشر', 'اشرا', 'راجش', 'جارا', 'راجا', 'جارة', 'راجة'],
+  ),
+  _WheelPack(
+    anchor: 'حاسوبات',
+    words: <String>['حاسوبات', 'حاسوب', 'حساب', 'سحاب', 'سباح', 'سواح', 'حسوب', 'سبات', 'سابت'],
+  ),
+  _WheelPack(
+    anchor: 'بساتين',
+    words: <String>['بساتين', 'بستان', 'نبات', 'سبات', 'بانت', 'تاسن', 'سابت', 'تبيان', 'بنات'],
+  ),
+  _WheelPack(
+    anchor: 'مكتوبات',
+    words: <String>['مكتوبات', 'مكتوب', 'كتاب', 'كاتب', 'مكتب', 'مكاتب', 'تواب', 'كواب', 'بكات'],
+  ),
+  _WheelPack(
+    anchor: 'معماريون',
+    words: <String>['معماريون', 'معماري', 'عامر', 'معمار', 'عمار', 'مرام', 'عمري', 'رميم', 'موران'],
+  ),
+  _WheelPack(
+    anchor: 'صداقات',
+    words: <String>['صداقات', 'صادق', 'قاصد', 'صداق', 'قصاد', 'صدقا', 'صادقا', 'دقات'],
+  ),
+  _WheelPack(
+    anchor: 'صناعات',
+    words: <String>['صناعات', 'صانع', 'ناصع', 'ناعص', 'صناع', 'عانص', 'عصات', 'نعات'],
+  ),
+  _WheelPack(
+    anchor: 'تجارات',
+    words: <String>['تجارات', 'تاجر', 'تارات', 'جارا', 'راجا', 'تجار', 'تراج', 'رتاج'],
+  ),
+  _WheelPack(
+    anchor: 'سيارات',
+    words: <String>['سيارات', 'يسار', 'ياسر', 'ساري', 'ساير', 'تيسار', 'سيرات', 'تيار'],
+  ),
+  _WheelPack(
+    anchor: 'انهارات',
+    words: <String>['انهارات', 'انهار', 'نهار', 'راهن', 'اهران', 'ناهر', 'هانر', 'رانها', 'انها', 'تهار', 'ناهت'],
+  ),
+  _WheelPack(
+    anchor: 'مسافرات',
+    words: <String>['مسافرات', 'مسافر', 'مسار', 'فارس', 'سامر', 'سافر', 'فراس', 'مفرس', 'سمار', 'رسام', 'سفارات', 'مسرات'],
+  ),
+  _WheelPack(
+    anchor: 'شريعات',
+    words: <String>['شريعات', 'شريع', 'شعير', 'عشرات', 'شارع', 'رعيات', 'عاشر'],
+  ),
+  _WheelPack(
+    anchor: 'ميادين',
+    words: <String>['ميادين', 'مدين', 'ميدان', 'دينام', 'نامي', 'يمان', 'ناديم', 'ديام'],
+  ),
+  _WheelPack(
+    anchor: 'زراعات',
+    words: <String>['زراعات', 'زارع', 'عزار', 'عازر', 'زعات', 'تارع', 'عزات'],
+  ),
+  _WheelPack(
+    anchor: 'جامعات',
+    words: <String>['جامعات', 'جامع', 'عاجات', 'تاجع', 'متاع', 'جماعات', 'عجام'],
+  ),
+  _WheelPack(
+    anchor: 'قناديل',
+    words: <String>['قناديل', 'قنديل', 'نادي', 'لادن', 'داني', 'قلند', 'قيان', 'ليندا', 'نديل'],
+  ),
+  _WheelPack(
+    anchor: 'حديقات',
+    words: <String>['حديقات', 'حديق', 'قادت', 'حادق', 'تادي', 'حداق', 'قتاد'],
+  ),
+  _WheelPack(
+    anchor: 'كواكبنا',
+    words: <String>['كواكبنا', 'كواكب', 'كوكب', 'كابك', 'واكب', 'كواب', 'بنوك', 'كاوان'],
+  ),
+  _WheelPack(
+    anchor: 'زهورنا',
+    words: <String>['زهورنا', 'زهور', 'زاهر', 'هارون', 'واهن', 'واهر', 'زاهن', 'نهور'],
   ),
 ];

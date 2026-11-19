@@ -34,14 +34,24 @@ class ConveyorStepResult {
 }
 
 /// Deterministic conveyor simulation. Diverters are persistent, while the
-/// coloured packets move concurrently through both junctions.
+/// coloured packets move concurrently through junctions.
 class SlideSweetsEngine {
-  SlideSweetsEngine({required this.scenario});
+  SlideSweetsEngine({required this.scenario})
+      : _diverters = List<int>.filled(scenario.gateCount, 0);
 
-  static const List<double> gatePositions = <double>[.32, .66];
+  static const List<double> dualGatePositions = <double>[.32, .66];
+  static const List<double> singleGatePositions = <double>[.48];
+  static const List<double> gatePositions = dualGatePositions;
+
+  List<double> get activeGatePositions => scenario.gateCount == 1
+      ? singleGatePositions
+      : dualGatePositions;
+
+  int get gateCount => scenario.gateCount;
+
   final SlideSweetsScenario scenario;
   final List<ConveyorSweet> _active = <ConveyorSweet>[];
-  final List<int> _diverters = <int>[0, 0];
+  final List<int> _diverters;
   int _nextOrder = 0;
   int _delivered = 0;
   int _missed = 0;
@@ -112,11 +122,12 @@ class SlideSweetsEngine {
         1.04,
         sweet.progress + delta * scenario.beltSpeed * (surge ? 1.34 : 1),
       );
-      for (int gate = 0; gate < gatePositions.length; gate++) {
+      final List<double> positions = activeGatePositions;
+      for (int gate = 0; gate < positions.length; gate++) {
         final int bit = 1 << gate;
         if ((sweet._passedGates & bit) == 0 &&
-            previous < gatePositions[gate] &&
-            sweet.progress >= gatePositions[gate]) {
+            previous < positions[gate] &&
+            sweet.progress >= positions[gate]) {
           sweet.lane = (sweet.lane + _diverters[gate]).clamp(0, 2).toInt();
           sweet._passedGates |= bit;
           gatesPassed++;

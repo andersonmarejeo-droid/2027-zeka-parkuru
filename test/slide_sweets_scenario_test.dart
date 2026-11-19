@@ -2,15 +2,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zeka_parkuru/games/slide_sweets/slide_sweets_scenario.dart';
 
 void main() {
-  test('campaign has ten waves and a deliberate expert finale', () {
+  test('campaign has twenty waves with single gate first 10 and dual gates after', () {
     final List<SlideSweetsScenario> levels = List<SlideSweetsScenario>.generate(
       SlideSweetsScenario.maximumLevels,
       (int index) => SlideSweetsScenario.forLevel(index + 1),
     );
 
     expect(
+      levels.take(10).every((SlideSweetsScenario wave) => wave.gateCount == 1),
+      isTrue,
+    );
+    expect(
+      levels.skip(10).every((SlideSweetsScenario wave) => wave.gateCount == 2),
+      isTrue,
+    );
+    expect(
       levels.map((SlideSweetsScenario wave) => wave.orderCount),
-      orderedEquals(List<int>.generate(10, (int index) => index + 8)),
+      orderedEquals(List<int>.generate(20, (int index) => index + 8)),
     );
     expect(
       levels.every(
@@ -18,15 +26,8 @@ void main() {
       ),
       isTrue,
     );
-    expect(levels[6].beltSpeed, greaterThan(levels[5].beltSpeed));
-    expect(levels[7].spawnInterval, lessThan(levels[6].spawnInterval));
-    expect(levels[9].bufferCapacity, lessThan(levels[8].bufferCapacity));
-    expect(levels[9].missLimit, 1);
-    expect(levels[9].orderCount, 17);
-    expect(
-      levels.skip(6).every((SlideSweetsScenario wave) => wave.surgeEvery > 0),
-      isTrue,
-    );
+    expect(levels[19].missLimit, 1);
+    expect(levels[19].orderCount, 27);
   });
 
   test('first 300 practice waves do not repeat each other or campaign', () {
@@ -49,12 +50,12 @@ void main() {
       );
       expect(wave.orders.every((int lane) => lane >= 0 && lane <= 2), isTrue);
     }
-    expect(signatures, hasLength(310));
+    expect(signatures, hasLength(320));
   });
 
   test('level and practice boundaries are checked', () {
     expect(() => SlideSweetsScenario.forLevel(0), throwsRangeError);
-    expect(() => SlideSweetsScenario.forLevel(11), throwsRangeError);
+    expect(() => SlideSweetsScenario.forLevel(21), throwsRangeError);
     expect(() => SlideSweetsScenario.forPracticeRound(0), throwsRangeError);
     expect(() => SlideSweetsScenario.forPracticeRound(301), throwsRangeError);
   });

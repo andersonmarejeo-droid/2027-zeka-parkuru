@@ -68,6 +68,7 @@ void main() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
+    // Seviye 4 tek kapılıdır (gateCount = 1)
     await _mount(
       tester,
       home: SlideSweetsPlayPage(level: _level(4), previousBestScore: 0),
@@ -88,19 +89,17 @@ void main() {
     );
     expect(
       find.byKey(const ValueKey<String>('slide_sweets_gate_1')),
-      findsOneWidget,
+      findsNothing,
     );
-    for (int gate = 0; gate < 2; gate++) {
-      for (final int direction in <int>[-1, 0, 1]) {
-        expect(
-          find.byKey(
-            ValueKey<String>(
-              'slide_sweets_gate_${gate}_direction_$direction',
-            ),
+    for (final int direction in <int>[-1, 0, 1]) {
+      expect(
+        find.byKey(
+          ValueKey<String>(
+            'slide_sweets_gate_0_direction_$direction',
           ),
-          findsOneWidget,
-        );
-      }
+        ),
+        findsOneWidget,
+      );
     }
     await tester.tap(
       find.byKey(
@@ -120,16 +119,17 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('English master line fits a tablet without clipping', (
+  testWidgets('English dual-gate line fits a tablet without clipping', (
     WidgetTester tester,
   ) async {
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
+    // Seviye 12 çift kapılıdır (gateCount = 2)
     await _mount(
       tester,
-      home: SlideSweetsPlayPage(level: _level(10), previousBestScore: 0),
+      home: SlideSweetsPlayPage(level: _level(12), previousBestScore: 0),
       size: const Size(800, 1280),
       locale: const Locale('en'),
     );
@@ -139,6 +139,7 @@ void main() {
     );
     expect(find.text('SWEET CONVEYOR'), findsOneWidget);
     expect(find.text('GATE 1'), findsOneWidget);
+    expect(find.text('GATE 2'), findsOneWidget);
     expect(find.text('MIDDLE BELT'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });

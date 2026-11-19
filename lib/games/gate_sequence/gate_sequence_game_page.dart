@@ -490,10 +490,12 @@ class _GateSequencePlayPageState extends State<GateSequencePlayPage> {
                 key: const ValueKey<String>('gate_sequence_check'),
                 onPressed: _checkOrder,
                 icon: const Icon(Icons.lock_open_rounded),
-                label: Text(
-                  _english ? 'VERIFY THE SEQUENCE' : 'DİZİYİ DOĞRULA',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    _english ? 'VERIFY THE SEQUENCE' : 'DİZİYİ DOĞRULA',
+                    maxLines: 1,
+                  ),
                 ),
                 style: FilledButton.styleFrom(
                   backgroundColor: _accent,
@@ -821,7 +823,7 @@ class _SectionLabel extends StatelessWidget {
           detail,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.end,
+          textAlign: TextAlign.start,
           style: const TextStyle(
             color: _GateSequencePlayPageState._muted,
             fontSize: 9,
@@ -1038,7 +1040,10 @@ class _ToolAction extends StatelessWidget {
   Widget build(BuildContext context) => TextButton.icon(
     onPressed: onPressed,
     icon: Icon(icon, size: 17),
-    label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+    label: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(label, maxLines: 1),
+    ),
     style: TextButton.styleFrom(
       foregroundColor: _GateSequencePlayPageState._muted,
       minimumSize: const Size(48, 44),

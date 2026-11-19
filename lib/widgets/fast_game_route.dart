@@ -31,12 +31,11 @@ Route<T> buildFastGameRoute<T>({
     settings: settings,
     opaque: true,
     barrierDismissible: false,
-    transitionDuration: Duration(
-      milliseconds: (190 * safeAnimationScale).round(),
-    ),
-    reverseTransitionDuration: Duration(
-      milliseconds: (150 * safeAnimationScale).round(),
-    ),
+    // Keep the destination fully opaque while it opens. Fading the whole game
+    // route exposed the previous screen underneath, making text and boards
+    // appear doubled in captures and during slower device transitions.
+    transitionDuration: Duration.zero,
+    reverseTransitionDuration: Duration.zero,
     pageBuilder: (context, animation, secondaryAnimation) {
       return Theme(
         data: ThemeData(
@@ -62,23 +61,8 @@ Route<T> buildFastGameRoute<T>({
         ),
       );
     },
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final Animation<double> curved = CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
-      );
-      return FadeTransition(
-        opacity: curved,
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0.018, 0),
-            end: Offset.zero,
-          ).animate(curved),
-          child: child,
-        ),
-      );
-    },
+    transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+        child,
   );
 }
 

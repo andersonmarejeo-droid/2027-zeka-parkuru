@@ -477,10 +477,12 @@ class _BridgeBuilderPlayPageState extends State<BridgeBuilderPlayPage> {
                 key: const ValueKey<String>('bridge_builder_check'),
                 onPressed: _checkNetwork,
                 icon: const Icon(Icons.hub_outlined),
-                label: Text(
-                  _english ? 'VERIFY NETWORK' : 'AĞI DOĞRULA',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    _english ? 'VERIFY NETWORK' : 'AĞI DOĞRULA',
+                    maxLines: 1,
+                  ),
                 ),
                 style: FilledButton.styleFrom(
                   backgroundColor: StudioGameClass.logic.accent,

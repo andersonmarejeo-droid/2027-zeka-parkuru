@@ -159,21 +159,35 @@ class _PicrossPlayPageState extends State<PicrossPlayPage> {
   int _checks = 0;
   int _elapsedSeconds = 0;
   double _zoom = 1;
-  bool _english = false;
   bool _finished = false;
-  bool _ready = false;
+  bool get _english => context.l10n.isEnglish;
 
   @override
   void initState() {
     super.initState();
+    _puzzle = (widget.level.poolIndex != null
+        ? PicrossPuzzle.forPracticeBoard(widget.level.contentIndex)
+        : PicrossPuzzle.forLevel(widget.level.contentLevel));
+    _marks = List<_PicrossMark>.filled(
+      _puzzle.size * _puzzle.size,
+      _PicrossMark.unknown,
+    );
+    _session = StudioGameSession(
+      level: widget.level.number,
+      seed: _puzzle.seed,
+    )..start();
+    _stopwatch.start();
+    _clock = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+      if (mounted && !_finished) {
+        setState(() => _elapsedSeconds = _stopwatch.elapsed.inSeconds);
+      }
+    });
     unawaited(_audioProfile.preload(_audio));
     unawaited(_prepareLevel());
   }
 
   Future<void> _prepareLevel() async {
-    PicrossPuzzle puzzle = (widget.level.poolIndex != null
-        ? PicrossPuzzle.forPracticeBoard(widget.level.contentIndex)
-        : PicrossPuzzle.forLevel(widget.level.contentLevel));
+    PicrossPuzzle puzzle = _puzzle;
     try {
       final SharedPreferencesAsync preferences = SharedPreferencesAsync();
       final String visitKey =
@@ -191,11 +205,8 @@ class _PicrossPlayPageState extends State<PicrossPlayPage> {
       await preferences.setInt(visitKey, visits + 1);
     } catch (_) {
       // Progress storage must never prevent a puzzle from opening.
-      puzzle = (widget.level.poolIndex != null
-          ? PicrossPuzzle.forPracticeBoard(widget.level.contentIndex)
-          : PicrossPuzzle.forLevel(widget.level.contentLevel));
     }
-    if (!mounted) return;
+    if (!mounted || puzzle == _puzzle) return;
     setState(() {
       _puzzle = puzzle;
       _marks = List<_PicrossMark>.filled(
@@ -206,13 +217,6 @@ class _PicrossPlayPageState extends State<PicrossPlayPage> {
         level: widget.level.number,
         seed: puzzle.seed,
       )..start();
-      _ready = true;
-    });
-    _stopwatch.start();
-    _clock = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
-      if (mounted && !_finished) {
-        setState(() => _elapsedSeconds = _stopwatch.elapsed.inSeconds);
-      }
     });
   }
 
@@ -478,26 +482,10 @@ class _PicrossPlayPageState extends State<PicrossPlayPage> {
 
   @override
   Widget build(BuildContext context) {
-    _english = context.l10n.isEnglish;
-    if (!_ready) {
-      return Scaffold(
-        backgroundColor: StudioVisuals.canvas,
-        appBar: AppBar(
-          backgroundColor: StudioVisuals.canvas,
-          foregroundColor: StudioVisuals.ink,
-          surfaceTintColor: Colors.transparent,
-          title: Text(_english ? 'PICROSS MASTER' : 'PICROSS USTASI'),
-        ),
-        body: const Center(child: CircularProgressIndicator(color: _accent)),
-      );
-    }
-    final int maxRowClues = _puzzle.rowClues.fold<int>(
-      1,
-      (int max, List<int> clue) => math.max(max, clue.length),
-    );
-    final double clueWidth = (maxRowClues * 17.0 + 8).clamp(30, 128).toDouble();
-    final double available = MediaQuery.sizeOf(context).width - 32 - clueWidth;
-    final double cellSide = (available / _puzzle.size).clamp(18, 34) * _zoom;
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final double clueWidth = (_puzzle.size >= 10 ? 44.0 : 36.0);
+    final double available = math.max(160, screenWidth - clueWidth - 44);
+    final double cellSide = (available / _puzzle.size).clamp(18, 36) * _zoom;
     final int progress = (_resolvedCells * 100 ~/ _marks.length).clamp(0, 100);
     final String time =
         '${(_elapsedSeconds ~/ 60).toString().padLeft(2, '0')}:${(_elapsedSeconds % 60).toString().padLeft(2, '0')}';
@@ -508,246 +496,185 @@ class _PicrossPlayPageState extends State<PicrossPlayPage> {
         backgroundColor: StudioVisuals.canvas,
         foregroundColor: StudioVisuals.ink,
         surfaceTintColor: Colors.transparent,
+        elevation: 0,
         titleSpacing: 12,
-        title: Text(
-          _english ? 'PICROSS MASTER' : 'PICROSS USTASI',
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        actions: <Widget>[
-          IconButton(
-            tooltip: _english ? 'How to play' : 'Nasıl oynanır?',
-            onPressed: _showHowToPlay,
-            icon: const Icon(Icons.help_outline_rounded),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(child: _LevelPill(level: widget.level.number)),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _ProgressCard(
-                size: _puzzle.size,
-                progress: progress,
-                resolved: _resolvedCells,
-                total: _marks.length,
-                time: time,
-              ),
-              const SizedBox(height: 12),
-              _BoardPanel(
-                puzzle: _puzzle,
-                marks: _marks,
-                cellSide: cellSide,
-                clueWidth: clueWidth,
-                english: _english,
-                lineIsResolved: _lineIsResolved,
-                rowIsCorrect: _rowIsCorrect,
-                columnIsCorrect: _columnIsCorrect,
-                onCellTap: _markCell,
-                onZoomOut: () => setState(
-                  () => _zoom = (_zoom - .2).clamp(.8, 2.4).toDouble(),
-                ),
-                onZoomIn: () => setState(
-                  () => _zoom = (_zoom + .2).clamp(.8, 2.4).toDouble(),
-                ),
-                zoom: _zoom,
-              ),
-              const SizedBox(height: 12),
-              _MarkPicker(
-                active: _activeMark,
-                onSelect: _selectMark,
-                english: _english,
-              ),
-              const SizedBox(height: 10),
-              _ActionRow(
-                canUndo: _undoStack.isNotEmpty,
-                english: _english,
-                onUndo: _undo,
-                onReset: _reset,
-                onHint: _showHint,
-              ),
-              if (_notice != null) ...<Widget>[
-                const SizedBox(height: 10),
-                _Notice(text: _notice!),
-              ],
-              const SizedBox(height: 14),
-              FilledButton.icon(
-                onPressed: _finished ? null : _checkBoard,
-                style: FilledButton.styleFrom(
-                  backgroundColor: _accent,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(52),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                icon: const Icon(Icons.fact_check_outlined),
-                label: Text(
-                  _english ? 'VERIFY SILHOUETTE' : 'SİLÜETİ DOĞRULA',
-                  style: const TextStyle(
-                    fontFamily: 'Roboto',
-                    fontSize: 12,
-                    letterSpacing: .5,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _english
-                    ? 'Each number gives the length of a consecutive filled group. Keep at least one empty cell between groups, mark every cell, then verify the silhouette.'
-                    : 'Her sayı art arda doldurulacak bir hücre grubunun uzunluğudur. Gruplar arasına en az bir boş hücre bırak; tüm kareleri işaretleyince silüeti doğrula.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.muted,
-                  fontSize: 11,
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LevelPill extends StatelessWidget {
-  const _LevelPill({required this.level});
-
-  final int level;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-    decoration: BoxDecoration(
-      color: StudioVisuals.surface,
-      borderRadius: BorderRadius.circular(99),
-      border: Border.all(color: StudioVisuals.line),
-    ),
-    child: Text(
-      context.l10n.levelOutOf(level, PicrossGamePage.totalCases),
-      style: const TextStyle(
-        fontFamily: 'Roboto',
-        color: _PicrossPlayPageState._ink,
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
-      ),
-    ),
-  );
-}
-
-class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({
-    required this.size,
-    required this.progress,
-    required this.resolved,
-    required this.total,
-    required this.time,
-  });
-
-  final int size;
-  final int progress;
-  final int resolved;
-  final int total;
-  final String time;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(16, 13, 16, 14),
-    decoration: BoxDecoration(
-      color: StudioVisuals.surface,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: StudioVisuals.line),
-      boxShadow: StudioVisuals.softShadow,
-    ),
-    child: Column(
-      children: <Widget>[
-        Row(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            const Icon(
-              Icons.grid_4x4_rounded,
-              size: 18,
-              color: _PicrossPlayPageState._accent,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                context.l10n.isEnglish
-                    ? '$size × $size LOGIC CANVAS'
-                    : '$size × $size MANTIK TUVALİ',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: _PicrossPlayPageState._ink,
-                  fontSize: 11,
-                  letterSpacing: .55,
-                  fontWeight: FontWeight.w900,
-                ),
+            Text(
+              _english ? 'PICROSS MASTER' : 'PICROSS USTASI',
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.6,
               ),
             ),
             Text(
-              time,
+              '${_english ? 'Level' : 'Bölüm'} ${widget.level.number} • ${_puzzle.size}×${_puzzle.size}',
               style: const TextStyle(
                 fontFamily: 'Roboto',
                 color: StudioVisuals.muted,
-                fontSize: 12,
-                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: LinearProgressIndicator(
-            value: progress / 100,
-            minHeight: 6,
-            backgroundColor: StudioVisuals.surfaceSoft,
-            valueColor: const AlwaysStoppedAnimation<Color>(
-              _PicrossPlayPageState._accent,
+        actions: <Widget>[
+          IconButton(
+            tooltip: _english ? 'How to Play' : 'Nasıl Oynanır',
+            icon: const Icon(Icons.help_outline_rounded, size: 22),
+            onPressed: _showHowToPlay,
+          ),
+        ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: ResponsiveGameFrame(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                // Kompakt Tek Satır Durum Çubuğu
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${_puzzle.size}×${_puzzle.size}',
+                          style: TextStyle(
+                            fontFamily: 'Roboto',
+                            color: _accent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$_resolvedCells/${_marks.length} ($progress%)',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          color: StudioVisuals.ink,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Icon(Icons.timer_outlined, size: 14, color: StudioVisuals.muted),
+                          const SizedBox(width: 3),
+                          Text(
+                            time,
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Genişletilmiş Picross Tahtası (Expanded + SingleChildScrollView)
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      child: _BoardPanel(
+                        puzzle: _puzzle,
+                        marks: _marks,
+                        cellSide: cellSide,
+                        clueWidth: clueWidth,
+                        english: _english,
+                        lineIsResolved: _lineIsResolved,
+                        rowIsCorrect: _rowIsCorrect,
+                        columnIsCorrect: _columnIsCorrect,
+                        onCellTap: _markCell,
+                        onZoomOut: () => setState(
+                          () => _zoom = (_zoom - .2).clamp(.8, 2.4).toDouble(),
+                        ),
+                        onZoomIn: () => setState(
+                          () => _zoom = (_zoom + .2).clamp(.8, 2.4).toDouble(),
+                        ),
+                        zoom: _zoom,
+                      ),
+                    ),
+                  ),
+                ),
+                if (_notice != null) ...<Widget>[
+                  const SizedBox(height: 4),
+                  _Notice(text: _notice!),
+                ],
+                const SizedBox(height: 6),
+                // İşaret Seçici (Kompakt Bar)
+                _MarkPicker(
+                  active: _activeMark,
+                  onSelect: _selectMark,
+                  english: _english,
+                ),
+                const SizedBox(height: 6),
+                // Alt Kontrol ve Doğrulama Butonları
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: _ActionRow(
+                        canUndo: _undoStack.isNotEmpty,
+                        english: _english,
+                        onUndo: _undo,
+                        onReset: _reset,
+                        onHint: _showHint,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: _finished ? null : _checkBoard,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _accent,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 42),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.fact_check_outlined, size: 17),
+                      label: Text(
+                        _english ? 'VERIFY' : 'DOŞRULA',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: <Widget>[
-            Text(
-              context.l10n.isEnglish ? 'RESOLVED' : 'KARAR VERİLDİ',
-              style: const TextStyle(
-                fontFamily: 'Roboto',
-                color: StudioVisuals.muted,
-                fontSize: 11,
-                letterSpacing: .7,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              '$resolved / $total',
-              style: const TextStyle(
-                fontFamily: 'Roboto',
-                color: _PicrossPlayPageState._ink,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 class _BoardPanel extends StatelessWidget {
@@ -1120,7 +1047,7 @@ class _MarkButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       child: Container(
         height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
@@ -1131,16 +1058,22 @@ class _MarkButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Icon(icon, size: 17, color: _PicrossPlayPageState._accent),
-            const SizedBox(width: 7),
-            Text(
-              label,
-              style: const TextStyle(
-                fontFamily: 'Roboto',
-                color: _PicrossPlayPageState._ink,
-                fontSize: 12,
-                letterSpacing: .4,
-                fontWeight: FontWeight.w900,
+            Icon(icon, size: 16, color: _PicrossPlayPageState._accent),
+            const SizedBox(width: 4),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: _PicrossPlayPageState._ink,
+                    fontSize: 12,
+                    letterSpacing: .4,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
             ),
           ],
@@ -1207,28 +1140,38 @@ class _SmallAction extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => OutlinedButton.icon(
+  Widget build(BuildContext context) => OutlinedButton(
     onPressed: onTap,
     style: OutlinedButton.styleFrom(
       foregroundColor: StudioVisuals.ink,
       backgroundColor: StudioVisuals.surface,
       minimumSize: const Size(0, 44),
-      padding: const EdgeInsets.symmetric(horizontal: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      visualDensity: VisualDensity.compact,
       side: const BorderSide(color: StudioVisuals.line),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
     ),
-    icon: Icon(icon, size: 15),
-    label: FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text(
-        label,
-        maxLines: 1,
-        style: const TextStyle(
-          fontFamily: 'Roboto',
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Icon(icon, size: 14),
+        const SizedBox(width: 2),
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
         ),
-      ),
+      ],
     ),
   );
 }

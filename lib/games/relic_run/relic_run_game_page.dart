@@ -312,7 +312,7 @@ class _RelicRunPlayPageState extends State<RelicRunPlayPage>
     if (result.accepted) {
       _feedback = _english
           ? '${_relicName(relic, true).toUpperCase()} RELIC · ROOM ${_engine.roomIndex + 1}'
-          : '${_relicName(relic, false).toUpperCase()} KALINTISI · ${_engine.roomIndex + 1}. ODA';
+          : '${context.l10n.uppercaseLabel(_relicName(relic, false))} KALINTISI · ${_engine.roomIndex + 1}. ODA';
       unawaited(_audioProfile.play(_audio, GameAudioEvent.accepted, gain: .2));
     }
     setState(() {});

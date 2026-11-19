@@ -137,6 +137,8 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
     StudioGameClass.language,
   );
   final Set<String> _foundWords = <String>{};
+  final Set<String> _bonusWords = <String>{};
+  final Set<String> _hintedWords = <String>{};
   late final StudioGameSession _session;
   WordWheelPuzzle? _puzzle;
   List<int> _wheelOrder = <int>[];
@@ -144,10 +146,12 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
   String? _jokerLetter;
   String? _notice;
   bool _english = false;
+  String _languageCode = 'tr';
   bool _finished = false;
   bool _dragging = false;
   int _hints = 0;
   int _attempts = 0;
+  Timer? _autoSubmitTimer;
 
   @override
   void initState() {
@@ -160,24 +164,37 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
   }
 
   @override
+  void dispose() {
+    _autoSubmitTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _english = context.l10n.isEnglish;
+    final String rawCode = Localizations.localeOf(context).languageCode;
+    _languageCode = WordWheelPuzzle.canonicalLocale(rawCode);
     if (_puzzle != null) return;
-    final String locale = _english ? 'en' : 'tr';
     _puzzle = widget.level.poolIndex == null
         ? WordWheelPuzzle.forLevel(
             widget.level.contentLevel,
-            languageCode: locale,
+            languageCode: _languageCode,
           )
         : WordWheelPuzzle.forPool(
             widget.level.contentIndex,
-            languageCode: locale,
+            languageCode: _languageCode,
           );
     _wheelOrder = List<int>.generate(
       _puzzle!.wheelLetters.length + 1,
       (int i) => i,
     );
+  }
+
+  String _t({required String tr, required String en, required String ar}) {
+    if (_languageCode == 'ar') return ar;
+    if (_languageCode == 'tr') return tr;
+    return en;
   }
 
   WordWheelPuzzle get _currentPuzzle => _puzzle!;
@@ -189,72 +206,26 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
     '?',
   ];
 
-  List<String> get _jokerKeyboardLetters => _english
-      ? const <String>[
-          'A',
-          'B',
-          'C',
-          'D',
-          'E',
-          'F',
-          'G',
-          'H',
-          'I',
-          'J',
-          'K',
-          'L',
-          'M',
-          'N',
-          'O',
-          'P',
-          'Q',
-          'R',
-          'S',
-          'T',
-          'U',
-          'V',
-          'W',
-          'X',
-          'Y',
-          'Z',
-        ]
-      : const <String>[
-          'A',
-          'B',
-          'C',
-          'Ç',
-          'D',
-          'E',
-          'F',
-          'G',
-          'Ğ',
-          'H',
-          'I',
-          'İ',
-          'J',
-          'K',
-          'L',
-          'M',
-          'N',
-          'O',
-          'Ö',
-          'P',
-          'R',
-          'S',
-          'Ş',
-          'T',
-          'U',
-          'Ü',
-          'V',
-          'Y',
-          'Z',
-        ];
-
-  int get _foundTargetCount =>
-      _foundWords.where(_currentPuzzle.isTargetWord).length;
+  List<String> get _jokerKeyboardLetters => switch (_languageCode) {
+    'tr' => const <String>[
+      'A', 'B', 'C', 'Ç', 'D', 'E', 'F', 'G', 'Ğ', 'H', 'I', 'İ',
+      'J', 'K', 'L', 'M', 'N', 'O', 'Ö', 'P', 'R', 'S', 'Ş', 'T',
+      'U', 'Ü', 'V', 'Y', 'Z',
+    ],
+    'ar' => const <String>[
+      'ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س',
+      'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م',
+      'ن', 'ه', 'و', 'ي', 'ة',
+    ],
+    _ => const <String>[
+      'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
+      'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
+      'Y', 'Z',
+    ],
+  };
 
   bool get _canComplete =>
-      _foundTargetCount >= _minimumWordsToComplete;
+      _foundWords.length >= _minimumWordsToComplete;
 
   String? _jokerReplacement() {
     if (!_selectedLetters.contains(_jokerIndex)) return null;
@@ -287,6 +258,38 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
     return 1;
   }
 
+  void _cancelAutoSubmit() {
+    _autoSubmitTimer?.cancel();
+    _autoSubmitTimer = null;
+  }
+
+  void _scheduleAutoSubmit() {
+    _cancelAutoSubmit();
+    if (_finished || _draft.runes.length < 4) return;
+    final String word = _draft;
+    final String? jokerLetter = _jokerReplacement();
+    if (!_currentPuzzle.canBuildWord(word, jokerLetter: jokerLetter)) return;
+    final String normalizedWord = _currentPuzzle.normalizeWord(word);
+    if (_foundWords.contains(normalizedWord)) return;
+
+    final bool isAnswer = _currentPuzzle.answers.contains(normalizedWord);
+    final bool hasLongerAnswer = _currentPuzzle.answers.any(
+      (String a) =>
+          a.length > normalizedWord.length &&
+          a.startsWith(normalizedWord) &&
+          !_foundWords.contains(a),
+    );
+
+    final Duration delay = isAnswer && !hasLongerAnswer
+        ? const Duration(milliseconds: 400)
+        : const Duration(milliseconds: 700);
+
+    _autoSubmitTimer = Timer(delay, () {
+      if (!mounted || _finished) return;
+      _submitWord();
+    });
+  }
+
   void _appendLetter(int index) {
     if (_finished || _selectedLetters.contains(index)) return;
     setState(() {
@@ -297,10 +300,14 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
     unawaited(
       _audioProfile.play(_audio, GameAudioEvent.primaryAction, gain: .22),
     );
+    if (!_dragging) {
+      _scheduleAutoSubmit();
+    }
   }
 
   void _beginWheelDrag(int index) {
     if (_finished) return;
+    _cancelAutoSubmit();
     setState(() {
       _dragging = true;
       _selectedLetters.clear();
@@ -340,16 +347,19 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
 
   void _removeLastLetter() {
     if (_selectedLetters.isEmpty || _finished) return;
+    _cancelAutoSubmit();
     setState(() {
       final int removed = _selectedLetters.removeLast();
       if (removed == _jokerIndex) _jokerLetter = null;
       _notice = null;
     });
     unawaited(_audio.play(GameSound.uiBack, gain: .22));
+    _scheduleAutoSubmit();
   }
 
   void _shuffleWheel() {
     if (_finished) return;
+    _cancelAutoSubmit();
     setState(() {
       _selectedLetters.clear();
       _jokerLetter = null;
@@ -384,7 +394,16 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
       backgroundColor: Colors.transparent,
       builder: (BuildContext sheetContext) => _JokerLetterKeyboard(
         letters: _jokerKeyboardLetters,
-        english: _english,
+        title: _t(
+          tr: 'JOKER HARFİ SEÇ',
+          en: 'CHOOSE JOKER LETTER',
+          ar: 'اختر الحرف البديل',
+        ),
+        subtitle: _t(
+          tr: 'Seçtiğin harf jokerin yerine geçer.',
+          en: 'The selected letter replaces the joker.',
+          ar: 'الحرف المحدد سيحل محل الحرف البديل.',
+        ),
       ),
     );
     if (!mounted) return;
@@ -397,12 +416,15 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
     }
     setState(() {
       _jokerLetter = letter;
-      _notice = _english
-          ? 'Joker is now $letter.'
-          : 'Joker harfi artık $letter.';
+      _notice = _t(
+        tr: 'Joker harfi artık $letter.',
+        en: 'Joker is now $letter.',
+        ar: 'الحرف البديل الآن هو $letter.',
+      );
     });
     _audio.hapticLight();
     unawaited(_audioProfile.play(_audio, GameAudioEvent.primaryAction, gain: .22));
+    _scheduleAutoSubmit();
   }
 
   void _showNotice(String message) {
@@ -411,62 +433,101 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
   }
 
   void _submitWord() {
-    if (_finished || _draft.length < 2) {
-      if (_draft.isNotEmpty && _draft.length < 2) {
+    _cancelAutoSubmit();
+    if (_finished || _draft.runes.length < 4) {
+      if (_draft.isNotEmpty && _draft.runes.length < 4) {
         _showNotice(
-          _english ? 'Use at least 2 letters.' : 'En az 2 harf kullan.',
+          _t(
+            tr: 'En az 4 harf kullan. (2 ve 3 harfliler kabul edilmez)',
+            en: 'Use at least 4 letters. (2 and 3-letter words are not accepted)',
+            ar: 'استخدم 4 أحرف على الأقل. (لا تقبل الكلمات من حرفين أو 3)',
+          ),
         );
+        _audio.hapticLight();
+        unawaited(_audioProfile.play(_audio, GameAudioEvent.rejected, gain: .2));
       }
       return;
     }
     if (_selectedLetters.contains(_jokerIndex) && _jokerReplacement() == null) {
       _showNotice(
-        _english
-            ? 'Choose a few more letters so the joker can complete a word.'
-            : 'Joker harfin tamamlayacağı kelimeyi anlayabilmesi için birkaç harf daha seç.',
+        _t(
+          tr: 'Joker harfin tamamlayacağı kelimeyi anlayabilmesi için birkaç harf daha seç.',
+          en: 'Choose a few more letters so the joker can complete a word.',
+          ar: 'اختر المزيد من الأحرف ليكتمل الحرف البديل.',
+        ),
       );
       return;
     }
     final String word = _draft;
+    final String normalizedWord = _currentPuzzle.normalizeWord(word);
     final String? jokerLetter = _jokerReplacement();
     setState(() {
-      _attempts++;
       _selectedLetters.clear();
       _jokerLetter = null;
     });
-    if (_foundWords.contains(word)) {
+
+    // AYNI KELİME KONTROLÜ: Tekrar girilen kelimelere asla puan verilmez
+    if (_foundWords.contains(normalizedWord)) {
       _showNotice(
-        _english ? 'You already found that word.' : 'Bu kelimeyi zaten buldun.',
+        _t(
+          tr: 'Bu kelimeyi zaten buldun! (Tekrar puan verilmez)',
+          en: 'You already found that word! (No points awarded)',
+          ar: 'لقد وجدت هذه الكلمة بالفعل! (لن تمنح نقاط مكررة)',
+        ),
       );
+      _audio.hapticLight();
+      unawaited(_audio.play(GameSound.uiClick, gain: .24));
       return;
     }
+
+    _attempts++;
     if (!_currentPuzzle.canBuildWord(word, jokerLetter: jokerLetter)) {
       _session.recordMistake();
       _showNotice(
-        _english
-            ? 'That is not a valid word for these letters. Try another.'
-            : 'Bu harflerle kurulabilen geçerli bir kelime değil. Başka bir kelime dene.',
+        _t(
+          tr: 'Bu harflerle kurulabilen geçerli bir kelime değil. Başka bir kelime dene.',
+          en: 'That is not a valid word for these letters. Try another.',
+          ar: 'هذه الكلمة غير صالحة من هذه الأحرف. جرب كلمة أخرى.',
+        ),
       );
       _audio.hapticLight();
       unawaited(_audioProfile.play(_audio, GameAudioEvent.rejected, gain: .24));
       return;
     }
 
-    final bool requiredWord = _currentPuzzle.isTargetWord(word);
+    final bool isAnswer = _currentPuzzle.answers.contains(normalizedWord);
     setState(() {
-      _foundWords.add(word);
-      _notice = _english
-          ? 'Nice find — +${_pointsForLength(word.runes.length)} points${requiredWord ? '' : ' · bonus word'}.'
-          : 'Güzel buluş — +${_pointsForLength(word.runes.length)} puan${requiredWord ? '' : ' · bonus kelime'}.';
+      _foundWords.add(normalizedWord);
+      if (!isAnswer) {
+        _bonusWords.add(normalizedWord);
+      }
+      _notice = isAnswer
+          ? _t(
+              tr: '$normalizedWord bulundu — +${_pointsForLength(normalizedWord.runes.length)} puan.',
+              en: '$normalizedWord found — +${_pointsForLength(normalizedWord.runes.length)} points.',
+              ar: 'تم العثور على $normalizedWord — +${_pointsForLength(normalizedWord.runes.length)} نقطة.',
+            )
+          : _t(
+              tr: 'Tebrikler! $normalizedWord bonus kelime olarak eklendi (+${_pointsForLength(normalizedWord.runes.length)} puan).',
+              en: 'Bonus word! $normalizedWord added (+${_pointsForLength(normalizedWord.runes.length)} points).',
+              ar: 'كلمة إضافية! تمت إضافة $normalizedWord (+${_pointsForLength(normalizedWord.runes.length)} نقطة).',
+            );
     });
-    _session.recordAccepted(points: _pointsForLength(word.runes.length));
+    _session.recordAccepted(points: _pointsForLength(normalizedWord.runes.length));
     _audio.hapticMedium();
     unawaited(_audioProfile.play(_audio, GameAudioEvent.accepted, gain: .34));
     if (_canComplete) {
       setState(() {
-        _notice = _english
-            ? 'Four words found. You can finish the level now.'
-            : 'Dört hedef kelime bulundu. Artık bölümü geçebilirsin.';
+        _notice = _t(
+          tr: 'Tebrikler! Dört hedef kelime bulundu, geçiliyor...',
+          en: 'Level completed! Advancing...',
+          ar: 'تهانينا! تم العثور على الكلمات المطلوبة، جاري الانتقال...',
+        );
+      });
+      Future<void>.delayed(const Duration(milliseconds: 650), () {
+        if (mounted && !_finished) {
+          unawaited(_complete());
+        }
       });
     }
   }
@@ -485,13 +546,167 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
     final String firstLetter = String.fromCharCode(word.runes.first);
     setState(() {
       _hints++;
-      _notice = _english
-          ? 'Hint: the longest remaining word has ${word.runes.length} letters and starts with $firstLetter.'
-          : 'İpucu: Bulunmamış en uzun kelime ${word.runes.length} harfli ve “$firstLetter” ile başlıyor.';
+      _hintedWords.add(word);
+      _notice = _t(
+        tr: 'İpucu: Bulunmamış en uzun kelime ${word.runes.length} harfli ve “$firstLetter” ile başlıyor.',
+        en: 'Hint: the longest remaining word has ${word.runes.length} letters and starts with $firstLetter.',
+        ar: 'تلميح: أطول كلمة متبقية تتكون من ${word.runes.length} أحرف وتبدأ بـ "$firstLetter".',
+      );
     });
     _session.useHint(pointCost: 180);
     unawaited(_audioProfile.play(_audio, GameAudioEvent.hint, gain: .3));
     _audio.hapticSelection();
+  }
+
+  void _showBonusWordsSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: StudioVisuals.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  const Icon(Icons.stars_rounded, color: Color(0xFFD97726), size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    _english ? 'BONUS WORDS' : 'BONUS KELİMELER',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      color: StudioVisuals.ink,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF4E5),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${_bonusWords.length} ${_english ? 'words' : 'kelime'}',
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        color: Color(0xFF934612),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _english
+                    ? 'Extra valid words found that are not in the main target slots:'
+                    : 'Ana hedef kutularında yer almayan fakat çarktan ürettiğin ekstra geçerli kelimeler:',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 12,
+                  color: StudioVisuals.muted,
+                ),
+              ),
+              const SizedBox(height: 14),
+              if (_bonusWords.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  alignment: Alignment.center,
+                  child: Text(
+                    _english
+                        ? 'No bonus words found yet. Try finding extra words!'
+                        : 'Henüz bonus kelime bulunmadı. Çarktan ek kelimeler türeterek bonus kazan!',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      color: StudioVisuals.muted,
+                    ),
+                  ),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _bonusWords.map((String word) {
+                    final int points = _pointsForLength(word.runes.length);
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: StudioVisuals.surfaceSoft,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFFE0B2)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            word,
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '+$points',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFD97726),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    _english ? 'CONTINUE' : 'DEVAM ET',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _complete() async {
@@ -543,6 +758,90 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
     );
   }
 
+  void _showHowToPlay() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: StudioVisuals.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  const Icon(Icons.help_outline_rounded, color: _accent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    _english ? 'How to Play?' : 'Nasıl Oynanır?',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: StudioVisuals.ink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _english
+                    ? '• Swipe through adjacent letters on the wheel to form valid words.\n'
+                      '• Tap or drag into the center joker to replace it with any letter.\n'
+                      '• Reach the target word count to complete the course.\n'
+                      '• Longer words award higher scores!'
+                    : '• Parmağını harflerin üzerinde kaydırarak anlamlı Türkçe kelimeler üret.\n'
+                      '• Ortadaki joker harfi istediğin harfin yerine kullanabilirsin.\n'
+                      '• Hedef kelime sayısına ulaşarak parkuru tamamla.\n'
+                      '• Daha uzun kelimeler çok daha fazla puan kazandırır!',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 13,
+                  height: 1.5,
+                  color: StudioVisuals.ink,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    _english ? 'GOT IT' : 'ANLADIM',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_puzzle == null) {
@@ -565,7 +864,7 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontFamily: 'Roboto',
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: FontWeight.w900,
                 letterSpacing: .8,
               ),
@@ -585,10 +884,9 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
         ),
         actions: <Widget>[
           IconButton(
-            key: const ValueKey<String>('word_wheel_undo'),
-            tooltip: _english ? 'Remove last letter' : 'Son harfi sil',
-            onPressed: _selectedLetters.isEmpty ? null : _removeLastLetter,
-            icon: const Icon(Icons.backspace_outlined),
+            tooltip: _english ? 'How to play' : 'Nasıl Oynanır?',
+            onPressed: _showHowToPlay,
+            icon: const Icon(Icons.help_outline_rounded),
           ),
           IconButton(
             key: const ValueKey<String>('word_wheel_hint'),
@@ -601,140 +899,197 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
       body: SafeArea(
         top: false,
         child: ResponsiveGameFrame(
-          maxContentWidth: 660,
-          child: LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints limits) {
-              final bool compact =
-                  limits.maxWidth < 380 || limits.maxHeight < 620;
-              final double horizontal = compact ? 12 : 18;
-              return Padding(
-                padding: EdgeInsets.fromLTRB(horizontal, 2, horizontal, 8),
-                child: Column(
-                  children: <Widget>[
-                    _WordWheelStatus(
-                      found: _foundTargetCount,
-                      completionTarget: _minimumWordsToComplete,
-                      score: _score,
-                      bestScore: widget.previousBestScore,
-                      english: _english,
-                    ),
-                    SizedBox(height: compact ? 7 : 10),
-                    _FoundWordsCard(
-                      words: _foundWords.toList()
-                        ..sort(
-                          (String a, String b) =>
-                              b.runes.length.compareTo(a.runes.length),
+          maxContentWidth: 620,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            child: Column(
+              children: <Widget>[
+                // Kompakt durum çubuğu (38px)
+                Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Flexible(
+                        child: Text(
+                          _english ? 'FOUND WORDS' : 'BULUNAN KELİMELER',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: StudioVisuals.muted,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      foundTargets: _foundTargetCount,
-                      target: _minimumWordsToComplete,
-                      english: _english,
-                    ),
-                    SizedBox(height: compact ? 7 : 10),
-                    _DraftWordCard(
-                      draft: _draft,
-                      notice: _notice,
-                      english: _english,
-                      draftPoints: _draft.length < 2
-                          ? 0
-                          : _pointsForLength(_draft.runes.length),
-                      onSubmit: _submitWord,
-                    ),
-                    const SizedBox(height: 4),
-                    Expanded(
-                      child: LayoutBuilder(
-                        builder: (BuildContext context, BoxConstraints space) {
-                          final double wheelExtent = math.min(
-                            math.min(space.maxWidth, space.maxHeight),
-                            300,
-                          );
-                          return Center(
-                            child: SizedBox.square(
-                              dimension: wheelExtent,
-                              child: _LetterWheel(
-                                letters: _wheelLetters,
-                                jokerIndex: _jokerIndex,
-                                jokerReplacement: _jokerReplacement(),
-                                order: _wheelOrder,
-                                selectedIndices: _selectedLetters,
-                                english: _english,
-                                onIndex: _selectWheelIndex,
-                                onDragEnd: _finishWheelDrag,
-                              ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${_foundWords.length}/$_minimumWordsToComplete',
+                        key: const ValueKey<String>('word_wheel_found_count'),
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          color: StudioVisuals.ink,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      if (_bonusWords.isNotEmpty) ...<Widget>[
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          key: const ValueKey<String>('word_wheel_bonus_badge'),
+                          onTap: _showBonusWordsSheet,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF4E5),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFFFB45B)),
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        _WheelActionButton(
-                          key: const ValueKey<String>('word_wheel_shuffle'),
-                          icon: Icons.shuffle_rounded,
-                          label: _english ? 'SHUFFLE' : 'KARIŞTIR',
-                          onTap: _shuffleWheel,
-                        ),
-                        const SizedBox(width: 10),
-                        _WheelActionButton(
-                          icon: Icons.backspace_outlined,
-                          label: _english ? 'ERASE' : 'SİL',
-                          onTap: _removeLastLetter,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _english
-                          ? 'Swipe through letters without lifting your finger.'
-                          : 'Parmağını kaldırmadan harflerin üzerinden sürükle.',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: 'Roboto',
-                        color: StudioVisuals.muted,
-                        fontSize: 11,
-                        height: 1.2,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 220),
-                      child: _canComplete
-                          ? Padding(
-                              key: const ValueKey<String>(
-                                'word_wheel_complete_button',
-                              ),
-                              padding: const EdgeInsets.only(top: 7),
-                              child: SizedBox(
-                                width: double.infinity,
-                                height: 46,
-                                child: FilledButton.icon(
-                                  onPressed: () => unawaited(_complete()),
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: _accent,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                  ),
-                                  icon: const Icon(Icons.flag_rounded),
-                                  label: Text(
-                                    _english ? 'FINISH LEVEL' : 'BÖLÜMÜ GEÇ',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: .3,
-                                    ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.star_rounded, size: 13, color: Color(0xFFD97726)),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '+${_bonusWords.length} Bonus',
+                                  style: const TextStyle(
+                                    fontFamily: 'Roboto',
+                                    color: Color(0xFF934612),
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w900,
                                   ),
                                 ),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      Text(
+                        '🏆 $_score',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          color: _accentDark,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      if (widget.previousBestScore > 0) ...<Widget>[
+                        const SizedBox(width: 4),
+                        Text(
+                          '(${widget.previousBestScore})',
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            color: StudioVisuals.muted,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              );
-            },
+                const SizedBox(height: 6),
+
+                // Hedef Kelime Kutuları Tablosu (Wordscapes tarzı boşluk doldurma)
+                _WordSlotsBoard(
+                  answers: _currentPuzzle.answers,
+                  foundWords: _foundWords,
+                  hintedWords: _hintedWords,
+                ),
+                const SizedBox(height: 6),
+
+                // Taslak Kelime Giriş Kartı (Kompakt)
+                _DraftWordCard(
+                  draft: _draft,
+                  notice: _notice,
+                  english: _english,
+                  draftPoints: _draft.length < 2
+                      ? 0
+                      : _pointsForLength(_draft.runes.length),
+                  onSubmit: _submitWord,
+                ),
+                const SizedBox(height: 6),
+
+                // Ana Çark Alanı (Expanded ile ferah ve kaydırmasız)
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (BuildContext context, BoxConstraints space) {
+                      // Çember boyutu kullanıcının ekranına tam oturacak şekilde optimize edildi
+                      final double wheelExtent = math.min(
+                        math.min(space.maxWidth, space.maxHeight),
+                        288,
+                      );
+                      return Center(
+                        child: SizedBox.square(
+                          dimension: wheelExtent,
+                          child: _LetterWheel(
+                            letters: _wheelLetters,
+                            jokerIndex: _jokerIndex,
+                            jokerReplacement: _jokerReplacement(),
+                            order: _wheelOrder,
+                            selectedIndices: _selectedLetters,
+                            english: _english,
+                            onIndex: _selectWheelIndex,
+                            onDragEnd: _finishWheelDrag,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Alt Aksiyon Butonları (Kompakt 40px, taşmasız)
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      _WheelActionButton(
+                        key: const ValueKey<String>('word_wheel_shuffle'),
+                        icon: Icons.shuffle_rounded,
+                        label: _english ? 'SHUFFLE' : 'KARIŞTIR',
+                        onTap: _shuffleWheel,
+                      ),
+                      const SizedBox(width: 10),
+                      _WheelActionButton(
+                        icon: Icons.backspace_outlined,
+                        label: _english ? 'ERASE' : 'SİL',
+                        onTap: _removeLastLetter,
+                      ),
+                      if (_canComplete) ...<Widget>[
+                        const SizedBox(width: 10),
+                        FilledButton.icon(
+                          key: const ValueKey<String>('word_wheel_complete_button'),
+                          onPressed: () => unawaited(_complete()),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _accent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          icon: const Icon(Icons.flag_rounded, size: 16),
+                          label: Text(
+                            _english ? 'FINISH' : 'GEÇ',
+                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -742,224 +1097,110 @@ class _WordWheelPlayPageState extends State<WordWheelPlayPage> {
   }
 }
 
-class _WordWheelStatus extends StatelessWidget {
-  const _WordWheelStatus({
-    required this.found,
-    required this.completionTarget,
-    required this.score,
-    required this.bestScore,
-    required this.english,
+
+
+class _WordSlotsBoard extends StatelessWidget {
+  const _WordSlotsBoard({
+    required this.answers,
+    required this.foundWords,
+    required this.hintedWords,
   });
 
-  final int found;
-  final int completionTarget;
-  final int score;
-  final int bestScore;
-  final bool english;
+  final List<String> answers;
+  final Set<String> foundWords;
+  final Set<String> hintedWords;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-    decoration: BoxDecoration(
-      color: StudioVisuals.surface,
-      borderRadius: StudioVisuals.cardRadius,
-      border: Border.all(color: StudioVisuals.line),
-      boxShadow: StudioVisuals.softShadow,
-    ),
-    child: Row(
-      children: <Widget>[
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: _WordWheelPlayPageState._accent.withValues(alpha: .12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(
-            Icons.casino_outlined,
-            color: _WordWheelPlayPageState._accent,
-            size: 21,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                english ? 'FIND THE WORDS' : 'KELİMELERİ BUL',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.ink,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: .45,
-                ),
-              ),
-              Text(
-                '${english ? 'WORDS' : 'KELİME'} $found/$completionTarget · ${english ? 'BEST' : 'REKOR'} $bestScore',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: StudioVisuals.surfaceSoft,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            children: <Widget>[
-              Text(
-                '$score',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: _WordWheelPlayPageState._accentDark,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              Text(
-                english ? 'SCORE' : 'PUAN',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.muted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 76),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: StudioVisuals.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: StudioVisuals.line),
+      ),
+      alignment: Alignment.center,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 5,
+          children: answers.map((String answer) {
+            final bool isFound = foundWords.contains(answer);
+            final bool isHinted = hintedWords.contains(answer);
+            final List<String> chars = answer.runes
+                .map((int r) => String.fromCharCode(r).toUpperCase())
+                .toList();
 
-class _FoundWordsCard extends StatelessWidget {
-  const _FoundWordsCard({
-    required this.words,
-    required this.foundTargets,
-    required this.target,
-    required this.english,
-  });
-
-  final List<String> words;
-  final int foundTargets;
-  final int target;
-  final bool english;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    height: 70,
-    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-    decoration: BoxDecoration(
-      color: StudioVisuals.surface,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: StudioVisuals.line),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Icon(
-              Icons.auto_awesome_rounded,
-              color: _WordWheelPlayPageState._accent,
-              size: 15,
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                english ? 'FOUND WORDS' : 'BULUNAN KELİMELER',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.muted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: .55,
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+              decoration: BoxDecoration(
+                color: isFound
+                    ? const Color(0xFFE8F5E9)
+                    : StudioVisuals.surfaceSoft,
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(
+                  color: isFound
+                      ? const Color(0xFF81C784)
+                      : const Color(0xFFD6E0EB),
+                  width: isFound ? 1.5 : 1,
                 ),
               ),
-            ),
-            Text(
-              '$foundTargets/$target',
-              key: const ValueKey<String>('word_wheel_found_count'),
-              style: const TextStyle(
-                fontFamily: 'Roboto',
-                color: StudioVisuals.ink,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 5),
-        Expanded(
-          child: words.isEmpty
-              ? Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    english
-                        ? 'Longer words score more; extras are bonus.'
-                        : 'Uzun kelime daha çok, ek kelime bonus puan.',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      color: StudioVisuals.muted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(chars.length, (int i) {
+                  final String char = chars[i];
+                  final bool showChar = isFound || (isHinted && i == 0);
+
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 1),
+                    width: 17,
+                    height: 20,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isFound
+                          ? _WordWheelPlayPageState._accent
+                          : (showChar ? const Color(0xFFFFECC8) : Colors.white),
+                      borderRadius: BorderRadius.circular(3.5),
+                      border: Border.all(
+                        color: isFound
+                            ? _WordWheelPlayPageState._accent
+                            : (showChar ? const Color(0xFFFFB45B) : const Color(0xFFCFD8DC)),
+                        width: 1,
+                      ),
+                      boxShadow: isFound
+                          ? const [
+                              BoxShadow(
+                                color: Color(0x2034715D),
+                                blurRadius: 2,
+                                offset: Offset(0, 1),
+                              )
+                            ]
+                          : null,
                     ),
-                  ),
-                )
-              : SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: <Widget>[
-                      for (
-                        int index = 0;
-                        index < words.length;
-                        index++
-                      ) ...<Widget>[
-                        if (index > 0) const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _WordWheelPlayPageState._accent.withValues(
-                              alpha: .1,
-                            ),
-                            borderRadius: BorderRadius.circular(9),
-                          ),
-                          child: Text(
-                            '${words[index]}  +${_WordWheelPlayPageState._pointsForLength(words[index].runes.length)}',
-                            style: const TextStyle(
-                              fontFamily: 'Roboto',
-                              color: _WordWheelPlayPageState._accentDark,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+                    child: Text(
+                      showChar ? char : '',
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: isFound
+                            ? Colors.white
+                            : (showChar ? const Color(0xFFB25E00) : Colors.transparent),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            );
+          }).toList(),
         ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 class _DraftWordCard extends StatelessWidget {
@@ -1085,25 +1326,27 @@ class _LetterWheel extends StatelessWidget {
       final Size size = Size(constraints.maxWidth, constraints.maxHeight);
       final double minSide = math.min(size.width, size.height);
       final Offset center = Offset(size.width / 2, size.height / 2);
-      final double radius = minSide * .35;
-      final double nodeSpacing = 2 * radius * math.sin(math.pi / order.length);
-      final double tileExtent = math
-          .min(48, math.min(minSide * .26, nodeSpacing * .88))
-          .clamp(36, 48)
-          .toDouble();
+      // Çemberi biraz daha daraltıyoruz
+      final double wheelRadius = minSide * .325;
+      // Harf butonunun boyutu: orantılı şekilde daraltıldı (36 - 42 px)
+      final double tileExtent = (wheelRadius * .35).clamp(36.0, 42.0);
+      final double tileRadius = tileExtent / 2;
+      // Harflerin çembere binmeyip tamamen içeride kalması için:
+      const double marginInside = 8.0;
+      final double letterRadius = wheelRadius - tileRadius - marginInside;
       final List<Offset> centers = List<Offset>.generate(order.length, (
         int index,
       ) {
         final double angle =
             -math.pi / 2 + (2 * math.pi * index / order.length);
         return Offset(
-          center.dx + math.cos(angle) * radius,
-          center.dy + math.sin(angle) * radius,
+          center.dx + math.cos(angle) * letterRadius,
+          center.dy + math.sin(angle) * letterRadius,
         );
       }, growable: false);
       int? letterAt(Offset local) {
         for (int index = 0; index < centers.length; index++) {
-          if ((centers[index] - local).distance <= tileExtent * .62) {
+          if ((centers[index] - local).distance <= tileExtent * .75) {
             return index;
           }
         }
@@ -1140,6 +1383,7 @@ class _LetterWheel extends StatelessWidget {
             painter: _LetterWheelPainter(
               centers: centers,
               selected: shownSelected,
+              wheelRadius: wheelRadius,
             ),
             child: Stack(
               children: <Widget>[
@@ -1221,59 +1465,98 @@ class _LetterWheel extends StatelessWidget {
 }
 
 class _LetterWheelPainter extends CustomPainter {
-  const _LetterWheelPainter({required this.centers, required this.selected});
+  const _LetterWheelPainter({
+    required this.centers,
+    required this.selected,
+    required this.wheelRadius,
+  });
 
   final List<Offset> centers;
   final List<int> selected;
+  final double wheelRadius;
 
   @override
   void paint(Canvas canvas, Size size) {
     final Offset center = Offset(size.width / 2, size.height / 2);
-    final double radius = centers.isEmpty
-        ? 0
-        : (centers.first - center).distance;
+
+    // Radyal degrade arka plan diski
+    final Paint bgPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          _WordWheelPlayPageState._accent.withValues(alpha: .015),
+          _WordWheelPlayPageState._accent.withValues(alpha: .065),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: wheelRadius));
+    canvas.drawCircle(center, wheelRadius, bgPaint);
+
+    // Çift katmanlı dış sınır çerçevesi
     canvas.drawCircle(
       center,
-      radius + 28,
-      Paint()..color = _WordWheelPlayPageState._accent.withValues(alpha: .045),
-    );
-    canvas.drawCircle(
-      center,
-      radius + 27,
+      wheelRadius,
       Paint()
-        ..color = _WordWheelPlayPageState._jokerOrangeDark.withValues(alpha: .86)
+        ..color = _WordWheelPlayPageState._jokerOrangeDark.withValues(alpha: .85)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.2,
+        ..strokeWidth = 3.0,
     );
+    canvas.drawCircle(
+      center,
+      wheelRadius - 3.5,
+      Paint()
+        ..color = _WordWheelPlayPageState._jokerOrangeDark.withValues(alpha: .2)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0,
+    );
+
     if (selected.length < 2) return;
-    final Paint line = Paint()
-      ..color = _WordWheelPlayPageState._accent.withValues(alpha: .58)
-      ..strokeWidth = 3
+
+    // Glowing parlama katmanı
+    final Paint glowLine = Paint()
+      ..color = _WordWheelPlayPageState._accentDark.withValues(alpha: .22)
+      ..strokeWidth = 7.0
       ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
     final Path path = Path()
       ..moveTo(centers[selected.first].dx, centers[selected.first].dy);
     for (final int index in selected.skip(1)) {
       path.lineTo(centers[index].dx, centers[index].dy);
     }
-    canvas.drawPath(path, line);
+    canvas.drawPath(path, glowLine);
+
+    // Ana canlı kaydırma yolu
+    final Paint coreLine = Paint()
+      ..color = _WordWheelPlayPageState._accentDark.withValues(alpha: .85)
+      ..strokeWidth = 3.2
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
+    canvas.drawPath(path, coreLine);
   }
 
   @override
   bool shouldRepaint(_LetterWheelPainter oldDelegate) =>
-      oldDelegate.centers != centers || oldDelegate.selected != selected;
+      oldDelegate.centers != centers ||
+      oldDelegate.selected != selected ||
+      oldDelegate.wheelRadius != wheelRadius;
 }
 
 class _JokerLetterKeyboard extends StatelessWidget {
-  const _JokerLetterKeyboard({required this.letters, required this.english});
+  const _JokerLetterKeyboard({
+    required this.letters,
+    this.title,
+    this.subtitle,
+  });
 
   final List<String> letters;
-  final bool english;
+  final String? title;
+  final String? subtitle;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    top: false,
-    child: Container(
+  Widget build(BuildContext context) {
+    final bool english = context.l10n.isEnglish;
+    return SafeArea(
+      top: false,
+      child: Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: const BoxDecoration(
         color: StudioVisuals.surface,
@@ -1324,7 +1607,7 @@ class _JokerLetterKeyboard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      english ? 'CHOOSE JOKER LETTER' : 'JOKER HARFİ SEÇ',
+                      title ?? (english ? 'CHOOSE JOKER LETTER' : 'JOKER HARFİ SEÇ'),
                       style: const TextStyle(
                         fontFamily: 'Roboto',
                         color: StudioVisuals.ink,
@@ -1335,9 +1618,10 @@ class _JokerLetterKeyboard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      english
-                          ? 'The selected uppercase letter replaces the joker.'
-                          : 'Seçtiğin büyük harf jokerin yerine geçer.',
+                      subtitle ??
+                          (english
+                              ? 'The selected uppercase letter replaces the joker.'
+                              : 'Seçtiğin büyük harf jokerin yerine geçer.'),
                       style: const TextStyle(
                         fontFamily: 'Roboto',
                         color: StudioVisuals.muted,
@@ -1394,6 +1678,7 @@ class _JokerLetterKeyboard extends StatelessWidget {
       ),
     ),
   );
+  }
 }
 
 class _WheelActionButton extends StatelessWidget {
@@ -1414,13 +1699,16 @@ class _WheelActionButton extends StatelessWidget {
     child: OutlinedButton.icon(
       onPressed: onTap,
       icon: Icon(icon, size: 18),
-      label: Text(
-        label,
-        style: const TextStyle(
-          fontFamily: 'Roboto',
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-          letterSpacing: .35,
+      label: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Roboto',
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: .35,
+          ),
         ),
       ),
       style: OutlinedButton.styleFrom(

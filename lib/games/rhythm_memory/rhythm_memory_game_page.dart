@@ -597,11 +597,150 @@ class _RhythmMemoryPlayPageState extends State<RhythmMemoryPlayPage>
     );
   }
 
+  void _showHowToPlay(BuildContext context, StudioGameSkin skin) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: StudioVisuals.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: skin.accent.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.music_note_rounded,
+                        color: skin.accent,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            _scenario.reverseRecall
+                                ? (_english
+                                      ? 'Reverse Rhythm Pattern'
+                                      : 'Ters Ritim Dizisi')
+                                : (_english
+                                      ? 'Rhythm Memory Pattern'
+                                      : 'Ritim Hafızası Kuralı'),
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                          Text(
+                            _english
+                                ? 'Auditory Memory & Timing'
+                                : 'İşitsel Hafıza ve Vuruş Kuralları',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 12,
+                              color: StudioVisuals.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surfaceSoft,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: skin.accent.withValues(alpha: 0.20),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        _scenario.reverseRecall
+                            ? (_english
+                                  ? 'Listen to the melody forward, then play the exact notes backwards!'
+                                  : 'Melodiyi ileriye doğru dinle, ardından aynı notaları tersten çal!')
+                            : (_english
+                                  ? 'Listen carefully to the melody, pause lengths, and accented notes, then repeat them exactly.'
+                                  : 'Melodiyi, aralıkları ve vurguları dikkatle dinle; sırayla aynen tekrar et.'),
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 13,
+                          height: 1.35,
+                          color: StudioVisuals.ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _english
+                            ? 'Tap for a normal beat • hold pad for an accent beat.'
+                            : 'Normal vuruş için dokun • vurgu için pede basılı tut.',
+                        style: TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: skin.accent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: skin.accent,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    _english ? 'UNDERSTOOD' : 'ANLADIM, BAŞLA',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool english = _english;
-    final bool compact = MediaQuery.sizeOf(context).width < 365;
     final StudioGameSkin skin = StudioGameSkin.forId('rhythm_memory');
+
     return Scaffold(
       backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
@@ -609,347 +748,295 @@ class _RhythmMemoryPlayPageState extends State<RhythmMemoryPlayPage>
         foregroundColor: StudioVisuals.ink,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: Text(
-          english ? 'RHYTHM MEMORY' : 'RİTİM HAFIZASI',
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-            letterSpacing: .9,
-          ),
-        ),
-        actions: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(right: 13),
-            child: Center(
-              child: _RhythmChip(
-                key: const ValueKey<String>('rhythm_memory_errors_left'),
-                icon: Icons.favorite_border_rounded,
-                value: '$_errorsLeft',
-                tint: _errorsLeft <= 1 ? StudioVisuals.danger : skin.accent,
+        titleSpacing: 12,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              english ? 'RHYTHM MEMORY' : 'RİTİM HAFIZASI',
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.6,
               ),
             ),
+            Text(
+              '${english ? 'Level' : 'Bölüm'} ${widget.level.number} • ${widget.level.title(english)}',
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: StudioVisuals.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          IconButton(
+            tooltip: english ? 'How to Play' : 'Nasıl Oynanır',
+            icon: const Icon(Icons.help_outline_rounded, size: 22),
+            onPressed: () => _showHowToPlay(context, skin),
           ),
         ],
       ),
       body: SafeArea(
         top: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: SingleChildScrollView(
-              key: const ValueKey<String>('rhythm_memory_scroll'),
-              padding: EdgeInsets.fromLTRB(
-                compact ? 13 : 22,
-                compact ? 4 : 12,
-                compact ? 13 : 22,
-                compact ? 12 : 24,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Row(
+        child: ResponsiveGameFrame(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                // Kompakt Tek Satır Durum Çubuğu
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
+                  ),
+                  child: Row(
                     children: <Widget>[
-                      Expanded(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: skin.accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         child: Text(
                           _scenario.reverseRecall
-                              ? (english ? 'REVERSE RECALL' : 'TERS HATIRLAMA')
-                              : (english
-                                    ? 'AUDITORY MEMORY'
-                                    : 'İŞİTSEL HAFIZA'),
+                              ? (english ? 'REVERSE' : 'TERS ÇAL')
+                              : (english ? 'MELODY' : 'RİTİM'),
                           style: TextStyle(
                             fontFamily: 'Roboto',
                             color: skin.accent,
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 1.15,
                           ),
                         ),
                       ),
-                      _RhythmChip(
-                        icon: Icons.music_note_rounded,
-                        value: '${_scenario.length}',
-                        tint: StudioVisuals.ink,
+                      const Spacer(),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            Icons.favorite_rounded,
+                            size: 14,
+                            color: _errorsLeft <= 1
+                                ? StudioVisuals.danger
+                                : skin.accent,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '$_errorsLeft',
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: _errorsLeft <= 1
+                                  ? StudioVisuals.danger
+                                  : skin.accent,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      _RhythmChip(
-                        icon: Icons.stars_rounded,
-                        value: '${_session.score}',
-                        tint: StudioVisuals.amber,
+                      const SizedBox(width: 10),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Icon(
+                            Icons.music_note_rounded,
+                            size: 14,
+                            color: StudioVisuals.ink,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${_inputNotes.length}/${_scenario.length}',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 10),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 14,
+                            color: StudioVisuals.amber,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${_session.score}',
+                            style: const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: StudioVisuals.ink,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 9),
-                  Container(
-                    padding: EdgeInsets.all(compact ? 12 : 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: StudioVisuals.line),
-                      boxShadow: StudioVisuals.softShadow,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        Row(
-                          children: <Widget>[
-                            Container(
-                              width: 34,
-                              height: 34,
-                              decoration: BoxDecoration(
-                                color: skin.accentSoft,
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              child: Icon(
-                                Icons.graphic_eq_rounded,
-                                color: skin.accent,
-                                size: 19,
-                              ),
-                            ),
-                            const SizedBox(width: 9),
-                            Expanded(
-                              child: Text(
-                                _playingBack
-                                    ? (english
-                                          ? 'LISTEN • KEEP THE SPACES'
-                                          : 'DİNLE • ARALARI DA TUT')
-                                    : _solved
-                                    ? (english
-                                          ? 'PATTERN SECURED'
-                                          : 'RİTİM KAYDEDİLDİ')
-                                    : _heardPattern
-                                    ? (english
-                                          ? 'REPLAY THE PATTERN'
-                                          : 'ÖRÜNTÜYÜ TEKRARLA')
-                                    : (english
-                                          ? 'MEMORIZE THE BEAT'
-                                          : 'VURUŞU AKLINDA TUT'),
-                                style: const TextStyle(
-                                  fontFamily: 'Roboto',
-                                  color: StudioVisuals.ink,
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                            if (_scenario.reverseRecall)
-                              _RhythmTag(
-                                label: english ? 'REVERSE' : 'TERS',
-                                tint: skin.accent,
-                                surface: skin.accentSoft,
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 13),
-                        SizedBox(
-                          height: compact ? 74 : 90,
-                          child: CustomPaint(
-                            key: const ValueKey<String>(
-                              'rhythm_memory_waveform',
-                            ),
-                            painter: _RhythmWavePainter(
-                              beats: _heardPattern && !_playingBack
-                                  ? _scenario.answer
-                                  : _scenario.beats,
-                              gaps: _heardPattern && !_playingBack
-                                  ? _scenario.answerGaps
-                                  : _scenario.gaps,
-                              activeIndex: _activeBeatIndex,
-                              tint: skin.accent,
-                              heard: _heardPattern,
-                            ),
-                            child: Center(
-                              child: Text(
-                                _scenario.reverseRecall
-                                    ? (english
-                                          ? 'Listen forward · play it backwards'
-                                          : 'İleri dinle · tersten çal')
-                                    : (english
-                                          ? 'Note · gap · accent'
-                                          : 'Nota · ara · vurgu'),
-                                style: const TextStyle(
-                                  fontFamily: 'Roboto',
-                                  color: StudioVisuals.muted,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 9),
-                        Text(
-                          english
-                              ? 'Tap a pad for a soft beat • hold it for an accent. The light-and-haptic cue also works with sound off.'
-                              : 'Normal vuruş için dokun • vurgu için basılı tut. Ses kapalıyken ışık ve titreşim ipucu sürer.',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontFamily: 'Roboto',
-                            color: StudioVisuals.muted,
-                            fontSize: 12,
-                            height: 1.3,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+                ),
+                // Kompakt Dalga Formu (Waveform Kartı - 64px)
+                Container(
+                  height: 64,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
                   ),
-                  const SizedBox(height: 10),
-                  GridView.builder(
-                    key: const ValueKey<String>('rhythm_memory_pad_grid'),
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: 8,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      crossAxisSpacing: 7,
-                      mainAxisSpacing: 7,
-                      mainAxisExtent: compact ? 62 : 74,
-                    ),
-                    itemBuilder: (BuildContext context, int note) =>
-                        _pad(note, skin),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: StudioVisuals.line),
                   ),
-                  if (_feedback != null) ...<Widget>[
-                    const SizedBox(height: 8),
-                    _RhythmFeedback(text: _feedback!, positive: _solved),
-                  ],
-                  const SizedBox(height: 8),
-                  if (_solved)
-                    FilledButton.icon(
-                      key: const ValueKey<String>('rhythm_memory_finish'),
-                      onPressed: _finish,
-                      icon: const Icon(Icons.celebration_rounded),
-                      label: Text(
-                        english ? 'COMPLETE RHYTHM' : 'RİTMİ TAMAMLA',
-                      ),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(48, 50),
-                        backgroundColor: skin.accent,
-                        foregroundColor: Colors.white,
-                      ),
-                    )
-                  else if (!_heardPattern)
-                    FilledButton.icon(
-                      key: const ValueKey<String>('rhythm_memory_start'),
-                      onPressed: _playingBack
-                          ? null
-                          : () => unawaited(_playPattern()),
-                      icon: Icon(
+                  child: CustomPaint(
+                    key: const ValueKey<String>('rhythm_memory_waveform'),
+                    painter: _RhythmWavePainter(
+                      beats: _heardPattern && !_playingBack
+                          ? _scenario.answer
+                          : _scenario.beats,
+                      gaps: _heardPattern && !_playingBack
+                          ? _scenario.answerGaps
+                          : _scenario.gaps,
+                      activeIndex: _activeBeatIndex,
+                      tint: skin.accent,
+                      heard: _heardPattern,
+                    ),
+                    child: Center(
+                      child: Text(
                         _playingBack
-                            ? Icons.graphic_eq_rounded
-                            : Icons.play_arrow_rounded,
-                      ),
-                      label: Text(english ? 'PLAY THE RHYTHM' : 'RİTMİ DİNLE'),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(48, 50),
-                        backgroundColor: skin.accent,
-                        foregroundColor: Colors.white,
-                      ),
-                    )
-                  else
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            key: const ValueKey<String>('rhythm_memory_hint'),
-                            onPressed: _playingBack ? null : _showHint,
-                            icon: const Icon(Icons.replay_rounded, size: 18),
-                            label: Text(english ? 'REPLAY −70' : 'TEKRAR −70'),
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size(48, 48),
-                              foregroundColor: StudioVisuals.ink,
-                              side: const BorderSide(color: StudioVisuals.line),
-                            ),
-                          ),
+                            ? (english ? 'LISTENING...' : 'DİNLENİYOR...')
+                            : _solved
+                            ? (english
+                                  ? 'PATTERN COMPLETED!'
+                                  : 'RİTİM TAMAMLANDI!')
+                            : _scenario.reverseRecall
+                            ? (english ? 'Play backwards' : 'Tersten çal')
+                            : (english
+                                  ? 'Repeat the notes'
+                                  : 'Notaları tekrarla'),
+                        style: TextStyle(
+                          fontFamily: 'Roboto',
+                          color: _playingBack
+                              ? skin.accent
+                              : StudioVisuals.muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${_inputNotes.length}/${_scenario.length}',
-                          style: TextStyle(
-                            fontFamily: 'Roboto',
-                            color: skin.accent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Genişletilmiş Ritim Padleri Izgarası (Kaydırmasız - Expanded)
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (BuildContext context, BoxConstraints constraints) {
+                      // Keep the eight pads compact and roughly square. Using
+                      // all remaining height made them long columns on phones.
+                      final double itemWidth = (constraints.maxWidth - 24) / 4;
+                      final double itemHeight = math.min(
+                        (constraints.maxHeight - 8) / 2,
+                        itemWidth * 1.12,
+                      );
+                      return GridView.builder(
+                        key: const ValueKey<String>('rhythm_memory_pad_grid'),
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: 8,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          mainAxisExtent: itemHeight,
+                        ),
+                        itemBuilder: (BuildContext context, int note) =>
+                            _pad(note, skin),
+                      );
+                    },
+                  ),
+                ),
+                if (_feedback != null) ...<Widget>[
+                  const SizedBox(height: 6),
+                  _RhythmFeedback(text: _feedback!, positive: _solved),
                 ],
-              ),
+                const SizedBox(height: 6),
+                // Alt Kontrol Butonları
+                if (_solved)
+                  FilledButton.icon(
+                    key: const ValueKey<String>('rhythm_memory_finish'),
+                    onPressed: _finish,
+                    icon: const Icon(Icons.celebration_rounded, size: 18),
+                    label: Text(english ? 'COMPLETE RHYTHM' : 'RİTİMİ TAMAMLA'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 44),
+                      backgroundColor: skin.accent,
+                      foregroundColor: Colors.white,
+                    ),
+                  )
+                else if (!_heardPattern)
+                  FilledButton.icon(
+                    key: const ValueKey<String>('rhythm_memory_start'),
+                    onPressed: _playingBack
+                        ? null
+                        : () => unawaited(_playPattern()),
+                    icon: Icon(
+                      _playingBack
+                          ? Icons.graphic_eq_rounded
+                          : Icons.play_arrow_rounded,
+                      size: 18,
+                    ),
+                    label: Text(english ? 'PLAY THE RHYTHM' : 'RİTİMİ DİNLE'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 44),
+                      backgroundColor: skin.accent,
+                      foregroundColor: Colors.white,
+                    ),
+                  )
+                else
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          key: const ValueKey<String>('rhythm_memory_hint'),
+                          onPressed: _playingBack ? null : _showHint,
+                          icon: const Icon(Icons.replay_rounded, size: 16),
+                          label: Text(
+                            english ? 'REPLAY' : 'TEKRAR DİNLE',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 42),
+                            foregroundColor: StudioVisuals.ink,
+                            side: const BorderSide(color: StudioVisuals.line),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
-}
-
-class _RhythmChip extends StatelessWidget {
-  const _RhythmChip({
-    super.key,
-    required this.icon,
-    required this.value,
-    required this.tint,
-  });
-  final IconData icon;
-  final String value;
-  final Color tint;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(minWidth: 51, minHeight: 29),
-    padding: const EdgeInsets.symmetric(horizontal: 7),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(11),
-      border: Border.all(color: StudioVisuals.line),
-    ),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        Icon(icon, size: 14, color: tint),
-        const SizedBox(width: 3),
-        Text(
-          value,
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
-            color: StudioVisuals.ink,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _RhythmTag extends StatelessWidget {
-  const _RhythmTag({
-    required this.label,
-    required this.tint,
-    required this.surface,
-  });
-  final String label;
-  final Color tint;
-  final Color surface;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-    decoration: BoxDecoration(
-      color: surface,
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(
-        fontFamily: 'Roboto',
-        color: tint,
-        fontSize: 10,
-        fontWeight: FontWeight.w900,
-      ),
-    ),
-  );
 }
 
 class _RhythmFeedback extends StatelessWidget {

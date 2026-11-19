@@ -611,13 +611,13 @@ class _StatsGrid extends StatelessWidget {
       _StatItemData(
         icon: Icons.star_rounded,
         value: '${data.progress.toplamYildiz}/330',
-        title: context.l10n.stars.toUpperCase(),
+        title: context.l10n.uppercaseLabel(context.l10n.stars),
         color: StudioVisuals.amber,
       ),
       _StatItemData(
         icon: Icons.flag_rounded,
         value: '${data.progress.tamamlananSeviye}/110',
-        title: context.l10n.completedLevels.toUpperCase(),
+        title: context.l10n.uppercaseLabel(context.l10n.completedLevels),
         color: StudioVisuals.teal,
       ),
       _StatItemData(

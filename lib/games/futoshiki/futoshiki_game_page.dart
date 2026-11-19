@@ -417,11 +417,13 @@ class _FutoshikiPlayPageState extends State<FutoshikiPlayPage> {
           ? StudioResultAction.next
           : StudioResultAction.map,
     );
-    unawaited(_audioProfile.play(
-      _audio,
-      GameAudioEvent.levelComplete,
-      levelNumber: widget.level.number,
-    ));
+    unawaited(
+      _audioProfile.play(
+        _audio,
+        GameAudioEvent.levelComplete,
+        levelNumber: widget.level.number,
+      ),
+    );
     await Future<void>.delayed(const Duration(milliseconds: 180));
     if (!mounted) return;
     final ParkurResultAction? result = await showParkurResultDialog(
@@ -494,129 +496,150 @@ class _FutoshikiPlayPageState extends State<FutoshikiPlayPage> {
       ),
       body: SafeArea(
         top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(12, 3, 12, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _FutoshikiStatus(
-                level: widget.level.number,
-                tier: _puzzle.difficultyTier,
-                size: _puzzle.size,
-                emptyCount: _emptyCount,
-                relationCount: _puzzle.horizontalAndVerticalRelations,
-                english: _english,
-              ),
-              const SizedBox(height: 9),
-              _FutoshikiInstruction(english: _english, size: _puzzle.size),
-              const SizedBox(height: 10),
-              Center(
-                child: Container(
-                  key: const ValueKey<String>('futoshiki_board_frame'),
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE7E4DC),
-                    borderRadius: BorderRadius.circular(17),
-                    border: Border.all(color: const Color(0xFFD9D6CD)),
-                    boxShadow: StudioVisuals.softShadow,
-                  ),
-                  child: _FutoshikiBoard(
-                    key: const ValueKey<String>('futoshiki_board'),
-                    puzzle: _puzzle,
-                    cells: _cells,
-                    selectedCell: _selectedCell,
-                    invalidCells: invalid,
-                    accent: _accent,
-                    english: _english,
-                    onTapCell: _selectCell,
-                  ),
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints _) => Padding(
+            padding: const EdgeInsets.fromLTRB(12, 3, 12, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                _FutoshikiStatus(
+                  level: widget.level.number,
+                  tier: _puzzle.difficultyTier,
+                  size: _puzzle.size,
+                  emptyCount: _emptyCount,
+                  relationCount: _puzzle.horizontalAndVerticalRelations,
+                  english: _english,
                 ),
-              ),
-              const SizedBox(height: 10),
-              _FutoshikiKeypad(
-                size: _puzzle.size,
-                enabled: !_finished && _selectedCell != null,
-                selectedValue: _selectedCell == null
-                    ? 0
-                    : _cells[_selectedCell!],
-                english: _english,
-                onValue: _enterValue,
-                onClear: _clearSelected,
-              ),
-              const SizedBox(height: 9),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 8,
-                runSpacing: 7,
-                children: <Widget>[
-                  _FutoshikiTool(
-                    key: const ValueKey<String>('futoshiki_undo'),
-                    icon: Icons.undo_rounded,
-                    label: _english ? 'Undo' : 'Geri al',
-                    enabled: _undoStack.isNotEmpty && !_finished,
-                    onPressed: _undo,
-                  ),
-                  _FutoshikiTool(
-                    key: const ValueKey<String>('futoshiki_hint'),
-                    icon: Icons.lightbulb_outline_rounded,
-                    label: _english ? 'Hint' : 'İpucu',
-                    enabled: !_finished,
-                    onPressed: _showHint,
-                  ),
-                  _FutoshikiTool(
-                    key: const ValueKey<String>('futoshiki_reset'),
-                    icon: Icons.restart_alt_rounded,
-                    label: _english ? 'Reset' : 'Sıfırla',
-                    enabled: !_finished,
-                    onPressed: _confirmReset,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 48,
-                child: FilledButton.icon(
-                  key: const ValueKey<String>('futoshiki_check'),
-                  onPressed: _finished ? null : _checkBoard,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _accent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                  ),
-                  icon: const Icon(Icons.fact_check_outlined),
-                  label: Text(
-                    _english ? 'Check the grid' : 'Izgarayı kontrol et',
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-              if (_notice != null) ...<Widget>[
-                const SizedBox(height: 8),
-                _FutoshikiNotice(
-                  text: _notice!,
+                const SizedBox(height: 6),
+                _FutoshikiInstruction(
+                  english: _english,
+                  size: _puzzle.size,
+                  notice: _notice,
                   warning: invalid.isNotEmpty || _mistakes > 0,
                 ),
-              ],
-              const SizedBox(height: 8),
-              Text(
-                _english
-                    ? 'Use every value once in each row and column. A rotated < sign points to the smaller value.'
-                    : 'Her sayıyı satır ve sütunda bir kez kullan. Döndürülmüş < işareti küçük sayıyı gösterir.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: Color(0xFF6B7472),
-                  fontSize: 12,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
+                const SizedBox(height: 6),
+                Expanded(
+                  flex: 4,
+                  child: LayoutBuilder(
+                    builder: (BuildContext context, BoxConstraints boardSpace) {
+                      final double side = math.min(
+                        boardSpace.maxWidth,
+                        boardSpace.maxHeight,
+                      );
+                      return Center(
+                        child: SizedBox.square(
+                          dimension: side,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Container(
+                              key: const ValueKey<String>(
+                                'futoshiki_board_frame',
+                              ),
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE7E4DC),
+                                borderRadius: BorderRadius.circular(17),
+                                border: Border.all(
+                                  color: const Color(0xFFD9D6CD),
+                                ),
+                                boxShadow: StudioVisuals.softShadow,
+                              ),
+                              child: _FutoshikiBoard(
+                                key: const ValueKey<String>('futoshiki_board'),
+                                puzzle: _puzzle,
+                                cells: _cells,
+                                selectedCell: _selectedCell,
+                                invalidCells: invalid,
+                                accent: _accent,
+                                english: _english,
+                                onTapCell: _selectCell,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                _FutoshikiKeypad(
+                  size: _puzzle.size,
+                  enabled: !_finished && _selectedCell != null,
+                  selectedValue: _selectedCell == null
+                      ? 0
+                      : _cells[_selectedCell!],
+                  english: _english,
+                  onValue: _enterValue,
+                  onClear: _clearSelected,
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 5,
+                  children: <Widget>[
+                    _FutoshikiTool(
+                      key: const ValueKey<String>('futoshiki_undo'),
+                      icon: Icons.undo_rounded,
+                      label: _english ? 'Undo' : 'Geri al',
+                      enabled: _undoStack.isNotEmpty && !_finished,
+                      onPressed: _undo,
+                    ),
+                    _FutoshikiTool(
+                      key: const ValueKey<String>('futoshiki_hint'),
+                      icon: Icons.lightbulb_outline_rounded,
+                      label: _english ? 'Hint' : 'İpucu',
+                      enabled: !_finished,
+                      onPressed: _showHint,
+                    ),
+                    _FutoshikiTool(
+                      key: const ValueKey<String>('futoshiki_reset'),
+                      icon: Icons.restart_alt_rounded,
+                      label: _english ? 'Reset' : 'Sıfırla',
+                      enabled: !_finished,
+                      onPressed: _confirmReset,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 44,
+                  child: FilledButton.icon(
+                    key: const ValueKey<String>('futoshiki_check'),
+                    onPressed: _finished ? null : _checkBoard,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _accent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: Text(
+                      _english ? 'Check the grid' : 'Izgarayı kontrol et',
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _english
+                      ? 'Use every value once in each row and column. A rotated < sign points to the smaller value.'
+                      : 'Her sayıyı satır ve sütunda bir kez kullan. Döndürülmüş < işareti küçük sayıyı gösterir.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: Color(0xFF6B7472),
+                    fontSize: 10,
+                    height: 1.15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -984,44 +1007,72 @@ class _FutoshikiStatus extends StatelessWidget {
 }
 
 class _FutoshikiInstruction extends StatelessWidget {
-  const _FutoshikiInstruction({required this.english, required this.size});
+  const _FutoshikiInstruction({
+    required this.english,
+    required this.size,
+    this.notice,
+    this.warning = false,
+  });
 
   final bool english;
   final int size;
+  final String? notice;
+  final bool warning;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF5F7F4),
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: const Color(0xFFE5EAE5)),
-    ),
-    child: Row(
-      children: <Widget>[
-        const Icon(
-          Icons.compare_arrows_rounded,
-          color: Color(0xFF259C89),
-          size: 19,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            english
-                ? 'Tap a cell, enter 1–$size and follow every < and > sign.'
-                : 'Hücreye dokun, 1–$size gir ve her < > işaretini uygula.',
-            style: const TextStyle(
-              fontFamily: 'Roboto',
-              color: Color(0xFF4E625A),
-              fontSize: 11,
-              height: 1.3,
-              fontWeight: FontWeight.w700,
+  Widget build(BuildContext context) {
+    final bool hasNotice = notice != null && notice!.isNotEmpty;
+    final Color bgColor = hasNotice
+        ? (warning ? const Color(0xFFFFF3F0) : const Color(0xFFEEF3EF))
+        : const Color(0xFFF5F7F4);
+    final Color borderColor = hasNotice
+        ? (warning ? const Color(0xFFFFDCD6) : const Color(0xFFD6E8E2))
+        : const Color(0xFFE5EAE5);
+    final Color iconColor = hasNotice
+        ? (warning ? const Color(0xFFB9655E) : _FutoshikiPlayPageState._accent)
+        : const Color(0xFF259C89);
+    final Color textColor = hasNotice
+        ? (warning ? const Color(0xFF8F514A) : const Color(0xFF4E645B))
+        : const Color(0xFF4E625A);
+    final IconData icon = hasNotice
+        ? (warning ? Icons.info_outline_rounded : Icons.check_circle_outline)
+        : Icons.compare_arrows_rounded;
+    final String displayText = hasNotice
+        ? notice!
+        : (english
+            ? 'Tap a cell, enter 1–$size and follow every < and > sign.'
+            : 'Hücreye dokun, 1–$size gir ve her < > işaretini uygula.');
+
+    return Container(
+      key: const ValueKey<String>('futoshiki_instruction_banner'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(icon, color: iconColor, size: 19),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              displayText,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: textColor,
+                fontSize: 11,
+                height: 1.25,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class _FutoshikiKeypad extends StatelessWidget {
@@ -1161,48 +1212,6 @@ class _FutoshikiTool extends StatelessWidget {
           fontWeight: FontWeight.w700,
         ),
       ),
-    ),
-  );
-}
-
-class _FutoshikiNotice extends StatelessWidget {
-  const _FutoshikiNotice({required this.text, required this.warning});
-
-  final String text;
-  final bool warning;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-    decoration: BoxDecoration(
-      color: warning ? const Color(0xFFFFF3F0) : const Color(0xFFEEF3EF),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Row(
-      children: <Widget>[
-        Icon(
-          warning ? Icons.info_outline_rounded : Icons.check_circle_outline,
-          size: 17,
-          color: warning
-              ? const Color(0xFFB9655E)
-              : _FutoshikiPlayPageState._accent,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontFamily: 'Roboto',
-              color: warning
-                  ? const Color(0xFF8F514A)
-                  : const Color(0xFF4E645B),
-              fontSize: 11,
-              height: 1.25,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ],
     ),
   );
 }

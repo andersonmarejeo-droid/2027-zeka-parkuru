@@ -22,7 +22,7 @@ void main() {
       orders,
       equals(Set<int>.from(List<int>.generate(133, (i) => i + 1))),
     );
-    expect(StudioGameCatalog.playable, hasLength(44));
+    expect(StudioGameCatalog.playable, hasLength(36));
     expect(StudioGameCatalog.inClass(StudioGameClass.fun), hasLength(5));
     expect(StudioGameCatalog.playableCountFor(StudioGameClass.fun), 0);
     expect(StudioGameCatalog.plannedCountFor(StudioGameClass.fun), 5);
@@ -49,12 +49,12 @@ void main() {
           .any((GameDefinition game) => game.id == 'focus_filter'),
       isFalse,
     );
-    expect(StudioGameCatalog.retiredGameIds, hasLength(61));
-    expect(StudioGameCatalog.byId('city_atlas')?.isPlayable, isTrue);
+    expect(StudioGameCatalog.retiredGameIds, hasLength(69));
+    expect(StudioGameCatalog.byId('city_atlas')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('world_atlas')?.isPlayable, isTrue);
     expect(StudioGameCatalog.byId('katamino_workshop')?.isPlayable, isTrue);
-    expect(StudioGameCatalog.byId('single_stroke')?.isPlayable, isTrue);
-    expect(StudioGameCatalog.byId('arrow_maze')?.isPlayable, isTrue);
+    expect(StudioGameCatalog.byId('single_stroke')?.isPlayable, isFalse);
+    expect(StudioGameCatalog.byId('arrow_maze')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('bubble_shooter')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('spot_change')?.isPlayable, isFalse);
     expect(
@@ -96,7 +96,7 @@ void main() {
     expect(StudioGameCatalog.byId('warehouse_master')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('word_wheel')?.isPlayable, isTrue);
     expect(StudioGameCatalog.byId('meaning_match')?.isPlayable, isTrue);
-    expect(StudioGameCatalog.byId('proverb_finish')?.isPlayable, isTrue);
+    expect(StudioGameCatalog.byId('proverb_finish')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('sentence_builder')?.isPlayable, isTrue);
     expect(StudioGameCatalog.byId('near_meaning')?.isPlayable, isTrue);
     expect(StudioGameCatalog.byId('letter_maze')?.isPlayable, isTrue);
@@ -112,18 +112,18 @@ void main() {
     expect(StudioGameCatalog.byId('symbol_stream')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('silent_count')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('dual_task')?.isPlayable, isFalse);
-    expect(StudioGameCatalog.byId('hidden_masses')?.isPlayable, isTrue);
+    expect(StudioGameCatalog.byId('hidden_masses')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('kakuro')?.isPlayable, isTrue);
     expect(StudioGameCatalog.byId('reversi_arena')?.isPlayable, isTrue);
     expect(StudioGameCatalog.byId('picross_master')?.isPlayable, isTrue);
     expect(StudioGameCatalog.byId('tavla_master')?.isPlayable, isFalse);
-    expect(StudioGameCatalog.byId('arrow_route')?.isPlayable, isTrue);
+    expect(StudioGameCatalog.byId('arrow_route')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('mini_chess_tactics')?.isPlayable, isTrue);
     expect(StudioGameCatalog.byId('loop_master')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('go_life_death')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('code_breaker')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('shogi_mate')?.isPlayable, isFalse);
-    expect(StudioGameCatalog.byId('island_sea')?.isPlayable, isTrue);
+    expect(StudioGameCatalog.byId('island_sea')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('peg_solitaire')?.isPlayable, isFalse);
     expect(StudioGameCatalog.byId('futoshiki')?.isPlayable, isTrue);
     expect(StudioGameCatalog.byId('hex_connection')?.isPlayable, isFalse);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../features/catalog/domain/studio_game_catalog.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/studio_visuals.dart';
 
 /// Short, player-facing instructions for active games. Keep the first sentence
@@ -99,8 +100,8 @@ abstract final class GameInstructionCatalog {
       ],
     ),
     'mini_sudoku': GameInstruction(
-      summaryTr: 'Boş hücreleri 1–6 ile doldur; her sayı satırda, sütunda ve 2×3 bölgede bir kez bulunsun.',
-      summaryEn: 'Fill empty cells with 1–6; use each digit once per row, column, and 2×3 region.',
+      summaryTr: 'Boş hücreleri tamamla; her satır, sütun ve bölgede her sayı bir kez bulunsun. Bölümler 6×6’dan 9×9’a ilerler.',
+      summaryEn: 'Complete the grid with each digit once per row, column, and region. Levels progress from 6×6 to 9×9.',
       stepsTr: <String>[
         'Bir boş hücreyi seç ve aday sayıları satır, sütun ve bölgeden ele.',
         'Çakışma yaratmayan sayıyı gir; tüm tablo tamamlanınca doğrula.',
@@ -643,7 +644,7 @@ class _GameInstructionCardState extends State<GameInstructionCard> {
     final List<String> steps = instruction.steps(widget.english);
     return Semantics(
       container: true,
-      label: widget.english ? 'How to play' : 'Nasıl oynanır?',
+      label: context.l10n.gameUi(widget.english ? 'How to play' : 'Nasıl oynanır?'),
       child: Container(
         margin: const EdgeInsets.fromLTRB(18, 0, 18, 12),
         decoration: BoxDecoration(
@@ -673,7 +674,9 @@ class _GameInstructionCardState extends State<GameInstructionCard> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          widget.english ? 'HOW TO PLAY' : 'NASIL OYNANIR?',
+                          context.l10n.gameUi(
+                            widget.english ? 'HOW TO PLAY' : 'NASIL OYNANIR?',
+                          ),
                           style: const TextStyle(
                             fontFamily: 'Roboto',
                             color: StudioVisuals.tealInk,
@@ -694,7 +697,7 @@ class _GameInstructionCardState extends State<GameInstructionCard> {
                   ),
                   const SizedBox(height: 7),
                   Text(
-                    instruction.summary(widget.english),
+                    context.l10n.gameUi(instruction.summary(widget.english)),
                     maxLines: _expanded ? null : 2,
                     overflow: _expanded
                         ? TextOverflow.visible
@@ -749,7 +752,7 @@ class _GameInstructionCardState extends State<GameInstructionCard> {
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
-                                            steps[index],
+                                            context.l10n.gameUi(steps[index]),
                                             style: const TextStyle(
                                               fontFamily: 'Roboto',
                                               color: StudioVisuals.muted,

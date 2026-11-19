@@ -474,10 +474,12 @@ class _AirHockeyArenaPlayPageState extends State<AirHockeyArenaPlayPage>
                                         details.localPosition,
                                         sceneSize,
                                       ),
-                                  child: CustomPaint(
-                                    painter: _AirHockeyTablePainter(
-                                      engine: _engine,
-                                      scenario: _scenario,
+                                  child: RepaintBoundary(
+                                    child: CustomPaint(
+                                      painter: _AirHockeyTablePainter(
+                                        engine: _engine,
+                                        scenario: _scenario,
+                                      ),
                                     ),
                                   ),
                                 ),

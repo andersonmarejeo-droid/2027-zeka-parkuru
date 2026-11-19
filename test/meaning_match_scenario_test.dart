@@ -35,11 +35,13 @@ void main() {
       ) {
         final MeaningMatchScenario scenario =
             MeaningMatchScenario.forCampaignLevel(level);
-        expect(scenario.categories, hasLength(4));
-        expect(scenario.tiles, hasLength(16));
+        final int expectedCategories = level <= 3 ? 3 : 4;
+        final int expectedTiles = level <= 3 ? 9 : 16;
+        expect(scenario.categories, hasLength(expectedCategories));
+        expect(scenario.tiles, hasLength(expectedTiles));
         expect(
           scenario.tiles.map((MeaningTile tile) => tile.word).toSet(),
-          hasLength(16),
+          hasLength(expectedTiles),
         );
         expect(scenario.stage, level);
         expect(

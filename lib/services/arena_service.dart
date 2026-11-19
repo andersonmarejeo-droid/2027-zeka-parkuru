@@ -295,14 +295,14 @@ class ArenaService {
       'https://zeka-parkuru-eu-2026.web.app/arena.html';
 
   static final List<String> allGameIds = List<String>.unmodifiable(
-    StudioGameCatalog.playable.map((GameDefinition game) => game.id),
+    StudioGameCatalog.playable.where((game) => !StudioGameCatalog.isGameRetired(game.id)).map((GameDefinition game) => game.id),
   );
 
   static const int eventGameCount = 6;
 
   static const List<String> featuredGameIds = <String>[
     'hanoi',
-    'picture_iq',
+    'mini_sudoku',
     'number_sort',
   ];
 

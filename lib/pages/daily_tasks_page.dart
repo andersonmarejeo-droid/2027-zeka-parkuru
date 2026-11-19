@@ -13,20 +13,20 @@ import '../services/themed_course_service.dart';
 import '../widgets/studio_card.dart';
 
 const String _dailyCourseVisualAsset =
-    'assets/branding/studio_parkur_daily_course.png';
+    'assets/branding/studio_parkur_daily_course.webp';
 
 String _themedCourseVisualAsset(String id) {
   switch (id) {
     case 'star_hunt':
-      return 'assets/branding/studio_parkur_star_hunt.png';
+      return 'assets/branding/studio_parkur_star_hunt.webp';
     case 'mind_gym':
-      return 'assets/branding/studio_parkur_mind_gym.png';
+      return 'assets/branding/studio_parkur_mind_gym.webp';
     case 'high_iq':
-      return 'assets/branding/studio_parkur_high_iq.png';
+      return 'assets/branding/studio_parkur_high_iq.webp';
     case 'word_labyrinth':
-      return 'assets/branding/studio_parkur_word_labyrinth.png';
+      return 'assets/branding/studio_parkur_word_labyrinth.webp';
     case 'speed_precision':
-      return 'assets/branding/studio_parkur_speed_precision.png';
+      return 'assets/branding/studio_parkur_speed_precision.webp';
     default:
       return _dailyCourseVisualAsset;
   }
@@ -58,22 +58,37 @@ class _DailyTasksPageState extends State<DailyTasksPage> {
   }
 
   Future<void> _load() async {
-    final DailyChallengeData data = await _daily.loadToday();
-    final DailyCourseData courseData = await _course.loadToday();
-    final List<ThemedCourseData> themedCourses = await Future.wait(
-      ThemedCourseCatalog.definitions.map(
-        (ThemedCourseDefinition definition) => _themed.load(definition.id),
-      ),
-    );
+    try {
+      final DailyChallengeData data = await _daily.loadToday();
+      final DailyCourseData courseData = await _course.loadToday();
+      final List<ThemedCourseData> themedCourses = <ThemedCourseData>[];
 
-    if (!mounted) return;
+      for (final ThemedCourseDefinition definition in ThemedCourseCatalog.definitions) {
+        if (ThemedCourseCatalog.isPlayable(definition)) {
+          try {
+            final ThemedCourseData course = await _themed.load(definition.id);
+            themedCourses.add(course);
+          } catch (e) {
+            debugPrint('Themed course error: ${definition.id}: $e');
+          }
+        }
+      }
 
-    setState(() {
-      _data = data;
-      _courseData = courseData;
-      _themedCourses = themedCourses;
-      _loading = false;
-    });
+      if (!mounted) return;
+
+      setState(() {
+        _data = data;
+        _courseData = courseData;
+        _themedCourses = themedCourses;
+        _loading = false;
+      });
+    } catch (e, st) {
+      debugPrint('DailyTasksPage._load error: $e\n$st');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _openDailyCourse() async {
@@ -179,13 +194,41 @@ class _DailyTasksPageState extends State<DailyTasksPage> {
         ),
       ),
       body: StudioPageFrame(
-        child:
-            _loading ||
-                data == null ||
-                courseData == null ||
-                themedCourses == null
+        child: _loading
             ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
+            : (data == null || courseData == null || themedCourses == null)
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          size: 48,
+                          color: StudioVisuals.muted,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          context.l10n.isEnglish
+                              ? 'Could not load challenges'
+                              : 'Görevler yüklenemedi',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: StudioVisuals.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _load,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: Text(
+                            context.l10n.isEnglish ? 'Retry' : 'Tekrar Dene',
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
                 color: StudioVisuals.teal,
                 backgroundColor: StudioVisuals.surface,
                 onRefresh: _load,
@@ -681,7 +724,7 @@ class _ThemedCourseLaunchCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        data.definition.title(english: english),
+                        context.l10n.gameTitle(data.definition.id),
                         style: const TextStyle(
                           color: StudioVisuals.ink,
                           fontSize: 16,
@@ -712,13 +755,13 @@ class _ThemedCourseLaunchCard extends StatelessWidget {
                 child: Image.asset(
                   _themedCourseVisualAsset(data.definition.id),
                   fit: BoxFit.cover,
-                  semanticLabel: data.definition.title(english: english),
+                  semanticLabel: context.l10n.gameTitle(data.definition.id),
                 ),
               ),
             ),
             const SizedBox(height: 12),
             Text(
-              data.definition.description(english: english),
+              context.l10n.gameDescription(data.definition.id),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(

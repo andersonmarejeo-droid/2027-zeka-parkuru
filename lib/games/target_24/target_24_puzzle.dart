@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../shared/content_seed.dart';
+import '../shared/studio_game_contracts.dart';
 
 enum Target24Operator { add, subtract, multiply, divide }
 
@@ -16,23 +17,17 @@ extension Target24OperatorPresentation on Target24Operator {
       this == Target24Operator.add || this == Target24Operator.multiply;
 }
 
+/// "Bir İşlem" oyununda tüm hesaplamalar kesinlikle pozitif tam sayılarla yapılır.
+/// Küsüratlı/kesirli sayılara izin verilmez.
 class Target24Rational implements Comparable<Target24Rational> {
   factory Target24Rational(int numerator, [int denominator = 1]) {
     if (denominator == 0) throw ArgumentError.value(denominator, 'denominator');
-    int normalizedNumerator = numerator;
-    int normalizedDenominator = denominator;
-    if (normalizedDenominator < 0) {
-      normalizedNumerator = -normalizedNumerator;
-      normalizedDenominator = -normalizedDenominator;
+    if (denominator == 1) return Target24Rational._(numerator, 1);
+    if (numerator % denominator == 0) {
+      return Target24Rational._(numerator ~/ denominator, 1);
     }
-    final int divisor = _greatestCommonDivisor(
-      normalizedNumerator.abs(),
-      normalizedDenominator,
-    );
-    return Target24Rational._(
-      normalizedNumerator ~/ divisor,
-      normalizedDenominator ~/ divisor,
-    );
+    // Tam bölünmeyen durumlarda dahi pozitif tam kısmı korur
+    return Target24Rational._(numerator ~/ denominator, 1);
   }
 
   const Target24Rational._(this.numerator, this.denominator);
@@ -43,56 +38,42 @@ class Target24Rational implements Comparable<Target24Rational> {
   final int denominator;
 
   bool get isZero => numerator == 0;
-  bool get isInteger => denominator == 1;
+  bool get isInteger => true;
 
   Target24Rational apply(Target24Operator operation, Target24Rational other) {
     return switch (operation) {
-      Target24Operator.add => Target24Rational(
-        numerator * other.denominator + other.numerator * denominator,
-        denominator * other.denominator,
-      ),
-      Target24Operator.subtract => Target24Rational(
-        numerator * other.denominator - other.numerator * denominator,
-        denominator * other.denominator,
-      ),
-      Target24Operator.multiply => Target24Rational(
-        numerator * other.numerator,
-        denominator * other.denominator,
-      ),
-      Target24Operator.divide when !other.isZero => Target24Rational(
-        numerator * other.denominator,
-        denominator * other.numerator,
-      ),
-      Target24Operator.divide => throw ArgumentError('Cannot divide by zero.'),
+      Target24Operator.add => Target24Rational._(numerator + other.numerator, 1),
+      Target24Operator.subtract => () {
+        if (numerator <= other.numerator) {
+          throw ArgumentError('Çıkarma işlemi pozitif bir tam sayı vermelidir.');
+        }
+        return Target24Rational._(numerator - other.numerator, 1);
+      }(),
+      Target24Operator.multiply => Target24Rational._(numerator * other.numerator, 1),
+      Target24Operator.divide => () {
+        if (other.isZero) {
+          throw ArgumentError('Sıfıra bölme yapılamaz.');
+        }
+        if (numerator % other.numerator != 0) {
+          throw ArgumentError('Yalnızca tam bölünen pozitif sayılar bölünebilir.');
+        }
+        return Target24Rational._(numerator ~/ other.numerator, 1);
+      }(),
     };
   }
 
   @override
-  int compareTo(Target24Rational other) =>
-      (numerator * other.denominator).compareTo(other.numerator * denominator);
+  int compareTo(Target24Rational other) => numerator.compareTo(other.numerator);
 
   @override
   bool operator ==(Object other) =>
-      other is Target24Rational &&
-      numerator == other.numerator &&
-      denominator == other.denominator;
+      other is Target24Rational && numerator == other.numerator;
 
   @override
-  int get hashCode => Object.hash(numerator, denominator);
+  int get hashCode => numerator.hashCode;
 
   @override
-  String toString() => isInteger ? '$numerator' : '$numerator/$denominator';
-
-  static int _greatestCommonDivisor(int left, int right) {
-    int a = left;
-    int b = right;
-    while (b != 0) {
-      final int remainder = a % b;
-      a = b;
-      b = remainder;
-    }
-    return a == 0 ? 1 : a;
-  }
+  String toString() => '$numerator';
 }
 
 class Target24Expression {
@@ -158,13 +139,13 @@ class Target24Step {
 class Target24Puzzle {
   static const int maximumUniqueCases = 300;
   static const List<String> cardLetters = <String>['A', 'B', 'C', 'D'];
-  static const Target24Rational target = Target24Rational._(24, 1);
   static final Map<int, Target24Puzzle> _cache = <int, Target24Puzzle>{};
 
   const Target24Puzzle({
     required this.level,
     required this.localStage,
     required this.maximumCardValue,
+    required this.target,
     required this.cards,
     required this.solution,
   });
@@ -172,8 +153,11 @@ class Target24Puzzle {
   final int level;
   final int localStage;
   final int maximumCardValue;
+  final Target24Rational target;
   final List<Target24Card> cards;
   final Target24Expression solution;
+
+  int get targetValue => target.numerator;
 
   String get difficultyTier => switch (localStage) {
     <= 6 => 'MASTERY',
@@ -182,7 +166,7 @@ class Target24Puzzle {
   };
 
   String get boardSignature =>
-      '24#${cards.map((Target24Card card) => card.value).join('|')}';
+      '$targetValue#${cards.map((Target24Card card) => card.value).join('|')}';
 
   List<Target24Step> get solutionSteps {
     final List<Target24Step> steps = <Target24Step>[];
@@ -257,9 +241,16 @@ class Target24Puzzle {
         int usedFirstIndex,
         int usedSecondIndex,
       ) {
-        if (operation == Target24Operator.divide && second.value.isZero) {
-          return;
+        // Tam sayı kuralları: Sıfıra bölme ve kalanlı bölme yapılamaz
+        if (operation == Target24Operator.divide) {
+          if (second.value.isZero) return;
+          if (first.value.numerator % second.value.numerator != 0) return;
         }
+        // Çıkarma işlemi pozitif tam sayı vermelidir
+        if (operation == Target24Operator.subtract) {
+          if (first.value.numerator <= second.value.numerator) return;
+        }
+
         final Target24Expression combined = Target24Expression.combine(
           operation: operation,
           first: first,
@@ -303,28 +294,44 @@ class Target24Puzzle {
     return results;
   }
 
-  static int stageForLevel(int level) => ((level - 1) % 10) + 1;
+  static int stageForLevel(int level) {
+    final int safeLevel = GameContentPolicy.endlessHighChapter(level);
+    return ((safeLevel - 1) % 10) + 1;
+  }
 
   static int maximumForStage(int stage) => switch (stage) {
-    <= 1 => 18,
-    2 => 20,
-    3 => 22,
-    4 => 24,
-    5 => 26,
-    6 => 28,
-    7 => 30,
-    8 => 32,
-    9 => 36,
+    <= 2 => 15,
+    <= 6 => 25,
     _ => 40,
   };
+
+  static int targetNumberForLevel(int level) {
+    if (level <= 5) return 24;
+    if (level <= 10) {
+      const List<int> list = <int>[24, 28, 30, 36, 40];
+      return list[(level - 6) % list.length];
+    }
+    if (level <= 20) {
+      const List<int> list = <int>[48, 50, 60, 72, 80, 84, 90, 96, 100, 108];
+      return list[(level - 11) % list.length];
+    }
+    if (level <= 30) {
+      const List<int> list = <int>[100, 120, 125, 140, 144, 150, 160, 175, 180, 200];
+      return list[(level - 21) % list.length];
+    }
+    const List<int> list = <int>[120, 144, 150, 160, 180, 200, 220, 240, 250, 300];
+    return list[(level - 31) % list.length];
+  }
 
   Map<String, Object?> toCampaignMap() => {
     'level': level,
     'localStage': localStage,
     'maximumCardValue': maximumCardValue,
+    'target': targetValue,
     'cards': cards.map((card) => [card.id, card.value]).toList(),
     'solution': _encodeExpression(solution),
   };
+
   static List<Object?> _encodeExpression(Target24Expression e) => [
     e.cardId,
     e.operation?.index,
@@ -333,9 +340,10 @@ class Target24Puzzle {
     e.first == null ? null : _encodeExpression(e.first!),
     e.second == null ? null : _encodeExpression(e.second!),
   ];
+
   static Target24Expression _decodeExpression(dynamic source) {
     final e = source as List;
-    final value = Target24Rational(e[2] as int, e[3] as int);
+    final value = Target24Rational(e[2] as int, (e[3] as int?) ?? 1);
     return e[0] != null
         ? Target24Expression.card(cardId: e[0] as int, value: value)
         : Target24Expression.combine(
@@ -352,10 +360,12 @@ class Target24Puzzle {
     }
     for (int i = 0; i < boards.length; i++) {
       final m = Map<String, dynamic>.from(boards[i] as Map);
+      final int tgt = (m['target'] as int?) ?? 24;
       _cache[i + 1] = Target24Puzzle(
         level: m['level'] as int,
         localStage: m['localStage'] as int,
         maximumCardValue: m['maximumCardValue'] as int,
+        target: Target24Rational(tgt),
         cards: (m['cards'] as List)
             .map((e) => Target24Card(id: e[0] as int, value: e[1] as int))
             .toList(),
@@ -365,9 +375,13 @@ class Target24Puzzle {
   }
 
   static Target24Puzzle forLevel(int level) {
-    if (level < 1 || level > maximumUniqueCases) {
-      throw RangeError.range(level, 1, maximumUniqueCases, 'level');
+    if (level < 1) {
+      throw RangeError.range(level, 1, null, 'level');
     }
+    if (_cache.containsKey(level)) {
+      return _cache[level]!;
+    }
+    // 300'e kadar olan seviyeleri bankadan veya önceden üret
     for (int nextLevel = 1; nextLevel <= level; nextLevel++) {
       if (_cache.containsKey(nextLevel)) continue;
       _cache[nextLevel] = _generate(
@@ -384,9 +398,12 @@ class Target24Puzzle {
     int level, {
     required Set<String> usedSignatures,
   }) {
-    final int localStage = stageForLevel(level);
+    final int safeLevel = GameContentPolicy.endlessHighChapter(level);
+    final int localStage = stageForLevel(safeLevel);
     final int maximumCardValue = maximumForStage(localStage);
-    for (int attempt = 0; attempt < 20000; attempt++) {
+    final int targetNum = targetNumberForLevel(level);
+
+    for (int attempt = 0; attempt < 50000; attempt++) {
       final math.Random random = ContentSeed.randomFor(
         gameId: 'target_24',
         level: level,
@@ -394,10 +411,21 @@ class Target24Puzzle {
       );
       final List<int> values = <int>[];
       while (values.length < 4) {
-        final int value = 1 + random.nextInt(maximumCardValue);
-        if (!values.contains(value)) values.add(value);
+        int v;
+        if (targetNum >= 100 && random.nextDouble() < 0.35 && !values.contains(25)) {
+          v = 25;
+        } else if (targetNum >= 140 && random.nextDouble() < 0.25 && !values.contains(50)) {
+          v = 50;
+        } else {
+          v = 1 + random.nextInt(maximumCardValue);
+        }
+        if (!values.contains(v)) values.add(v);
       }
       values.sort();
+
+      final String sig = '$targetNum#${values.join('|')}';
+      if (usedSignatures.contains(sig)) continue;
+
       final List<Target24Card> cards = List<Target24Card>.generate(
         values.length,
         (int index) => Target24Card(id: index, value: values[index]),
@@ -407,23 +435,23 @@ class Target24Puzzle {
         level: level,
         localStage: localStage,
         maximumCardValue: maximumCardValue,
+        target: Target24Rational(targetNum),
         cards: List<Target24Card>.unmodifiable(cards),
-        solution: const Target24Expression.card(cardId: -1, value: target),
+        solution: Target24Expression.card(cardId: -1, value: Target24Rational(targetNum)),
       );
-      final List<Target24Expression> solutions = candidate.solve();
-      if (solutions.length != 1 ||
-          usedSignatures.contains(candidate.boardSignature)) {
-        continue;
-      }
+      final List<Target24Expression> solutions = candidate.solve(limit: 2);
+      if (solutions.isEmpty) continue;
+
       return Target24Puzzle(
         level: level,
         localStage: localStage,
         maximumCardValue: maximumCardValue,
+        target: Target24Rational(targetNum),
         cards: List<Target24Card>.unmodifiable(cards),
-        solution: solutions.single,
+        solution: solutions.first,
       );
     }
-    throw StateError('Could not generate a unique 24 puzzle for level $level.');
+    throw StateError('Could not generate an integer target puzzle for level $level.');
   }
 }
 

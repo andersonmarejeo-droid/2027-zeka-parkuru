@@ -16,9 +16,9 @@ void main() {
         .map((GameDefinition game) => game.id)
         .toSet();
 
-    expect(StudioGameCatalog.retiredGameIds, hasLength(61));
+    expect(StudioGameCatalog.retiredGameIds, hasLength(69));
     expect(active, expectedActive);
-    expect(StudioGameCatalog.playable, hasLength(44));
+    expect(StudioGameCatalog.playable, hasLength(36));
     expect(StudioGameCatalog.byId('slide_sweets')?.isPlayable, isTrue);
     expect(
       StudioGameCatalog.byId('slide_sweets')?.gameClass,

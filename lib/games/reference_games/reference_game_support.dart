@@ -1,4 +1,4 @@
-import 'dart:math';
+﻿import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -43,9 +43,9 @@ List<ParkurLevelSpec> referenceLevels({
   final String difficulty = level <= 3
       ? (english ? 'FOUNDATION' : 'TEMEL')
       : level <= 6
-      ? (english ? 'MASTERY' : 'USTALAŞMA')
+      ? (english ? 'MASTERY' : 'USTALAÅMA')
       : level <= 8
-      ? (english ? 'ADVANCED' : 'İLERİ')
+      ? (english ? 'ADVANCED' : 'Ä°LERÄ°')
       : level == 9
       ? (english ? 'EXPERT' : 'UZMAN')
       : (english ? 'MASTER' : 'USTA');
@@ -53,7 +53,7 @@ List<ParkurLevelSpec> referenceLevels({
     number: level,
     titleTr: '$titleTr ${level.toString().padLeft(2, '0')}',
     titleEn: '$titleEn ${level.toString().padLeft(2, '0')}',
-    subtitleTr: level >= 9 ? 'Ustalık parkuru' : 'Her bölümde yeni bir düzen',
+    subtitleTr: level >= 9 ? 'UstalÄ±k parkuru' : 'Her bÃ¶lÃ¼mde yeni bir dÃ¼zen',
     subtitleEn: level >= 9 ? 'Master challenge' : 'A fresh layout every round',
     difficulty: difficulty,
     icon: icon,
@@ -94,6 +94,7 @@ class ReferencePlayScaffold extends StatelessWidget {
     required this.accent,
     required this.child,
     this.english = false,
+    this.scrollable = true,
   });
 
   final String title;
@@ -101,6 +102,7 @@ class ReferencePlayScaffold extends StatelessWidget {
   final Color accent;
   final Widget child;
   final bool english;
+  final bool scrollable;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -120,7 +122,7 @@ class ReferencePlayScaffold extends StatelessWidget {
                 borderRadius: BorderRadius.circular(99),
               ),
               child: Text(
-                '${english ? 'LEVEL' : 'BÖLÜM'} $level',
+                '${english ? 'LEVEL' : 'BÃ–LÃœM'} $level',
                 style: TextStyle(
                   fontFamily: 'Roboto',
                   color: accent,
@@ -135,10 +137,16 @@ class ReferencePlayScaffold extends StatelessWidget {
     ),
     body: SafeArea(
       top: false,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-        child: child,
-      ),
+      child: scrollable
+          ? SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
+              child: child,
+            )
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+              child: child,
+            ),
     ),
   );
 }

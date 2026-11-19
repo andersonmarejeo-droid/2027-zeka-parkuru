@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -35,96 +35,96 @@ const Map<String, _CatalogArtworkCrop> _catalogArtwork =
     <String, _CatalogArtworkCrop>{
       // Mantık ve çözüm
       'detective_notes': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/logic_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/logic_sheet_v2.webp',
         index: 0,
         hasLabelBand: false,
       ),
       'circuit_repair': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/logic_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/logic_sheet_v2.webp',
         index: 1,
         hasLabelBand: false,
       ),
       'bridge_builder': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/logic_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/logic_sheet_v2.webp',
         index: 2,
         hasLabelBand: false,
       ),
       'island_sea': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/logic_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/logic_sheet_v2.webp',
         index: 3,
         hasLabelBand: false,
       ),
       'skyscrapers': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/logic_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/logic_sheet_v2.webp',
         index: 4,
         hasLabelBand: false,
       ),
       'hitori': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/logic_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/logic_sheet_v2.webp',
         index: 5,
         hasLabelBand: false,
       ),
       'code_breaker': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/logic_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/logic_sheet_v2.webp',
         index: 6,
         hasLabelBand: false,
       ),
       'beam_director': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/logic_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/logic_sheet_v2.webp',
         index: 7,
         hasLabelBand: false,
       ),
 
       // Sayılar
       'numbers': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/numbers_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/numbers_sheet_v2.webp',
         index: 0,
         hasLabelBand: false,
       ),
       'number_sort': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/numbers_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/numbers_sheet_v2.webp',
         index: 1,
         hasLabelBand: false,
       ),
       'target_24': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/numbers_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/numbers_sheet_v2.webp',
         index: 2,
         hasLabelBand: false,
       ),
       'mini_sudoku': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/numbers_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/numbers_sheet_v2.webp',
         index: 3,
         hasLabelBand: false,
       ),
       'kenken_cube': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/numbers_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/numbers_sheet_v2.webp',
         index: 4,
         hasLabelBand: false,
       ),
       'kakuro': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/numbers_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/numbers_sheet_v2.webp',
         index: 5,
         hasLabelBand: false,
       ),
       'fraction_factory': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/numbers_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/numbers_sheet_v2.webp',
         index: 6,
         hasLabelBand: false,
       ),
       'clock_master': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/numbers_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/numbers_sheet_v2.webp',
         index: 7,
         hasLabelBand: false,
       ),
       'balance_scale': _CatalogArtworkCrop(
-        asset: 'assets/game_visuals/weight_objects_sheet.png',
+        asset: 'assets/game_visuals/weight_objects_sheet.webp',
         index: 0,
         columns: 3,
         rows: 3,
         hasLabelBand: false,
       ),
       'hidden_masses': _CatalogArtworkCrop(
-        asset: 'assets/game_visuals/weight_objects_sheet.png',
+        asset: 'assets/game_visuals/weight_objects_sheet.webp',
         index: 7,
         columns: 3,
         rows: 3,
@@ -133,97 +133,97 @@ const Map<String, _CatalogArtworkCrop> _catalogArtwork =
 
       // Görsel ve uzamsal
       'blocks': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/visual_sheet.png',
+        asset: 'assets/branding/game_catalog/visual_sheet.webp',
         index: 0,
       ),
       'picture_iq': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/visual_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/visual_sheet_v2.webp',
         index: 1,
         hasLabelBand: false,
       ),
       'shape_puzzle': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/visual_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/visual_sheet_v2.webp',
         index: 2,
         hasLabelBand: false,
       ),
       'shadow_match': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/visual_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/visual_sheet_v2.webp',
         index: 3,
         hasLabelBand: false,
       ),
       'perspective_cube': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/visual_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/visual_sheet_v2.webp',
         index: 4,
         hasLabelBand: false,
       ),
       'piece_park': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/visual_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/visual_sheet_v2.webp',
         index: 5,
         hasLabelBand: false,
       ),
       'mirror_symmetry': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/visual_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/visual_sheet_v2.webp',
         index: 6,
         hasLabelBand: false,
       ),
       'mahjong_layers': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/visual_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/visual_sheet_v2.webp',
         index: 7,
         hasLabelBand: false,
       ),
 
       // Hafıza ve dikkat (strict 2×4 final sheet)
       'memory': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/memory_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/memory_sheet_v2.webp',
         index: 0,
         hasLabelBand: false,
       ),
       'light_sequence': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/memory_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/memory_sheet_v2.webp',
         index: 1,
         hasLabelBand: false,
       ),
       'card_pairs': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/memory_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/memory_sheet_v2.webp',
         index: 2,
         hasLabelBand: false,
       ),
       'spot_change': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/memory_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/memory_sheet_v2.webp',
         index: 3,
         hasLabelBand: false,
       ),
       'rhythm_memory': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/memory_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/memory_sheet_v2.webp',
         index: 4,
         hasLabelBand: false,
       ),
       'silent_count': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/memory_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/memory_sheet_v2.webp',
         index: 6,
         hasLabelBand: false,
       ),
       'attention_tunnel': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/memory_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/memory_sheet_v2.webp',
         index: 7,
         hasLabelBand: false,
       ),
       'dual_task': _CatalogArtworkCrop(
-        asset: 'assets/game_visuals/realistic_tokens_sheet.png',
+        asset: 'assets/game_visuals/realistic_tokens_sheet.webp',
         index: 5,
         columns: 4,
         rows: 3,
         hasLabelBand: false,
       ),
       'symbol_stream': _CatalogArtworkCrop(
-        asset: 'assets/game_visuals/realistic_tokens_sheet.png',
+        asset: 'assets/game_visuals/realistic_tokens_sheet.webp',
         index: 10,
         columns: 4,
         rows: 3,
         hasLabelBand: false,
       ),
       'focus_filter': _CatalogArtworkCrop(
-        asset: 'assets/focus_filter/focus_shapes_sheet.png',
+        asset: 'assets/focus_filter/focus_shapes_sheet.webp',
         index: 4,
         columns: 4,
         rows: 3,
@@ -232,87 +232,87 @@ const Map<String, _CatalogArtworkCrop> _catalogArtwork =
 
       // Planlama ve strateji
       'hanoi': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/strategy_sheet.png',
+        asset: 'assets/branding/game_catalog/strategy_sheet.webp',
         index: 0,
       ),
       'candy_sort': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/strategy_sheet.png',
+        asset: 'assets/branding/game_catalog/strategy_sheet.webp',
         index: 1,
       ),
       'parking_puzzle': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/strategy_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/strategy_sheet_v2.webp',
         index: 2,
         hasLabelBand: false,
       ),
       'resource_route': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/strategy_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/strategy_sheet_v2.webp',
         index: 3,
         hasLabelBand: false,
       ),
       'garden_order': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/strategy_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/strategy_sheet_v2.webp',
         index: 4,
         hasLabelBand: false,
       ),
       'warehouse_master': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/strategy_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/strategy_sheet_v2.webp',
         index: 5,
         hasLabelBand: false,
       ),
       'mini_chess_tactics': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/strategy_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/strategy_sheet_v2.webp',
         index: 6,
         hasLabelBand: false,
       ),
       'timeline_planner': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/strategy_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/strategy_sheet_v2.webp',
         index: 7,
         hasLabelBand: false,
       ),
 
       // Dil ve kelime
       'word_hunt': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/language_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/language_sheet_v2.webp',
         index: 0,
         hasLabelBand: false,
       ),
       'meaning_match': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/language_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/language_sheet_v2.webp',
         index: 1,
         hasLabelBand: false,
       ),
       'proverb_finish': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/language_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/language_sheet_v2.webp',
         index: 2,
         hasLabelBand: false,
       ),
       'word_wheel': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/language_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/language_sheet_v2.webp',
         index: 3,
         hasLabelBand: false,
       ),
       'sentence_builder': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/language_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/language_sheet_v2.webp',
         index: 4,
         hasLabelBand: false,
       ),
       'near_meaning': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/language_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/language_sheet_v2.webp',
         index: 5,
         hasLabelBand: false,
       ),
       'letter_maze': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/language_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/language_sheet_v2.webp',
         index: 6,
         hasLabelBand: false,
       ),
       'story_order': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/language_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/language_sheet_v2.webp',
         index: 7,
         hasLabelBand: false,
       ),
       'language_detective': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/language_detective_icon_v2.png',
+        asset: 'assets/branding/game_catalog/language_detective_icon_v2.webp',
         index: 0,
         columns: 1,
         rows: 1,
@@ -321,83 +321,83 @@ const Map<String, _CatalogArtworkCrop> _catalogArtwork =
 
       // Hız ve tepki
       'reflex': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/speed_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/speed_sheet_v2.webp',
         index: 0,
         hasLabelBand: false,
       ),
       'color_brake': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/speed_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/speed_sheet_v2.webp',
         index: 1,
         hasLabelBand: false,
       ),
       'target_rain': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/speed_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/speed_sheet_v2.webp',
         index: 2,
         hasLabelBand: false,
       ),
       'direction_switch': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/speed_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/speed_sheet_v2.webp',
         index: 3,
         hasLabelBand: false,
       ),
       'silent_alarm': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/speed_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/speed_sheet_v2.webp',
         index: 4,
         hasLabelBand: false,
       ),
       'double_tap': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/speed_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/speed_sheet_v2.webp',
         index: 5,
         hasLabelBand: false,
       ),
       'time_gate': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/speed_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/speed_sheet_v2.webp',
         index: 6,
         hasLabelBand: false,
       ),
       'route_sprint': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/speed_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/speed_sheet_v2.webp',
         index: 7,
         hasLabelBand: false,
       ),
 
       // Eğlence oyunları
       'block_flow': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/fun_sheet.png',
+        asset: 'assets/branding/game_catalog/fun_sheet.webp',
         index: 0,
       ),
       'balloon_pop': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/fun_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/fun_sheet_v2.webp',
         index: 1,
         hasLabelBand: false,
       ),
       'bottle_target': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/fun_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/fun_sheet_v2.webp',
         index: 2,
         hasLabelBand: false,
       ),
       'color_match': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/fun_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/fun_sheet_v2.webp',
         index: 3,
         hasLabelBand: false,
       ),
       'ball_merge': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/fun_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/fun_sheet_v2.webp',
         index: 4,
         hasLabelBand: false,
       ),
       'tower_balance': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/fun_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/fun_sheet_v2.webp',
         index: 5,
         hasLabelBand: false,
       ),
       'magnet_path': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/fun_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/fun_sheet_v2.webp',
         index: 6,
         hasLabelBand: false,
       ),
       'mini_golf_route': _CatalogArtworkCrop(
-        asset: 'assets/branding/game_catalog/fun_sheet_v2.png',
+        asset: 'assets/branding/game_catalog/fun_sheet_v2.webp',
         index: 7,
         hasLabelBand: false,
       ),
@@ -424,7 +424,7 @@ class StudioGameArtwork extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       child: gameId == 'candy_sort'
           ? _DirectCatalogArtwork(
-              asset: 'assets/branding/game_catalog/candy_sort_icon.png',
+              asset: 'assets/branding/game_catalog/candy_sort_icon.webp',
               locked: locked,
             )
           : _catalogArtwork.containsKey(gameId)

@@ -138,8 +138,10 @@ class DailyCourseService {
 
   /// Every active catalog game can appear in the daily course. Retired and
   /// planned entries are excluded by [StudioGameCatalog.playable].
-  static final List<String> gameIds = List<String>.unmodifiable(
-    StudioGameCatalog.playable.map((GameDefinition game) => game.id),
+  static List<String> get gameIds => List<String>.unmodifiable(
+    StudioGameCatalog.playable
+        .where((game) => !StudioGameCatalog.isGameRetired(game.id))
+        .map((GameDefinition game) => game.id),
   );
 
   static const String _stateKey = 'daily_course_v3_state';

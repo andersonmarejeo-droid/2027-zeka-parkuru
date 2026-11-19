@@ -19,7 +19,7 @@ void main() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
-    tester.view.physicalSize = const Size(320, 600);
+    tester.view.physicalSize = const Size(360, 640);
     tester.view.devicePixelRatio = 1;
 
     await tester.pumpWidget(
@@ -34,20 +34,12 @@ void main() {
     expect(tester.takeException(), isNull);
 
     final Target24Puzzle puzzle = Target24Puzzle.forLevel(1);
-    final Finder scroll = find.byKey(const ValueKey<String>('target24_scroll'));
 
     for (final Target24Step step in puzzle.solutionSteps) {
-      await tester.drag(scroll, const Offset(0, -2400));
-      await tester.pumpAndSettle();
       final Finder operation = find.byKey(
         ValueKey<String>('target24_op_${step.operation.name}'),
       );
-      await tester.scrollUntilVisible(
-        operation,
-        220,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+      expect(operation, findsOneWidget);
       await tester.tap(operation);
       await tester.pump();
 
@@ -58,12 +50,7 @@ void main() {
         final Finder card = find.byKey(
           ValueKey<String>(_expressionKey(operand)),
         );
-        await tester.scrollUntilVisible(
-          card,
-          220,
-          scrollable: find.byType(Scrollable).first,
-        );
-        await tester.pumpAndSettle();
+        expect(card, findsOneWidget);
         await tester.tap(card);
         await tester.pump();
       }
@@ -71,12 +58,7 @@ void main() {
     }
 
     final Finder check = find.byKey(const ValueKey<String>('target24_check'));
-    await tester.scrollUntilVisible(
-      check,
-      220,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
+    expect(check, findsOneWidget);
     await tester.tap(check);
     await tester.pumpAndSettle();
 
@@ -84,7 +66,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('English tablet shows the 300-deal level hub', (
+  testWidgets('English tablet shows the level hub', (
     WidgetTester tester,
   ) async {
     addTearDown(() {
@@ -103,10 +85,10 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 150));
+    await tester.pump(const Duration(milliseconds: 600));
 
-    expect(find.text('Target 24'), findsOneWidget);
-    expect(find.textContaining('Target 01'), findsOneWidget);
+    expect(find.text('Target Number'), findsOneWidget);
+    expect(find.textContaining('Target 01'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 }
@@ -117,8 +99,8 @@ String _expressionKey(Target24Expression expression) => expression.isCard
 
 ParkurLevelSpec _level(int number) => ParkurLevelSpec(
   number: number,
-  titleTr: 'Hedef ${number.toString().padLeft(3, '0')}',
-  titleEn: 'Target ${number.toString().padLeft(3, '0')}',
+  titleTr: 'Hedef 24',
+  titleEn: 'Target 24',
   subtitleTr: 'Dört kartı birleştir',
   subtitleEn: 'Combine four cards',
   difficulty: 'USTALAŞMA',

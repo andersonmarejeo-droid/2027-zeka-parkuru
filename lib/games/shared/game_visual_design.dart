@@ -279,7 +279,10 @@ class StudioGameTheme extends StatelessWidget {
           ),
         ),
       ),
-      child: child,
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: child,
+      ),
     );
   }
 }

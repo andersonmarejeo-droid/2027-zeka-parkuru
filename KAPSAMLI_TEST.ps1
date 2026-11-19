@@ -22,7 +22,13 @@ function Invoke-Checked {
 }
 
 if (-not (Get-Command flutter -ErrorAction SilentlyContinue)) {
-    throw 'Flutter PATH üzerinde bulunamadı.'
+    if (Test-Path "$env:USERPROFILE\flutter\bin\flutter.bat") {
+        $env:PATH = "$env:USERPROFILE\flutter\bin;$env:PATH"
+    } elseif (Test-Path "C:\flutter\bin\flutter.bat") {
+        $env:PATH = "C:\flutter\bin;$env:PATH"
+    } else {
+        throw 'Flutter PATH üzerinde bulunamadı.'
+    }
 }
 
 foreach ($required in @(

@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-import '../shared/game_visual_design.dart';
+
 
 import '../../theme/studio_visuals.dart';
 
@@ -1386,6 +1386,90 @@ class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
     ].join(' ');
   }
 
+  void _showHowToPlay(BuildContext context, bool english) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: StudioVisuals.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  const Icon(Icons.help_outline_rounded, color: _accent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    english ? 'How to Play?' : 'Nasıl Oynanır?',
+                    style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: StudioVisuals.ink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                english
+                    ? '• Find the target words hidden in the grid (horizontal, vertical, diagonal).\n'
+                      '• Drag through the word or tap the first and last letters.\n'
+                      '• Use the hint button if you get stuck on a tricky word.\n'
+                      '• Clear all words on all boards to complete the level!'
+                    : '• Tabloda gizlenmiş hedef kelimeleri bul (yatay, dikey veya çapraz).\n'
+                      '• Kelimenin harfleri üzerinde parmağını kaydır veya ilk ve son harfe dokun.\n'
+                      '• Takıldığın yerde ipucu butonuna basarak ilk harfin yerini görebilirsin.\n'
+                      '• Tüm tahtalardaki kelimeleri bularak seviyeyi tamamla!',
+                style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 13,
+                  height: 1.5,
+                  color: StudioVisuals.ink,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    english ? 'GOT IT' : 'ANLADIM',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool english = context.l10n.isEnglish;
@@ -1405,352 +1489,281 @@ class _WordHuntPlayPageState extends State<WordHuntPlayPage> {
           style: const TextStyle(
             fontFamily: 'Roboto',
             fontWeight: FontWeight.w900,
-            fontSize: 16,
+            fontSize: 15,
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: english ? 'How to play' : 'Nasıl Oynanır?',
+            onPressed: () => _showHowToPlay(context, english),
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints limits) {
-            final double boardSize = min(limits.maxWidth - 28, 430);
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
-              children: <Widget>[
-                _WordHeader(
-                  found: _foundWords.length,
-                  total: _puzzle.words.length,
-                  boardNumber: _boardIndex + 1,
-                  boardTotal: widget.level.boardCount,
-                  elapsed: _elapsed,
-                  mistakes: _mistakes,
-                  english: english,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // Kompakt durum çubuğu (38px)
+              Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
-                const SizedBox(height: 12),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 7,
-                  runSpacing: 7,
-                  children: _puzzle.words
-                      .map((String word) {
-                        final bool found = _foundWords.contains(word);
-                        return AnimatedContainer(
-                          key: ValueKey<String>('word_target_$word'),
-                          duration: const Duration(milliseconds: 220),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 11,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: found
-                                ? colors.primary.withValues(alpha: 0.12)
-                                : colors.surface,
-                            borderRadius: BorderRadius.circular(99),
-                            border: Border.all(
-                              color: found
-                                  ? colors.primary
-                                  : colors.outlineVariant,
-                            ),
-                          ),
-                          child: Text(
-                            _targetLabel(word, found: found),
-                            style: TextStyle(
-                              fontFamily: 'Roboto',
-                              color: found ? colors.primary : colors.onSurface,
-                              decoration: found
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 11,
-                            ),
-                          ),
-                        );
-                      })
-                      .toList(growable: false),
-                ),
-                const SizedBox(height: 13),
-                Center(
-                  child: SizedBox(
-                    width: boardSize,
-                    height: boardSize,
-                    child: RawGestureDetector(
-                      key: const ValueKey<String>('word_hunt_board'),
-                      behavior: HitTestBehavior.opaque,
-                      gestures: <Type, GestureRecognizerFactory>{
-                        EagerGestureRecognizer:
-                            GestureRecognizerFactoryWithHandlers<
-                              EagerGestureRecognizer
-                            >(
-                              () => EagerGestureRecognizer(),
-                              (EagerGestureRecognizer recognizer) {},
-                            ),
-                      },
-                      child: Listener(
-                        behavior: HitTestBehavior.opaque,
-                        onPointerDown: (PointerDownEvent event) =>
-                            _onPointerDown(event, boardSize),
-                        onPointerMove: (PointerMoveEvent event) =>
-                            _onPointerMove(event, boardSize),
-                        onPointerUp: _onPointerUp,
-                        onPointerCancel: _onPointerCancel,
-                        child: Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: <Color>[
-                                Color(0xFFFFFFFF),
-                                Color(0xFFEEF3F0),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: _accent.withValues(alpha: 0.48),
-                            ),
-                          ),
-                          child: IgnorePointer(
-                            child: GridView.builder(
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: widget.level.size * widget.level.size,
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: widget.level.size,
-                                    crossAxisSpacing: 3,
-                                    mainAxisSpacing: 3,
-                                  ),
-                              itemBuilder: (BuildContext context, int index) {
-                                final int row = index ~/ widget.level.size;
-                                final int column = index % widget.level.size;
-                                final Point<int> cell = Point<int>(column, row);
-                                final bool selected = _selection.contains(cell);
-                                final bool found = _isFoundCell(cell);
-                                final bool hinted = _hintCell == cell;
-                                return AnimatedContainer(
-                                  key: ValueKey<String>(
-                                    'word_cell_${row}_$column',
-                                  ),
-                                  duration: const Duration(milliseconds: 130),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: hinted
-                                        ? const Color(0xFF8B622C)
-                                              .withValues(alpha: 0.30)
-                                        : selected
-                                        ? _accent.withValues(alpha: 0.42)
-                                        : found
-                                        ? const Color(0xFF34715D)
-                                              .withValues(alpha: 0.20)
-                                        : Colors.white.withValues(alpha: 0.045),
-                                    borderRadius: BorderRadius.circular(
-                                      widget.level.size >= 8 ? 7 : 10,
-                                    ),
-                                    border: Border.all(
-                                      color: hinted
-                                          ? const Color(0xFF8B622C)
-                                          : selected || found
-                                          ? _accent
-                                          : StudioVisuals.line,
-                                    ),
-                                  ),
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      _puzzle.grid[row][column],
-                                      style: TextStyle(
-                                        fontFamily: 'Roboto',
-                                        fontSize: widget.level.size >= 8
-                                            ? 15
-                                            : 19,
-                                        color: StudioVisuals.ink,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 13),
-                StudioGameActions(
+                child: Row(
                   children: <Widget>[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _boardHints >= 2 || _transitioning
-                            ? null
-                            : _showHint,
-                        icon: const Icon(Icons.lightbulb_rounded),
-                        label: Text(
-                          '${context.l10n.gameUi(english ? 'HINT' : 'İPUCU')} ${2 - _boardHints}/2',
-                        ),
+                    Text(
+                      '${english ? 'Words' : 'Kelime'}: ${_foundWords.length}/${_puzzle.words.length}',
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        color: StudioVisuals.ink,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _startRound,
-                        icon: const Icon(Icons.refresh_rounded),
-                        label: Text(
-                          context.l10n.gameUi(
-                            english ? 'NEW BOARD' : 'YENİ TABLO',
-                          ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '•  ${english ? 'Board' : 'Tahta'} ${_boardIndex + 1}/${widget.level.boardCount}',
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        color: _accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (_mistakes > 0) ...<Widget>[
+                      const SizedBox(width: 8),
+                      Text(
+                        '•  ✕ $_mistakes',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          color: Color(0xFFD64F63),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
                         ),
+                      ),
+                    ],
+                    const Spacer(),
+                    const Icon(Icons.timer_outlined, size: 14, color: StudioVisuals.muted),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${_elapsed}s',
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        color: StudioVisuals.muted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 9),
-                Text(
-                  context.l10n.gameUi(
-                    english
-                        ? 'Swipe with direction snapping, or tap the first and last letters. Every new round creates a different board.'
-                        : 'Kolay seçim için sürükle veya ilk ve son harfe dokun. Her yeni turda farklı tablo oluşur.',
-                  ),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Roboto',
-                    color: colors.onSurfaceVariant,
-                    fontSize: 12,
-                    height: 1.35,
+              ),
+              const SizedBox(height: 6),
+
+              // Aranan Kelimeler (Kaydırmasız - Tüm Kelimeler Ekranda Görünür)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Center(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 5,
+                    alignment: WrapAlignment.center,
+                    children: <Widget>[
+                      for (int index = 0; index < _puzzle.words.length; index++) ...<Widget>[
+                        Builder(
+                          builder: (BuildContext context) {
+                            final String word = _puzzle.words[index];
+                            final bool found = _foundWords.contains(word);
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: found ? colors.primary.withValues(alpha: 0.12) : Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: found ? colors.primary : const Color(0xFFD9E2EC),
+                                ),
+                              ),
+                              child: Text(
+                                _targetLabel(word, found: found),
+                                style: TextStyle(
+                                  fontFamily: 'Roboto',
+                                  color: found ? colors.primary : colors.onSurface,
+                                  decoration: found ? TextDecoration.lineThrough : null,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-              ],
-            );
-          },
+              ),
+              const SizedBox(height: 6),
+
+              // Ana Harf Izgarası (Expanded ile Kaydırmasız Maksimum Boyut)
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (BuildContext context, BoxConstraints space) {
+                    final double boardSize = min(
+                      min(space.maxWidth, space.maxHeight),
+                      430,
+                    );
+                    return Center(
+                      child: SizedBox(
+                        width: boardSize,
+                        height: boardSize,
+                        child: RawGestureDetector(
+                          key: const ValueKey<String>('word_hunt_board'),
+                          behavior: HitTestBehavior.opaque,
+                          gestures: <Type, GestureRecognizerFactory>{
+                            EagerGestureRecognizer:
+                                GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(
+                              () => EagerGestureRecognizer(),
+                              (EagerGestureRecognizer recognizer) {},
+                            ),
+                          },
+                          child: Listener(
+                            behavior: HitTestBehavior.opaque,
+                            onPointerDown: (PointerDownEvent event) =>
+                                _onPointerDown(event, boardSize),
+                            onPointerMove: (PointerMoveEvent event) =>
+                                _onPointerMove(event, boardSize),
+                            onPointerUp: _onPointerUp,
+                            onPointerCancel: _onPointerCancel,
+                            child: Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: <Color>[Color(0xFFFFFFFF), Color(0xFFEEF3F0)],
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: _accent.withValues(alpha: 0.48)),
+                              ),
+                              child: IgnorePointer(
+                                child: GridView.builder(
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: widget.level.size * widget.level.size,
+                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: widget.level.size,
+                                    crossAxisSpacing: 3,
+                                    mainAxisSpacing: 3,
+                                  ),
+                                  itemBuilder: (BuildContext context, int index) {
+                                    final int row = index ~/ widget.level.size;
+                                    final int column = index % widget.level.size;
+                                    final Point<int> cell = Point<int>(column, row);
+                                    final bool selected = _selection.contains(cell);
+                                    final bool found = _isFoundCell(cell);
+                                    final bool hinted = _hintCell == cell;
+                                    return AnimatedContainer(
+                                      key: ValueKey<String>('word_cell_${row}_$column'),
+                                      duration: const Duration(milliseconds: 130),
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: hinted
+                                            ? const Color(0xFF8B622C).withValues(alpha: 0.30)
+                                            : selected
+                                                ? _accent.withValues(alpha: 0.42)
+                                                : found
+                                                    ? const Color(0xFF34715D).withValues(alpha: 0.20)
+                                                    : Colors.white.withValues(alpha: 0.045),
+                                        borderRadius: BorderRadius.circular(
+                                          widget.level.size >= 8 ? 6 : 9,
+                                        ),
+                                        border: Border.all(
+                                          color: hinted
+                                              ? const Color(0xFF8B622C)
+                                              : selected || found
+                                                  ? _accent
+                                                  : StudioVisuals.line,
+                                        ),
+                                      ),
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          _puzzle.grid[row][column],
+                                          style: TextStyle(
+                                            fontFamily: 'Roboto',
+                                            fontSize: widget.level.size >= 8 ? 15 : 19,
+                                            color: StudioVisuals.ink,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 6),
+
+              // Alt Aksiyon Butonları (40px)
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _boardHints >= 2 || _transitioning ? null : _showHint,
+                      icon: const Icon(Icons.lightbulb_rounded, size: 16),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '${context.l10n.gameUi(english ? 'HINT' : 'İPUCU')} ${2 - _boardHints}/2',
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _startRound,
+                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          context.l10n.gameUi(english ? 'NEW BOARD' : 'YENİ TABLO'),
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
-}
-
-class _WordHeader extends StatelessWidget {
-  final int found;
-  final int total;
-  final int boardNumber;
-  final int boardTotal;
-  final int elapsed;
-  final int mistakes;
-  final bool english;
-
-  const _WordHeader({
-    required this.found,
-    required this.total,
-    required this.boardNumber,
-    required this.boardTotal,
-    required this.elapsed,
-    required this.mistakes,
-    required this.english,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: StudioVisuals.line),
-      ),
-      child: Column(
-        children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              const Icon(
-                Icons.dashboard_customize_rounded,
-                color: Color(0xFF34715D),
-                size: 15,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '${context.l10n.gameUi(english ? 'BOARD' : 'TABLO')} $boardNumber/$boardTotal',
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.muted,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 11,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: <Widget>[
-              _WordStat(
-                icon: Icons.search_rounded,
-                value: '$found/$total',
-                label: context.l10n.gameUi(english ? 'FOUND' : 'BULUNAN'),
-                color: const Color(0xFF34715D),
-              ),
-              _WordStat(
-                icon: Icons.timer_outlined,
-                value: '${elapsed}s',
-                label: context.l10n.gameUi(english ? 'TIME' : 'SÜRE'),
-                color: const Color(0xFF3D7183),
-              ),
-              _WordStat(
-                icon: Icons.close_rounded,
-                value: '$mistakes',
-                label: context.l10n.gameUi(english ? 'MISS' : 'HATA'),
-                color: const Color(0xFFFF6B81),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WordStat extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color color;
-
-  const _WordStat({
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Icon(icon, color: color, size: 19),
-          const SizedBox(width: 6),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                value,
-                style: TextStyle(
-                  fontFamily: 'Roboto',
-                  color: color,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 13,
-                ),
-              ),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontFamily: 'Roboto',
-                  color: StudioVisuals.muted,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

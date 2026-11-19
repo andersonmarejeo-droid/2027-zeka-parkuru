@@ -7,8 +7,10 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/game_audio_service.dart';
 import '../../services/replayability_service.dart';
+import '../../theme/studio_visuals.dart';
 import '../reference_games/reference_game_support.dart';
 import '../shared/parkur_game_kit.dart';
+import '../shared/studio_game_contracts.dart';
 
 class CandySortGamePage extends StatelessWidget {
   final bool dailyCourseMode;
@@ -724,6 +726,82 @@ class _CandySortPlayPageState extends State<CandySortPlayPage> {
     );
   }
 
+  void _showHowToPlay(BuildContext context, bool english) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: StudioVisuals.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: StudioVisuals.line,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Icon(Icons.palette_rounded, color: _accent, size: 24),
+                    const SizedBox(width: 8),
+                    Text(
+                      english ? 'How to Play' : 'Nasıl Oynanır?',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: StudioVisuals.ink,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  english
+                      ? '• Tap a jar to select its top candy.\n• Tap another jar to move the candy there.\n• You can only place a candy onto another candy of the SAME color, or into an EMPTY jar.\n• Complete each jar with one single color to win!'
+                      : '• En üstteki şekeri seçmek için kavanoza dokunun.\n• Şekeri aktarmak istediğiniz hedef kavanoza dokunun.\n• Şeker yalnızca AYNI renkteki şekerin üzerine veya BOŞ bir kavanoza konabilir.\n• Her kavanozda tek bir renk toplayarak seviyeyi tamamlayın!',
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    color: StudioVisuals.ink,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _accent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      english ? 'Got it' : 'Anladım',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool english = context.l10n.isEnglish;
@@ -742,19 +820,21 @@ class _CandySortPlayPageState extends State<CandySortPlayPage> {
           '${context.l10n.gameUi(english ? widget.level.titleEn : widget.level.titleTr)}  •  ${widget.level.number}/10',
           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded),
+            tooltip: english ? 'How to play' : 'Nasıl Oynanır?',
+            onPressed: () => _showHowToPlay(context, english),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints limits) {
-            final bool compact = limits.maxHeight < 650;
-            final bool narrow = limits.maxWidth < 380;
-            final ButtonStyle compactOutlineStyle = OutlinedButton.styleFrom(
-              padding: EdgeInsets.symmetric(horizontal: narrow ? 5 : 12),
-              textStyle: TextStyle(fontSize: narrow ? 11 : 13),
-            );
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
+        child: ResponsiveGameFrame(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 _CandyHeader(
                   moves: _moves,
@@ -762,49 +842,53 @@ class _CandySortPlayPageState extends State<CandySortPlayPage> {
                   hints: 3 - _hints,
                   english: english,
                 ),
-                SizedBox(height: compact ? 10 : 16),
-                Container(
-                  padding: EdgeInsets.fromLTRB(
-                    compact ? 8 : 12,
-                    compact ? 12 : 18,
-                    compact ? 8 : 12,
-                    compact ? 8 : 14,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: <Color>[Color(0xFFFFFCF7), Color(0xFFF4EADF)],
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: <Color>[Color(0xFFFFFCF7), Color(0xFFF4EADF)],
+                      ),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: _accent.withValues(alpha: 0.42)),
                     ),
-                    borderRadius: BorderRadius.circular(26),
-                    border: Border.all(color: _accent.withValues(alpha: 0.42)),
-                  ),
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _jars.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 11,
-                      mainAxisExtent: compact ? 132 : 154,
+                    child: LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints jarAreaConstraints) {
+                        final int rows = (_jars.length / columns).ceil();
+                        final double jarWidth = (jarAreaConstraints.maxWidth - (columns - 1) * 8) / columns;
+                        final double jarHeight = (jarAreaConstraints.maxHeight - (rows - 1) * 10) / rows;
+                        final double childAspectRatio = (jarWidth / jarHeight).clamp(0.35, 0.85);
+                        return GridView.builder(
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _jars.length,
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: columns,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 10,
+                            childAspectRatio: childAspectRatio,
+                          ),
+                          itemBuilder: (BuildContext context, int index) {
+                            return _CandyJar(
+                              candies: _jars[index],
+                              capacity: widget.level.capacity,
+                              colors: _candyColors,
+                              selected: _selectedJar == index,
+                              hintSource: _hintSource == index,
+                              hintTarget: _hintTarget == index,
+                              celebrating: _celebratingJar == index,
+                              celebrationToken: _celebratingJar == index
+                                  ? _jarCelebrationToken
+                                  : 0,
+                              onTap: () => _tapJar(index),
+                            );
+                          },
+                        );
+                      },
                     ),
-                    itemBuilder: (BuildContext context, int index) {
-                      return _CandyJar(
-                        candies: _jars[index],
-                        capacity: widget.level.capacity,
-                        colors: _candyColors,
-                        selected: _selectedJar == index,
-                        hintSource: _hintSource == index,
-                        hintTarget: _hintTarget == index,
-                        celebrating: _celebratingJar == index,
-                        celebrationToken: _celebratingJar == index
-                            ? _jarCelebrationToken
-                            : 0,
-                        onTap: () => _tapJar(index),
-                      );
-                    },
                   ),
                 ),
-                SizedBox(height: compact ? 10 : 14),
+                const SizedBox(height: 8),
                 Row(
                   children: <Widget>[
                     Expanded(
@@ -812,10 +896,15 @@ class _CandySortPlayPageState extends State<CandySortPlayPage> {
                         onPressed: _history.isEmpty || _finishing
                             ? null
                             : _undo,
-                        style: compactOutlineStyle,
-                        icon: const Icon(Icons.undo_rounded),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        icon: const Icon(Icons.undo_rounded, size: 18),
                         label: Text(
                           context.l10n.gameUi(english ? 'UNDO' : 'GERİ AL'),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
                         ),
                       ),
                     ),
@@ -823,10 +912,15 @@ class _CandySortPlayPageState extends State<CandySortPlayPage> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: _finishing ? null : _restart,
-                        style: compactOutlineStyle,
-                        icon: const Icon(Icons.refresh_rounded),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
                         label: Text(
                           context.l10n.gameUi(english ? 'RESET' : 'BAŞTAN'),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
                         ),
                       ),
                     ),
@@ -837,35 +931,22 @@ class _CandySortPlayPageState extends State<CandySortPlayPage> {
                         style: FilledButton.styleFrom(
                           backgroundColor: _accent,
                           foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: narrow ? 5 : 12,
-                          ),
-                          textStyle: TextStyle(fontSize: narrow ? 11 : 13),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        icon: const Icon(Icons.lightbulb_rounded),
+                        icon: const Icon(Icons.lightbulb_rounded, size: 18),
                         label: Text(
                           '${context.l10n.gameUi(english ? 'HINT' : 'İPUCU')} ${3 - _hints}',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  context.l10n.gameUi(
-                    english
-                    ? 'Move the top candy onto the same color or into an empty jar.'
-                    : 'En üstteki şekeri aynı rengin üzerine veya boş kavanoza taşı.',
-                  ),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF71837C),
-                    fontSize: 12,
-                  ),
-                ),
               ],
-            );
-          },
+            ),
+          ),
         ),
       ),
     );

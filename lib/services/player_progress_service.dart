@@ -339,7 +339,6 @@ class PlayerProgressService {
       _entry('memory', 'Hafıza Labirenti', progress.hafiza),
       _entry('hanoi', 'Hanoi Kulesi', progress.hanoi),
       _entry('word_hunt', 'Kelime Avı', progress.kelimeAvi),
-      _entry('picture_iq', 'Görsel IQ', progress.gorselIq),
       _entry('candy_sort', 'Şeker Sıralama', progress.sekerSiralama),
       _entry('number_sort', '15 Taş Ustası', progress.sayiPetegi),
       _entry('shape_puzzle', 'Şekil Birleştir', progress.sekilBirlestir),

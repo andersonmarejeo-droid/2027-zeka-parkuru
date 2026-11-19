@@ -17,10 +17,40 @@ import '../shared/studio_game_skin.dart';
 import 'card_pairs_scenario.dart';
 
 abstract final class CardPairsGridLayout {
+  /// Kartları kaydırma olmadan alana sığdıran en uygun sütun sayısı.
+  /// Kart sayısı arttıkça sütun artar, kart boyutu kademeli küçülür.
+  static int bestColumnsFor(
+    int cardCount,
+    double width,
+    double height, {
+    double gap = 6,
+  }) {
+    if (cardCount < 1) return 2;
+    int best = 2;
+    double bestSide = -1;
+    final int minCols = cardCount >= 24 ? 4 : cardCount >= 14 ? 3 : 2;
+    final int maxCols = cardCount >= 28 ? 6 : cardCount >= 16 ? 5 : 4;
+    for (int columns = minCols; columns <= maxCols; columns++) {
+      final int rows = (cardCount + columns - 1) ~/ columns;
+      final double w = (width - gap * (columns - 1)) / columns;
+      final double h = (height - gap * (rows - 1)) / rows;
+      if (w <= 0 || h <= 0) continue;
+      // Kartlar hafif dikey (genişlik : yükseklik = 1 : 1.15).
+      final double side = math.min(w, h / 1.15);
+      if (side > bestSide + 0.1) {
+        bestSide = side;
+        best = columns;
+      }
+    }
+    return best;
+  }
+
   static int columnsFor(int cardCount, double availableWidth) {
     if (cardCount < 1) return 2;
-    if (availableWidth < 560) return 2;
-    return cardCount % 4 == 0 ? 4 : 2;
+    if (availableWidth < 300 || cardCount < 6) return 2;
+    if (availableWidth < 420) return cardCount >= 12 ? 4 : 3;
+    if (availableWidth < 560) return cardCount >= 8 ? 4 : 3;
+    return cardCount % 4 == 0 ? 4 : 3;
   }
 
   static double cardExtentFor(
@@ -67,7 +97,7 @@ class CardPairsGamePage extends StatefulWidget {
           <= 10 => 'Farklı sembollerde ortak rengi izle',
           <= 16 => 'Anlamca bağlantılı kavramları eşleştir',
           <= 19 => 'Sekiz çift ve dört yanıltıcıyla odağını koru',
-          _ => 'Usta finali • on çift, altı tuzak ve tek hata hakkı',
+          _ => 'Usta finali • on çift ve altı tuzak kart',
         },
         subtitleEn: switch (level) {
           <= 3 => 'Remember the locations of identical images',
@@ -75,7 +105,7 @@ class CardPairsGamePage extends StatefulWidget {
           <= 10 => 'Track shared colors across different symbols',
           <= 16 => 'Match ideas that belong together by meaning',
           <= 19 => 'Keep focus across eight pairs and four decoys',
-          _ => 'Master finale • ten pairs, six decoys, one mistake',
+          _ => 'Master finale • ten pairs and six decoys',
         },
         difficulty: level <= 3
             ? 'GÖZLEM'
@@ -226,7 +256,6 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
   late StudioGameSession _session;
   late CardPairsScenario _scenario;
   bool _initialized = false;
-  bool _failureOpen = false;
   bool _solved = false;
   bool _resolving = false;
   bool _hintUsed = false;
@@ -237,19 +266,6 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
 
   bool get _english => context.l10n.isEnglish;
   bool get _practice => widget.practiceRound != null;
-  int get _mistakeLimit => widget.level.number <= 3
-      ? 6
-      : widget.level.number <= 6
-      ? 5
-      : widget.level.number <= 10
-      ? 4
-      : widget.level.number <= 16
-      ? 3
-      : widget.level.number <= 19
-      ? 2
-      : 1;
-  int get _errorsLeft =>
-      (_mistakeLimit - _session.mistakes).clamp(0, _mistakeLimit);
   List<CardPairCard> get _selectedCards => <CardPairCard>[
     for (final String id in _revealed)
       _scenario.cards.firstWhere((CardPairCard card) => card.id == id),
@@ -346,11 +362,11 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
     setState(() {
       _revealed.clear();
       _resolving = false;
+      // Bu oyunda deneme sınırı yok: oyuncu istediği kadar deneyebilir.
       _feedback = _english
-          ? 'Not a pair. $_errorsLeft ${_errorsLeft == 1 ? 'mistake' : 'mistakes'} left.'
-          : 'Bu kartlar eş değil. $_errorsLeft hata hakkı kaldı.';
+          ? 'Not a pair. Try again — attempts are unlimited.'
+          : 'Bu kartlar eş değil. Tekrar dene, deneme sınırı yok.';
     });
-    if (_errorsLeft == 0 && !_failureOpen) unawaited(_showFailure());
   }
 
   void _showHint() {
@@ -373,49 +389,7 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
     unawaited(_audioProfile.play(_audio, GameAudioEvent.hint, gain: .25));
   }
 
-  Future<void> _showFailure() async {
-    _failureOpen = true;
-    _session.fail();
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        title: Text(_english ? 'Collection paused' : 'Koleksiyon durdu'),
-        content: Text(
-          _english
-              ? 'That was the last mistake. Review the matching rule and try this deck again.'
-              : 'Son hata hakkın da doldu. Eşleştirme kuralını yeniden gözden geçirip desteyi tekrar dene.',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              if (mounted) _reset();
-            },
-            child: Text(_english ? 'RETRY' : 'YENİDEN DENE'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              if (mounted) {
-                Navigator.of(context).pop(
-                  const ParkurGameResult(
-                    completed: false,
-                    stars: 0,
-                    score: 0,
-                    nextLevel: false,
-                  ),
-                );
-              }
-            },
-            child: Text(_english ? 'LEVEL MAP' : 'BÖLÜM HARİTASI'),
-          ),
-        ],
-      ),
-    );
-    _failureOpen = false;
-  }
-
+  // ignore: unused_element
   void _reset() {
     setState(() {
       _revealed.clear();
@@ -524,42 +498,26 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
     // can legitimately make a card shorter than 76 px at later levels; a
     // hard 40 px artwork minimum would then make the face-up content taller
     // than the cell even though the back of the card still fits.
+    final double radius = cardWidth < 65 ? 10.0 : cardWidth < 90 ? 14.0 : 18.0;
     final double artSize = math
-        .min(
-          cardWidth * .74,
-          (cardExtent - (cardExtent < 90 ? 30 : 28)) * .88,
-        )
-        .clamp(cardExtent < 90 ? 32.0 : 40.0, 108.0)
+        .min(cardWidth * .74, (cardExtent - (cardExtent < 75 ? 20 : cardExtent < 90 ? 26 : 28)) * .88)
+        .clamp(cardExtent < 70 ? 22.0 : cardExtent < 90 ? 28.0 : 36.0, 108.0)
         .toDouble();
-    final double titleSize = cardExtent < 90
-        ? 10
-        : cardExtent < 110
-        ? 11
-        : cardWidth < 108 || cardExtent < 148
-        ? 12
-        : 14;
-    final int titleMaxLines = cardExtent < 90 ? 1 : 2;
     return Semantics(
       label: faceUp ? card.label : (_english ? 'Hidden card' : 'Kapalı kart'),
       button: true,
       child: Material(
         color: StudioVisuals.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(radius),
         child: InkWell(
           key: ValueKey<String>('card_pairs_card_${card.id}'),
           onTap: () => _tapCard(card),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(radius),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
-            // The grid gives each card a tight, responsive height. A fixed
-            // minimum here made compact levels overflow by a few pixels on
-            // short phones (the card's content already scales to the extent).
-            constraints: const BoxConstraints(minWidth: 54),
-            // Open cards use the entire face so the realistic image remains
-            // readable as the campaign adds more cards and shrinks each row.
             padding: faceUp
                 ? EdgeInsets.zero
-                : const EdgeInsets.symmetric(horizontal: 5, vertical: 7),
+                : const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             decoration: BoxDecoration(
               color: StudioVisuals.surface,
               gradient: faceUp
@@ -569,7 +527,7 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
                       end: Alignment.bottomRight,
                       colors: <Color>[Color(0xFFFFFEFA), Color(0xFFE9F3EF)],
                     ),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(radius),
               border: Border.all(
                 color: matched
                     ? StudioVisuals.teal
@@ -590,107 +548,38 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
             ),
             child: faceUp
                 ? ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: <Widget>[
-                        Container(
-                          key: ValueKey<String>('card_pairs_art_${card.id}'),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: <Color>[
-                                accent.withValues(alpha: .20),
-                                accent.withValues(alpha: .08),
-                              ],
-                            ),
-                          ),
-                          child: RealisticGameObject(
-                            sheet: RealisticObjectSheet.memory,
-                            index: _realisticIndexFor(card.iconKey),
-                            borderRadius: 16,
-                          ),
+                    borderRadius: BorderRadius.circular(radius - 2),
+                    child: Container(
+                      key: ValueKey<String>('card_pairs_art_${card.id}'),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: <Color>[
+                            accent.withValues(alpha: .20),
+                            accent.withValues(alpha: .08),
+                          ],
                         ),
-                        const Positioned.fill(
-                          child: IgnorePointer(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: <Color>[
-                                    Colors.transparent,
-                                    Color(0x05000000),
-                                    Color(0xB8000000),
-                                  ],
-                                  stops: <double>[0, .46, 1],
-                                ),
-                              ),
-                            ),
-                          ),
+                      ),
+                      child: Center(
+                        child: RealisticGameObject(
+                          sheet: RealisticObjectSheet.memory,
+                          index: _realisticIndexFor(card.iconKey),
+                          borderRadius: 16,
                         ),
-                        if (_scenario.rule == CardPairsRule.sameShape)
-                          Positioned(
-                            top: cardExtent < 90 ? 5 : 8,
-                            left: 10,
-                            right: 10,
-                            child: SizedBox(
-                              height: 10,
-                              child: CustomPaint(
-                                painter: _PairPatternPainter(
-                                  variant: card.patternIndex,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Padding(
-                            padding: EdgeInsets.fromLTRB(
-                              8,
-                              0,
-                              8,
-                              cardExtent < 90 ? 4 : 7,
-                            ),
-                            child: Text(
-                              card.label,
-                              maxLines: titleMaxLines,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontFamily: 'Roboto',
-                                color: Colors.white,
-                                fontSize: titleSize,
-                                height: 1.08,
-                                fontWeight: FontWeight.w900,
-                                shadows: const <Shadow>[
-                                  Shadow(
-                                    color: Color(0x99000000),
-                                    blurRadius: 3,
-                                    offset: Offset(0, 1),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   )
                 : Stack(
                     alignment: Alignment.center,
                     children: <Widget>[
                       Container(
-                        key: ValueKey<String>(
-                          'card_pairs_back_art_${card.id}',
-                        ),
+                        key: ValueKey<String>('card_pairs_back_art_${card.id}'),
                         width: artSize,
                         height: artSize,
                         decoration: BoxDecoration(
                           color: StudioVisuals.tealSoft,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(radius - 2),
                           border: Border.all(
                             color: StudioVisuals.teal.withValues(alpha: .2),
                           ),
@@ -709,6 +598,109 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
     );
   }
 
+  void _showHowToPlay(BuildContext context, bool english) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: StudioVisuals.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: StudioVisuals.line,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.style_rounded,
+                      color: Color(0xFFD89A42),
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      english ? 'How to Play' : 'Nasıl Oynanır?',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: StudioVisuals.ink,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _scenario.instruction,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    height: 1.4,
+                    color: StudioVisuals.ink,
+                  ),
+                ),
+                if (_scenario.decoyCount > 0) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    english
+                        ? '⚠️ Beware of ${_scenario.decoyCount} decoy cards on the board that have no pair!'
+                        : '⚠️ Dikkat: Tahtada çifti olmayan ${_scenario.decoyCount} adet tuzak kart bulunmaktadır!',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: StudioVisuals.danger,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Text(
+                  english
+                      ? '• Tap cards to reveal them and match identical or related pairs.\n• Keep errors below the limit to win maximum stars!'
+                      : '• Kartlara dokunarak açın ve eşleşen çiftleri bulun.\n• Maksimum yıldız için hata limitini aşmadan tahtayı temizleyin!',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.5,
+                    color: StudioVisuals.muted,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFD89A42),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      english ? 'Got it' : 'Anladım',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final StudioGameSkin skin = StudioGameSkin.forId('card_pairs');
@@ -722,15 +714,6 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
       Color(0xFF4E9AA0),
       Color(0xFFAD755E),
     ];
-    final double availableGridViewportHeight = math
-        .max(
-          0,
-          MediaQuery.sizeOf(context).height -
-              MediaQuery.paddingOf(context).vertical -
-              kToolbarHeight -
-              108,
-        )
-        .toDouble();
     return Scaffold(
       backgroundColor: StudioVisuals.canvas,
       appBar: AppBar(
@@ -768,6 +751,13 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded),
+            tooltip: _english ? 'How to play' : 'Nasıl Oynanır?',
+            onPressed: () => _showHowToPlay(context, _english),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
@@ -776,253 +766,194 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
             child: Column(
               children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        _scenario.ruleTitle,
-                        style: TextStyle(
-                          fontFamily: 'Roboto',
-                          color: skin.accent,
-                          fontSize: 12,
-                          letterSpacing: 1.05,
-                          fontWeight: FontWeight.w900,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: StudioVisuals.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudioVisuals.line),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _scenario.ruleTitle,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              color: skin.accent,
+                              fontSize: 10,
+                              letterSpacing: 0.3,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                    _PairStat(
-                      icon: Icons.favorite_outline_rounded,
-                      value: '$_errorsLeft/$_mistakeLimit',
-                      accent: _errorsLeft <= 1
-                          ? StudioVisuals.danger
-                          : skin.accent,
-                    ),
-                    const SizedBox(width: 6),
-                    _PairStat(
-                      icon: Icons.stars_rounded,
-                      value: '${_session.score}',
-                      accent: StudioVisuals.amber,
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      _PairStat(
+                        icon: Icons.layers_rounded,
+                        value: '${_matched.length}/${_scenario.pairCount}',
+                        accent: StudioVisuals.tealInk,
+                      ),
+                      const SizedBox(width: 6),
+                      _PairStat(
+                        icon: Icons.all_inclusive_rounded,
+                        value: '${_session.mistakes}',
+                        accent: skin.accent,
+                      ),
+                      const SizedBox(width: 6),
+                      _PairStat(
+                        icon: Icons.stars_rounded,
+                        value: '${_session.score}',
+                        accent: StudioVisuals.amber,
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Expanded(
-                  child: SingleChildScrollView(
+                  child: Container(
                     key: const ValueKey<String>('card_pairs_scroll'),
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: StudioVisuals.surface,
-                            borderRadius: StudioVisuals.compactRadius,
-                            border: Border.all(color: StudioVisuals.line),
-                          ),
-                          child: Row(
-                            children: <Widget>[
-                              Container(
-                                width: 34,
-                                height: 34,
-                                decoration: BoxDecoration(
-                                  color: skin.accentSoft,
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                child: Icon(
-                                  Icons.tips_and_updates_outlined,
-                                  color: skin.accent,
-                                  size: 19,
-                                ),
-                              ),
-                              const SizedBox(width: 9),
-                              Expanded(
-                                child: Text(
-                                  _scenario.instruction,
-                                  style: const TextStyle(
-                                    fontFamily: 'Roboto',
-                                    color: StudioVisuals.ink,
-                                    fontSize: 11.5,
-                                    height: 1.2,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              if (_scenario.decoyCount > 0)
-                                _PairTag(
-                                  text: _english
-                                      ? '${_scenario.decoyCount} DECOYS'
-                                      : '${_scenario.decoyCount} TUZAK',
-                                  color: StudioVisuals.danger,
-                                  soft: const Color(0xFFFFEEEE),
-                                ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 9),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: skin.boardBackground,
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(18),
-                            ),
-                          ),
-                          child: Row(
-                            children: <Widget>[
-                              Icon(
-                                Icons.layers_rounded,
-                                size: 18,
-                                color: skin.accent,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  _english ? 'MEMORY GRID' : 'HAFIZA IZGARASI',
-                                  style: const TextStyle(
-                                    fontFamily: 'Roboto',
-                                    color: StudioVisuals.ink,
-                                    fontSize: 12,
-                                    letterSpacing: .9,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                '${_matched.length}/${_scenario.pairCount}',
-                                style: const TextStyle(
-                                  fontFamily: 'Roboto',
-                                  color: StudioVisuals.amberInk,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(9, 8, 9, 12),
-                          decoration: BoxDecoration(
-                            color: skin.boardBackground,
-                            borderRadius: const BorderRadius.vertical(
-                              bottom: Radius.circular(18),
-                            ),
-                          ),
-                          child: LayoutBuilder(
-                            builder:
-                                (
-                                  BuildContext context,
-                                  BoxConstraints constraints,
-                                ) {
-                                  final int cardCount = _scenario.cards.length;
-                                  final int columns =
-                                      CardPairsGridLayout.columnsFor(
-                                        cardCount,
-                                        constraints.maxWidth,
-                                      );
-                                  final double extent =
-                                      CardPairsGridLayout.cardExtentFor(
-                                        cardCount,
-                                        constraints.maxWidth,
-                                        viewportHeight:
-                                            availableGridViewportHeight,
-                                      );
-                                  const double gap = 8;
-                                  final double cardWidth =
-                                      (constraints.maxWidth -
-                                          gap * (columns - 1)) /
-                                      columns;
-                                  return GridView.builder(
-                                    key: const ValueKey<String>(
-                                      'card_pairs_grid',
-                                    ),
-                                    shrinkWrap: true,
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    itemCount: cardCount,
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: columns,
-                                          crossAxisSpacing: gap,
-                                          mainAxisSpacing: gap,
-                                          mainAxisExtent: extent,
-                                        ),
-                                    itemBuilder:
-                                        (BuildContext context, int index) =>
-                                            _card(
-                                              _scenario.cards[index],
-                                              accents,
-                                              cardWidth: cardWidth,
-                                              cardExtent: extent,
-                                            ),
-                                  );
-                                },
-                          ),
-                        ),
-                        if (_feedback != null) ...<Widget>[
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: _solved
-                                  ? StudioVisuals.tealSoft
-                                  : StudioVisuals.surface,
-                              borderRadius: StudioVisuals.compactRadius,
-                              border: Border.all(
-                                color: _solved
-                                    ? StudioVisuals.teal.withValues(alpha: .2)
-                                    : StudioVisuals.line,
-                              ),
-                            ),
-                            child: Row(
-                              children: <Widget>[
-                                Icon(
-                                  _solved
-                                      ? Icons.check_circle_outline_rounded
-                                      : Icons.info_outline_rounded,
-                                  color: _solved
-                                      ? StudioVisuals.teal
-                                      : StudioVisuals.muted,
-                                  size: 17,
-                                ),
-                                const SizedBox(width: 7),
-                                Expanded(
-                                  child: Text(
-                                    _feedback!,
-                                    style: const TextStyle(
-                                      fontFamily: 'Roboto',
-                                      color: StudioVisuals.ink,
-                                      fontSize: 11,
-                                      height: 1.2,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        if (_solved) ...<Widget>[
-                          const SizedBox(height: 7),
-                          Text(
-                            _english
-                                ? 'Rule mastered: ${_scenario.ruleTitle.toLowerCase()}.'
-                                : 'Kural öğrenildi: ${_scenario.ruleTitle.toLowerCase()}.',
-                            style: const TextStyle(
-                              fontFamily: 'Roboto',
-                              color: StudioVisuals.muted,
-                              fontSize: 12.5,
-                            ),
-                          ),
-                        ],
-                      ],
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: skin.boardBackground,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: StudioVisuals.line),
                     ),
+                    child: LayoutBuilder(
+                      builder:
+                          (
+                            BuildContext context,
+                            BoxConstraints gridConstraints,
+                          ) {
+                            final int cardCount = _scenario.cards.length;
+                            final double gap = cardCount >= 16 ? 5.0 : 6.5;
+                            final int columns = CardPairsGridLayout.bestColumnsFor(
+                              cardCount,
+                              gridConstraints.maxWidth,
+                              gridConstraints.maxHeight,
+                              gap: gap,
+                            );
+                            final int rows = (cardCount / columns).ceil();
+                            final double fitWidth =
+                                (gridConstraints.maxWidth -
+                                    gap * (columns - 1)) /
+                                columns;
+                            final double fitHeight =
+                                (gridConstraints.maxHeight - gap * (rows - 1)) /
+                                rows;
+                            // Kart hiçbir zaman gereğinden büyük olmaz;
+                            // ilk bölümlerde de kompakt kalır.
+                            final double cardWidth = math.min(
+                              math.min(fitWidth, fitHeight / 1.15),
+                              118,
+                            );
+                            final double extent = cardWidth * 1.15;
+                            final double gridWidth =
+                                cardWidth * columns + gap * (columns - 1);
+                            final double gridHeight =
+                                extent * rows + gap * (rows - 1);
+                            return Center(
+                              child: SizedBox(
+                                width: gridWidth,
+                                height: gridHeight,
+                                child: GridView.builder(
+                              key: const ValueKey<String>('card_pairs_grid'),
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: EdgeInsets.zero,
+                              itemCount: cardCount,
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: columns,
+                                    crossAxisSpacing: gap,
+                                    mainAxisSpacing: gap,
+                                    mainAxisExtent: extent,
+                                  ),
+                              itemBuilder: (BuildContext context, int index) =>
+                                  _card(
+                                    _scenario.cards[index],
+                                    accents,
+                                    cardWidth: cardWidth,
+                                    cardExtent: extent,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Sabit yükseklikli durum çubuğu: Kart seçimlerinde/eşleşmelerde
+                // alanın açılıp kapanarak ekranın zıplamasını/sekmesini %100 önler.
+                Container(
+                  height: 34,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _solved
+                        ? StudioVisuals.tealSoft
+                        : _feedback != null
+                        ? StudioVisuals.surface
+                        : Colors.transparent,
+                    borderRadius: StudioVisuals.compactRadius,
+                    border: Border.all(
+                      color: _solved
+                          ? StudioVisuals.teal.withValues(alpha: .2)
+                          : _feedback != null
+                          ? StudioVisuals.line
+                          : Colors.transparent,
+                    ),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(
+                        _solved
+                            ? Icons.check_circle_outline_rounded
+                            : _feedback != null
+                            ? Icons.info_outline_rounded
+                            : Icons.touch_app_outlined,
+                        size: 15,
+                        color: _solved
+                            ? StudioVisuals.teal
+                            : _feedback != null
+                            ? StudioVisuals.muted
+                            : StudioVisuals.muted.withValues(alpha: .35),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _feedback ??
+                              (_english
+                                  ? (_revealed.isEmpty
+                                      ? 'Choose the first card'
+                                      : 'Now find its matching pair')
+                                  : (_revealed.isEmpty
+                                      ? 'Birinci kartı seç'
+                                      : 'Şimdi eşini bul')),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'Roboto',
+                            color: _solved
+                                ? StudioVisuals.tealInk
+                                : _feedback != null
+                                ? StudioVisuals.ink
+                                : StudioVisuals.muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -1039,7 +970,7 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
                             : 'KOLEKSİYONU TAMAMLA',
                       ),
                       style: FilledButton.styleFrom(
-                        minimumSize: const Size(48, 50),
+                        minimumSize: const Size(48, 44),
                         backgroundColor: skin.accent,
                         foregroundColor: Colors.white,
                       ),
@@ -1063,10 +994,13 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(48, 48),
+                            minimumSize: const Size(48, 42),
                             foregroundColor: StudioVisuals.ink,
-                            padding: const EdgeInsets.symmetric(horizontal: 5),
-                            textStyle: const TextStyle(fontSize: 11),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            textStyle: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
                             side: const BorderSide(color: StudioVisuals.line),
                           ),
                         ),
@@ -1081,7 +1015,7 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
                           style: const TextStyle(
                             fontFamily: 'Roboto',
                             color: StudioVisuals.muted,
-                            fontSize: 12,
+                            fontSize: 11.5,
                             height: 1.15,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1096,62 +1030,6 @@ class _CardPairsPlayPageState extends State<CardPairsPlayPage> {
       ),
     );
   }
-}
-
-class _PairPatternPainter extends CustomPainter {
-  const _PairPatternPainter({required this.variant, required this.color});
-
-  final int variant;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint mark = Paint()
-      ..color = color.withValues(alpha: .78)
-      ..strokeWidth = 1.35
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    final double centerY = size.height / 2;
-    switch (variant % 5) {
-      case 0:
-        for (int line = 0; line < 3; line++) {
-          final double y = 1.2 + line * (size.height - 2.4) / 2;
-          canvas.drawLine(Offset(1, y), Offset(size.width - 1, y), mark);
-        }
-      case 1:
-        final Paint dots = Paint()
-          ..color = color.withValues(alpha: .78)
-          ..style = PaintingStyle.fill;
-        for (double x = 3; x < size.width; x += 7) {
-          canvas.drawCircle(Offset(x, centerY), 1.2, dots);
-        }
-      case 2:
-        for (double x = -size.height; x < size.width; x += 7) {
-          canvas.drawLine(
-            Offset(x, size.height - 1),
-            Offset(x + size.height, 1),
-            mark,
-          );
-        }
-      case 3:
-        for (double radius = 2; radius <= size.height / 2; radius += 3) {
-          canvas.drawCircle(Offset(size.width / 2, centerY), radius, mark);
-        }
-      default:
-        final Path chevrons = Path();
-        for (double x = 1; x < size.width; x += 8) {
-          chevrons
-            ..moveTo(x, 1)
-            ..lineTo(x + 3, centerY)
-            ..lineTo(x, size.height - 1);
-        }
-        canvas.drawPath(chevrons, mark);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_PairPatternPainter oldDelegate) =>
-      oldDelegate.variant != variant || oldDelegate.color != color;
 }
 
 class _PairStat extends StatelessWidget {
@@ -1188,31 +1066,6 @@ class _PairStat extends StatelessWidget {
           ),
         ),
       ],
-    ),
-  );
-}
-
-class _PairTag extends StatelessWidget {
-  const _PairTag({required this.text, required this.color, required this.soft});
-  final String text;
-  final Color color;
-  final Color soft;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-    decoration: BoxDecoration(
-      color: soft,
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Text(
-      text,
-      style: TextStyle(
-        fontFamily: 'Roboto',
-        color: color,
-        fontSize: 10.5,
-        fontWeight: FontWeight.w900,
-      ),
     ),
   );
 }

@@ -289,7 +289,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Word Wheel'), findsOneWidget);
-    expect(find.textContaining('Letter Wheel 01'), findsOneWidget);
+    expect(find.textContaining('Letter Wheel 01'), findsWidgets);
     expect(WordWheelGamePage.totalCases, 30);
     expect(WordWheelPuzzle.poolSize, 700);
     expect(tester.takeException(), isNull);

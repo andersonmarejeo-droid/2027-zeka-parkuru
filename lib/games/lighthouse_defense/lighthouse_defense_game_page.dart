@@ -608,10 +608,9 @@ class _LighthouseDefensePlayPageState extends State<LighthouseDefensePlayPage>
                                   'lighthouse_priority',
                                 ),
                                 icon: Icons.filter_alt_rounded,
-                                label: _priorityName(
-                                  selected.targetRule,
-                                  _english,
-                                ).toUpperCase(),
+                                label: context.l10n.uppercaseLabel(
+                                  _priorityName(selected.targetRule, _english),
+                                ),
                                 onTap: _cyclePriority,
                               ),
                             ),
@@ -889,11 +888,13 @@ class _TowerMiniAction extends StatelessWidget {
     child: OutlinedButton.icon(
       onPressed: onTap,
       icon: Icon(icon, size: 14),
-      label: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.w900),
+      label: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          label,
+          maxLines: 1,
+          style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.w900),
+        ),
       ),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 5),

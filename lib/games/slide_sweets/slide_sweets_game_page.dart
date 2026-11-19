@@ -1,6 +1,6 @@
 import '../shared/studio_game_contracts.dart';
-
 import 'dart:async';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -38,19 +38,16 @@ class SlideSweetsGamePage extends StatelessWidget {
     (int index) {
       final int level = index + 1;
       final String tr = switch (level) {
-        <= 3 => 'Kavşak yönünü seç; üç şeker rengini istasyonlarına ulaştır.',
-        <= 6 => 'İki kavşağın yönünü ayrı seç; sıradaki siparişleri oku.',
-        7 || 8 => 'İleri: hız bandı ve dar tamponla eşzamanlı akışı yönet.',
-        9 => 'Uzman: sık dalgada iki kavşağı da doğru fazda değiştir.',
-        _ => 'Usta finali: 17 siparişi taşma olmadan, seri akışta tamamla.',
+        <= 5 => 'Tek yönlendirme hattı: kavşak yönünü seç, şekerleri ulaştır.',
+        <= 10 => 'Tek yönlendirme: hızlanan akışı oku, siparişleri tamamla.',
+        <= 15 => 'Çift yönlendirme devrede: iki kavşağı ayrı yönet.',
+        _ => 'Usta finali: iki kavşağı seri fazda yöneterek siparişleri tamamla.',
       };
       final String en = switch (level) {
-        <= 3 => 'Choose a gate direction and send the three candy colours to their stations.',
-        <= 6 => 'Set both gate directions independently and read the upcoming orders.',
-        7 || 8 => 'Advanced: manage a surge belt and a narrow buffer under concurrency.',
-        9 =>
-          'Expert: phase both diverters through a tightly spaced order wave.',
-        _ => 'Master finale: route 17 orders through both gates without a jam.',
+        <= 5 => 'Single gate line: choose the diverter direction and route sweets.',
+        <= 10 => 'Single gate: manage accelerating flow and fill each order.',
+        <= 15 => 'Dual gates active: control both diverters independently.',
+        _ => 'Master finale: phase both gates in rapid flow to fill all orders.',
       };
       return ParkurLevelSpec(
         number: level,
@@ -59,11 +56,10 @@ class SlideSweetsGamePage extends StatelessWidget {
         subtitleTr: tr,
         subtitleEn: en,
         difficulty: switch (level) {
-          <= 3 => 'USTALAŞMA',
-          <= 6 => 'DERİNLEŞME',
-          7 || 8 => 'İLERİ',
-          9 => 'UZMAN',
-          _ => 'USTA',
+          <= 5 => 'BAŞLANGIÇ',
+          <= 10 => 'USTALAŞMA',
+          <= 15 => 'İLERİ',
+          _ => 'UZMAN',
         },
         icon: Icons.factory_rounded,
       );
@@ -368,6 +364,129 @@ class _SlideSweetsPlayPageState extends State<SlideSweetsPlayPage>
     super.dispose();
   }
 
+  void _showHowToPlay(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: StudioVisuals.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.factory_rounded, color: _accent, size: 22),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _english ? 'How to Play: Sweet Conveyor' : 'Nasıl Oynanır: Şeker Konveyörü',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: StudioVisuals.ink,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _buildRuleItem(
+                  Icons.alt_route_rounded,
+                  _english ? 'Switch Diverters' : 'Kavşakları Ayarla',
+                  _english
+                      ? 'Select Upper, Middle, or Lower independently at each gate to guide incoming sweets.'
+                      : 'Gelen şekerleri yönlendirmek için her kavşakta Üst, Orta veya Alt yönünü ayrı seç.',
+                ),
+                const SizedBox(height: 10),
+                _buildRuleItem(
+                  Icons.color_lens_outlined,
+                  _english ? 'Match Colours' : 'Renkleri Eşleştir',
+                  _english
+                      ? 'Route each sweet into the station with matching colour to fill customer orders.'
+                      : 'Her şekeri rengiyle eşleşen paketleme istasyonuna ulaştırarak siparişleri hazırla.',
+                ),
+                const SizedBox(height: 10),
+                _buildRuleItem(
+                  Icons.speed_rounded,
+                  _english ? 'Timing & Speed' : 'Hız ve Zamanlama',
+                  _english
+                      ? 'Act quickly before candies collide or miss their destination.'
+                      : 'Şekerler istasyonu geçmeden veya birbirine çarpmadan önce kavşak yönünü değiştir.',
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _accent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(_english ? 'Got it!' : 'Anladım, Başla'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRuleItem(IconData icon, String title, String desc) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: _accent),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  color: StudioVisuals.ink,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                desc,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: StudioVisuals.muted,
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     _english = context.l10n.isEnglish;
@@ -395,6 +514,11 @@ class _SlideSweetsPlayPageState extends State<SlideSweetsPlayPage>
           ),
         ),
         actions: <Widget>[
+          IconButton(
+            tooltip: _english ? 'How to play' : 'Nasıl Oynanır',
+            onPressed: () => _showHowToPlay(context),
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
           IconButton(
             key: const ValueKey<String>('slide_sweets_pause'),
             tooltip: _paused
@@ -461,37 +585,44 @@ class _SlideSweetsPlayPageState extends State<SlideSweetsPlayPage>
                     ),
                   ),
                   const SizedBox(height: 6),
-                  _DiverterControl(
-                    gate: 0,
-                    offset: _engine.diverterOffsets[0],
-                    english: _english,
-                    onSelect: (int direction) =>
-                        _setGateDirection(0, direction),
-                  ),
-                  const SizedBox(height: 5),
-                  _DiverterControl(
-                    gate: 1,
-                    offset: _engine.diverterOffsets[1],
-                    english: _english,
-                    onSelect: (int direction) =>
-                        _setGateDirection(1, direction),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _english
-                        ? 'Choose UPPER, MIDDLE or LOWER separately at each gate. Match each sweet to its coloured station.'
-                        : 'Her kavşakta ÜST, ORTA veya ALT yönünü ayrı seç. Şekeri rengiyle eşleşen istasyona yönlendir.',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: 'Roboto',
-                      color: StudioVisuals.muted,
-                      fontSize: 11,
-                      height: 1.15,
-                      fontWeight: FontWeight.w700,
+                  if (_engine.gateCount == 1)
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 320),
+                        child: _DiverterControl(
+                          gate: 0,
+                          offset: _engine.diverterOffsets[0],
+                          english: _english,
+                          onSelect: (int direction) =>
+                              _setGateDirection(0, direction),
+                        ),
+                      ),
+                    )
+                  else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Expanded(
+                          child: _DiverterControl(
+                            gate: 0,
+                            offset: _engine.diverterOffsets[0],
+                            english: _english,
+                            onSelect: (int direction) =>
+                                _setGateDirection(0, direction),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _DiverterControl(
+                            gate: 1,
+                            offset: _engine.diverterOffsets[1],
+                            english: _english,
+                            onSelect: (int direction) =>
+                                _setGateDirection(1, direction),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
                 ],
               ),
             ),
@@ -501,7 +632,6 @@ class _SlideSweetsPlayPageState extends State<SlideSweetsPlayPage>
     );
   }
 }
-
 class _SweetsHud extends StatelessWidget {
   const _SweetsHud({
     required this.delivered,
@@ -808,21 +938,36 @@ class _DiverterControl extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 5),
-          Row(
+          const SizedBox(height: 6),
+          Column(
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              for (int direction = -1; direction <= 1; direction++) ...<Widget>[
-                if (direction > -1) const SizedBox(width: 6),
-                Expanded(
-                  child: _SweetsDirectionButton(
-                    gate: gate,
-                    direction: direction,
-                    selected: offset == direction,
-                    english: english,
-                    onTap: () => onSelect(direction),
-                  ),
-                ),
-              ],
+              // Üst yönlendirme - ÜSTTE
+              _SweetsDirectionButton(
+                gate: gate,
+                direction: -1,
+                selected: offset == -1,
+                english: english,
+                onTap: () => onSelect(-1),
+              ),
+              const SizedBox(height: 5),
+              // Orta yönlendirme - ORTADA
+              _SweetsDirectionButton(
+                gate: gate,
+                direction: 0,
+                selected: offset == 0,
+                english: english,
+                onTap: () => onSelect(0),
+              ),
+              const SizedBox(height: 5),
+              // Alt yönlendirme - ALTTA
+              _SweetsDirectionButton(
+                gate: gate,
+                direction: 1,
+                selected: offset == 1,
+                english: english,
+                onTap: () => onSelect(1),
+              ),
             ],
           ),
         ],
@@ -878,7 +1023,7 @@ class _SweetsDirectionButton extends StatelessWidget {
           onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            height: 44,
+            height: 48,
             decoration: BoxDecoration(
               gradient: selected
                   ? LinearGradient(
@@ -895,12 +1040,12 @@ class _SweetsDirectionButton extends StatelessWidget {
                 color: selected ? color : color.withValues(alpha: .30),
                 width: selected ? 1.7 : 1,
               ),
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(10),
               boxShadow: selected
                   ? <BoxShadow>[
                       BoxShadow(
                         color: color.withValues(alpha: .23),
-                        blurRadius: 8,
+                        blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
                     ]
@@ -911,21 +1056,23 @@ class _SweetsDirectionButton extends StatelessWidget {
               children: <Widget>[
                 Icon(
                   icon,
-                  size: 17,
+                  size: 16,
                   color: selected ? _SlideSweetsPlayPageState._ink : color,
                 ),
-                const SizedBox(width: 3),
+                const SizedBox(width: 5),
                 Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.clip,
-                    style: TextStyle(
-                      fontFamily: 'Roboto',
-                      color: _SlideSweetsPlayPageState._ink,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: .25,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        color: _SlideSweetsPlayPageState._ink,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: .35,
+                      ),
                     ),
                   ),
                 ),
@@ -1081,8 +1228,9 @@ class _ConveyorPainter extends CustomPainter {
       );
     }
 
-    for (int gate = 0; gate < SlideSweetsEngine.gatePositions.length; gate++) {
-      final double x = left + beltWidth * SlideSweetsEngine.gatePositions[gate];
+    final List<double> positions = engine.activeGatePositions;
+    for (int gate = 0; gate < positions.length; gate++) {
+      final double x = left + beltWidth * positions[gate];
       final RRect housing = RRect.fromRectAndRadius(
         Rect.fromCenter(
           center: Offset(x, (lanes.first + lanes.last) / 2),

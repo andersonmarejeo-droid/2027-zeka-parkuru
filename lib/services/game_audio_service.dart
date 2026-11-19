@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -72,7 +72,7 @@ enum GameMusic { menu, calm, action }
 /// - Kısa WAV efektler SoLoud oyun ses motorunda RAM'e bir kez yüklenir.
 /// - Rastgele varyant yok.
 /// - Tüm bölümler aynı level_success.wav başarı sesini kullanır.
-class GameAudioService {
+class GameAudioService with WidgetsBindingObserver {
   GameAudioService._();
 
   static final GameAudioService instance = GameAudioService._();
@@ -88,7 +88,11 @@ class GameAudioService {
   final Map<GameSound, DateTime> _lastPlayed = <GameSound, DateTime>{};
 
   Future<void>? _initializingFuture;
+  Future<void>? _recoveryFuture;
   bool _initialized = false;
+  bool _observerRegistered = false;
+  DateTime? _pausedAt;
+  bool _needsSessionRecovery = false;
 
   bool effectsEnabled = true;
   bool musicEnabled = false;
@@ -201,7 +205,110 @@ class GameAudioService {
     GameSound.mashallahCelebration: Duration(seconds: 4),
   };
 
+  void _ensureLifecycleObserver() {
+    if (_observerRegistered) return;
+    try {
+      WidgetsBinding.instance.addObserver(this);
+      _observerRegistered = true;
+    } catch (_) {
+      // Test ortamlarında veya WidgetsBinding henüz kurulmamışken güvenle yakala.
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+        _pausedAt = DateTime.now();
+        _needsSessionRecovery = true;
+        break;
+      case AppLifecycleState.resumed:
+        if (_needsSessionRecovery) {
+          _needsSessionRecovery = false;
+          final Duration pauseDuration = _pausedAt != null
+              ? DateTime.now().difference(_pausedAt!)
+              : Duration.zero;
+          if (_initialized) {
+            unawaited(_handleAppResumed(pauseDuration));
+          }
+        }
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+        break;
+    }
+  }
+
+  Future<void> _handleAppResumed(Duration pauseDuration) async {
+    try {
+      final SoLoud? soloud = _soloud;
+      if (soloud == null || !soloud.isInitialized) {
+        await recoverEngine();
+        return;
+      }
+
+      // 4 saniyeden kısa süreli mini geçişlerde ses aygıtını OS'a yeniden bağla:
+      if (pauseDuration < const Duration(seconds: 4)) {
+        try {
+          soloud.changeDevice();
+          return;
+        } catch (_) {
+          // changeDevice başarısız olursa tam kurtarma adımına geç
+        }
+      }
+
+      // Standby veya başka uygulamaya geçiş durumlarında ses motorunu tazeleyerek
+      // seslerin dondurulmasını / sessiz kalmasını kalıcı olarak önle:
+      await recoverEngine();
+    } catch (e) {
+      debugPrint('Uygulama dönüşünde ses oturumu yenileme hatası: $e');
+    }
+  }
+
+  /// Ses motorunu temizleyip RAM kaynaklarıyla birlikte baştan kurar.
+  Future<void> recoverEngine() {
+    final Future<void>? pending = _recoveryFuture;
+    if (pending != null) {
+      return pending;
+    }
+    final Future<void> future = _doRecoverEngine();
+    _recoveryFuture = future;
+    return future.whenComplete(() {
+      _recoveryFuture = null;
+    });
+  }
+
+  Future<void> _doRecoverEngine() async {
+    try {
+      final SoLoud? soloud = _soloud;
+      if (soloud != null && soloud.isInitialized) {
+        try {
+          await soloud.disposeAllSources();
+        } catch (_) {}
+        try {
+          await soloud.deinitAsync();
+        } catch (_) {}
+      }
+    } catch (error) {
+      debugPrint('SoLoud deinit hatası: $error');
+    }
+
+    _sources.clear();
+    _unavailableAssets.clear();
+    _soloud = null;
+    _initialized = false;
+    _initializingFuture = null;
+
+    try {
+      await _doInit();
+    } catch (error) {
+      debugPrint('Ses motoru yeniden başlatma hatası: $error');
+    }
+  }
+
   Future<void> init() {
+    _ensureLifecycleObserver();
     if (_initialized) {
       return Future<void>.value();
     }
@@ -305,7 +412,11 @@ class GameAudioService {
       final String? path = _paths[sound];
       if (path == null) return;
 
-      final AudioSource? source = _sources[path];
+      AudioSource? source = _sources[path];
+      if (source == null) {
+        await _loadSound(path);
+        source = _sources[path];
+      }
       if (source == null) return;
 
       final double volume = (effectsVolume * (_pathGain[path] ?? 0.70) * gain)
@@ -319,7 +430,27 @@ class GameAudioService {
 
       _lastPlayed[sound] = DateTime.now();
     } catch (error) {
-      debugPrint('Sade ses oynatılamadı: $sound | $error');
+      debugPrint(
+        'Sade ses oynatılamadı: $sound | $error. Ses motoru kurtarılıyor...',
+      );
+      await recoverEngine();
+      try {
+        final SoLoud? soloud = _soloud;
+        final String? path = _paths[sound];
+        if (soloud != null && path != null && effectsEnabled) {
+          final AudioSource? refreshedSource = _sources[path];
+          if (refreshedSource != null) {
+            final double volume =
+                (effectsVolume * (_pathGain[path] ?? 0.70) * gain)
+                    .clamp(0.0, 1.0)
+                    .toDouble();
+            soloud.play(refreshedSource, volume: volume);
+            _lastPlayed[sound] = DateTime.now();
+          }
+        }
+      } catch (retryError) {
+        debugPrint('Yeniden deneme sırasında ses çalınamadı: $retryError');
+      }
     }
   }
 
@@ -333,7 +464,11 @@ class GameAudioService {
       final String path =
           '${_base}memory_note_${safeIndex.toString().padLeft(2, '0')}.wav';
 
-      final AudioSource? source = _sources[path];
+      AudioSource? source = _sources[path];
+      if (source == null) {
+        await _loadSound(path);
+        source = _sources[path];
+      }
       if (source == null) return;
 
       final double volume = (effectsVolume * 0.66 * gain)
@@ -345,7 +480,29 @@ class GameAudioService {
 
       soloud.play(source, volume: volume);
     } catch (error) {
-      debugPrint('Hafıza notası oynatılamadı: $error');
+      debugPrint(
+        'Hafıza notası oynatılamadı: $error. Ses motoru kurtarılıyor...',
+      );
+      await recoverEngine();
+      try {
+        final SoLoud? soloud = _soloud;
+        if (soloud != null && effectsEnabled) {
+          final int safeIndex = noteIndex.clamp(0, 7).toInt() + 1;
+          final String path =
+              '${_base}memory_note_${safeIndex.toString().padLeft(2, '0')}.wav';
+          final AudioSource? refreshedSource = _sources[path];
+          if (refreshedSource != null) {
+            final double volume = (effectsVolume * 0.66 * gain)
+                .clamp(0.0, 1.0)
+                .toDouble();
+            soloud.play(refreshedSource, volume: volume);
+          }
+        }
+      } catch (retryError) {
+        debugPrint(
+          'Yeniden deneme sırasında hafıza notası çalınamadı: $retryError',
+        );
+      }
     }
   }
 
@@ -457,6 +614,12 @@ class GameAudioService {
   }
 
   Future<void> dispose() async {
+    if (_observerRegistered) {
+      try {
+        WidgetsBinding.instance.removeObserver(this);
+      } catch (_) {}
+      _observerRegistered = false;
+    }
     try {
       final SoLoud? soloud = _soloud;
       if (soloud != null && soloud.isInitialized) {
